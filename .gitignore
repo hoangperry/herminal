@@ -1,0 +1,74 @@
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+._*
+
+# Xcode
+build/
+DerivedData/
+*.xcuserstate
+*.xcuserdatad/
+xcuserdata/
+*.xcscmblueprint
+*.xccheckout
+*.moved-aside
+*.pbxuser
+!default.pbxuser
+*.mode1v3
+!default.mode1v3
+*.mode2v3
+!default.mode2v3
+*.perspectivev3
+!default.perspectivev3
+.swiftpm/xcode/
+.swiftpm/configuration/
+.swiftpm/
+
+# Swift Package Manager
+.build/
+Packages/
+Package.pins
+Package.resolved
+*.xcodeproj/project.xcworkspace/xcuserdata
+*.xcodeproj/xcuserdata
+
+# Compiled
+*.o
+*.dSYM
+*.dSYM.zip
+
+# Vendor (libghostty submodule built artifacts)
+Vendor/libghostty/zig-cache/
+Vendor/libghostty/zig-out/
+
+# Local development
+.env
+.env.local
+*.local
+local/
+tmp/
+
+# IDE
+.vscode/
+.idea/
+*.iml
+
+# Notes/scratch
+scratch/
+TODO.local.md
+
+# Notarization
+*.p12
+*.cer
+*.provisionprofile
+notarization-log.json
+
+# Logs
+*.log
+logs/
+
+# Claude Code session context (auto-generated per session)
+AGENTS.md
+.claude/
