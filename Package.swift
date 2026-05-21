@@ -10,6 +10,7 @@ let package = Package(
         .macOS(.v14)
     ],
     products: [
+        .executable(name: "HerminalApp", targets: ["HerminalApp"]),
         .library(name: "HerminalCore", targets: ["HerminalCore"]),
         .library(name: "HerminalDB", targets: ["HerminalDB"]),
         .library(name: "HerminalAgent", targets: ["HerminalAgent"])
@@ -30,7 +31,9 @@ let package = Package(
             dependencies: ["GhosttyKit"],
             path: "Sources/HerminalCore",
             linkerSettings: [
-                // Frameworks pulled in by the static libghostty-fat.a.
+                // Frameworks + C++ runtime pulled in by the static libghostty-fat.a
+                // (it bundles glslang / spirv-cross, which are C++).
+                .linkedLibrary("c++"),
                 .linkedFramework("AppKit"),
                 .linkedFramework("CoreGraphics"),
                 .linkedFramework("CoreText"),
@@ -55,6 +58,11 @@ let package = Package(
             name: "HerminalAgent",
             dependencies: ["HerminalCore"],
             path: "Sources/HerminalAgent"
+        ),
+        .executableTarget(
+            name: "HerminalApp",
+            dependencies: ["HerminalCore", "GhosttyKit"],
+            path: "Sources/HerminalApp"
         ),
         .testTarget(
             name: "HerminalCoreTests",

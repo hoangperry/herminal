@@ -27,10 +27,10 @@
 | 3 | ✅ | Build libghostty static library / xcframework | `GhosttyKit.xcframework` (macos-arm64, `libghostty-fat.a`) built ReleaseFast |
 | 10 | ✅ | Wire libghostty into SPM | `.binaryTarget` GhosttyKit + linker frameworks; `swift build` green |
 | 8 | ✅ | FFI smoke test: call ghostty version | `Ghostty.info` wraps `ghostty_info()`; 2 Swift Testing cases pass |
-| 4 | 🔄 | App target for macOS app | Pivot: SPM `executableTarget` HerminalApp instead of manual .xcodeproj (see Q-002) |
-| 5 | ⏳ | AppKit NSView terminal surface skeleton | HerminalView : NSView, hosts ghostty_surface |
-| 9 | 🔄 | Spawn login shell via libghostty PTY | Run `ls`, `pwd`, `echo` correctly |
-| 7 | ⏳ | Implement NSTextInputClient for IME | Marked text, commit, candidate position |
+| 4 | ✅ | App target for macOS app | SPM `executableTarget` HerminalApp + `.app` bundle via `Scripts/make-app-bundle.sh` |
+| 5 | ✅ | AppKit NSView terminal surface skeleton | `HerminalSurfaceView : NSView` hosts `ghostty_surface`; render + size/scale/focus |
+| 9 | ✅ | Spawn login shell via libghostty PTY | `zsh` login shell spawns; typed `touch`/`echo` run + output renders |
+| 7 | ⏳ | Implement NSTextInputClient for IME | ASCII keyDown works; NSTextInputClient still needed for Vietnamese IME |
 | 11 | ⏳ | Vietnamese IME smoke test (20 phrases) | Telex + VNI |
 | 12 | ⏳ | Latency benchmark p95 < 20ms | Light + heavy load |
 | 13 | ✅ | Initialize Month-1 backlog doc | This file — kept updated as work proceeds |
@@ -94,6 +94,37 @@
 - `HerminalApp` executable: NSApplication + window — task #4
 - `HerminalView : NSView` hosting a `ghostty_surface_t` — task #5
 - Spawn `zsh -l` via libghostty, render `ls`/`pwd`/`echo` — task #9
+
+### 2026-05-22 (cont.) — terminal surface live, shell runs
+
+**Done:**
+- `HerminalApp` SPM executableTarget: `main.swift` + `AppDelegate` + `HerminalSurfaceView` ✅ (task #4/#5)
+- `GhosttyApp` (HerminalCore): wraps `ghostty_init` + config + `ghostty_app_new` + tick ✅
+- `.app` bundle packaging via `Scripts/make-app-bundle.sh` + `App/Info.plist` ✅
+- libghostty spawns `zsh` login shell; terminal renders (Metal) ✅ (task #9)
+- ASCII keyboard input wired: `keyDown`/`keyUp` → `ghostty_surface_key` ✅
+- **Verified end-to-end:** typed `touch /tmp/...` + Enter → file created by shell;
+  typed `echo HELLO_HERMINAL_RENDER` → output rendered in window (screenshot confirmed)
+
+**Bugs fixed this run:**
+- BUG-001: crash `_dispatch_assert_queue_fail` on renderer thread. Cause: the 6 libghostty
+  C callbacks were closures in a `@MainActor` `init`, so they inherited actor isolation;
+  libghostty invokes them off-main → Swift executor check trapped. Fix: build the runtime
+  config in a `nonisolated static` helper so callbacks carry no isolation.
+- BUG-002: app exited immediately (code 0) when run as a raw executable. Cause: no `.app`
+  bundle / no `Info.plist` → not a real app process (window server, key routing, run loop).
+  Fix: `make-app-bundle.sh` wraps the binary into `herminal.app`.
+
+**Decisions Today:**
+- Month-1 spike's exit question — "can libghostty be embedded?" — is answered: **YES.**
+  Engine + renderer + PTY + ASCII input all work from a Swift/AppKit host.
+- IME (task #7) is the remaining input gap: ASCII works via `keyDown`, but Vietnamese
+  Telex/VNI needs full `NSTextInputClient` (marked text + composition).
+
+**Next:**
+- `NSTextInputClient` on `HerminalSurfaceView` — task #7 (the herminal differentiator)
+- Vietnamese IME smoke test — task #11
+- keydown→render latency benchmark — task #12
 
 ---
 
