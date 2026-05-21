@@ -17,12 +17,32 @@ let package = Package(
     dependencies: [
         // SQLite wrapper (SQLite.swift by stephencelis)
         .package(url: "https://github.com/stephencelis/SQLite.swift.git", from: "0.15.3")
-        // libghostty will be added as system library (xcframework) once vendored
     ],
     targets: [
+        // libghostty C ABI — prebuilt xcframework from the vendored Ghostty v1.3.1.
+        // Rebuild with: Scripts/bootstrap.sh
+        .binaryTarget(
+            name: "GhosttyKit",
+            path: "Vendor/libghostty/macos/GhosttyKit.xcframework"
+        ),
         .target(
             name: "HerminalCore",
-            path: "Sources/HerminalCore"
+            dependencies: ["GhosttyKit"],
+            path: "Sources/HerminalCore",
+            linkerSettings: [
+                // Frameworks pulled in by the static libghostty-fat.a.
+                .linkedFramework("AppKit"),
+                .linkedFramework("CoreGraphics"),
+                .linkedFramework("CoreText"),
+                .linkedFramework("CoreVideo"),
+                .linkedFramework("Metal"),
+                .linkedFramework("MetalKit"),
+                .linkedFramework("QuartzCore"),
+                .linkedFramework("Carbon"),
+                .linkedFramework("CoreServices"),
+                .linkedFramework("IOSurface"),
+                .linkedFramework("UniformTypeIdentifiers")
+            ]
         ),
         .target(
             name: "HerminalDB",
