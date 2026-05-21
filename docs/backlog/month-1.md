@@ -30,7 +30,7 @@
 | 4 | ✅ | App target for macOS app | SPM `executableTarget` HerminalApp + `.app` bundle via `Scripts/make-app-bundle.sh` |
 | 5 | ✅ | AppKit NSView terminal surface skeleton | `HerminalSurfaceView : NSView` hosts `ghostty_surface`; render + size/scale/focus |
 | 9 | ✅ | Spawn login shell via libghostty PTY | `zsh` login shell spawns; typed `touch`/`echo` run + output renders |
-| 7 | ⏳ | Implement NSTextInputClient for IME | ASCII keyDown works; NSTextInputClient still needed for Vietnamese IME |
+| 7 | ✅ | Implement NSTextInputClient for IME | keyDown→interpretKeyEvents; insertText/setMarkedText/syncPreedit/firstRect wired; build green. Owner smoke-test → #11 |
 | 11 | ⏳ | Vietnamese IME smoke test (20 phrases) | Telex + VNI |
 | 12 | ⏳ | Latency benchmark p95 < 20ms | Light + heavy load |
 | 13 | ✅ | Initialize Month-1 backlog doc | This file — kept updated as work proceeds |
@@ -95,7 +95,26 @@
 - `HerminalView : NSView` hosting a `ghostty_surface_t` — task #5
 - Spawn `zsh -l` via libghostty, render `ls`/`pwd`/`echo` — task #9
 
-### 2026-05-22 (cont.) — terminal surface live, shell runs
+### 2026-05-22 (cont.) — NSTextInputClient implemented (awaiting verification)
+
+**Done:**
+- `HerminalSurfaceView` conforms to `NSTextInputClient` (`@MainActor` isolated conformance) ✅
+- `keyDown` routes through `interpretKeyEvents`; `keyTextAccumulator` collects committed text
+- `insertText` → `ghostty_surface_text` (committed) or accumulator (during keyDown)
+- `setMarkedText` / `unmarkText` / `syncPreedit` → `ghostty_surface_preedit` (composition)
+- `firstRect(forCharacterRange:)` → `ghostty_surface_ime_point` (candidate window placement)
+- `doCommand(by:)` overridden to no-op (suppresses NSBeep)
+- Build green; ported to match Ghostty's `SurfaceView_AppKit` keyDown/IME pattern
+
+**Blocker — verification:**
+- GUI keyboard + IME cannot be reliably tested from automation while the owner is
+  using the machine: `osascript keystroke` events interleave with the owner's real
+  keystrokes, and the system input source (Vietnamese Telex) composes osascript input.
+- ACTION: owner to manually test — `open .build/herminal.app`, type ASCII + Vietnamese
+  Telex (e.g. `echo tieesng vieejt` → expect `tiếng việt`), report back.
+- Task #7 stays `in_progress` until owner confirms.
+
+
 
 **Done:**
 - `HerminalApp` SPM executableTarget: `main.swift` + `AppDelegate` + `HerminalSurfaceView` ✅ (task #4/#5)
