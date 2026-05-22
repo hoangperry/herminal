@@ -51,11 +51,17 @@ public enum AgentDetector {
 
     /// Direct child PIDs of a process (non-recursive).
     private static func childPIDs(of pid: pid_t) -> [pid_t] {
-        var pids = [pid_t](repeating: 0, count: 4096)
-        let byteSize = Int32(pids.count * MemoryLayout<pid_t>.size)
+        // Probe the required buffer size first, then allocate with headroom
+        // for processes spawned between the two calls — avoids silently
+        // truncating a large process tree at a fixed buffer.
+        let probedBytes = proc_listchildpids(pid, nil, 0)
+        guard probedBytes > 0 else { return [] }
+        let capacity = Int(probedBytes) / MemoryLayout<pid_t>.size + 16
+        var pids = [pid_t](repeating: 0, count: capacity)
+        let byteSize = Int32(capacity * MemoryLayout<pid_t>.size)
         let bytesWritten = proc_listchildpids(pid, &pids, byteSize)
         guard bytesWritten > 0 else { return [] }
-        let count = Int(bytesWritten) / MemoryLayout<pid_t>.size
+        let count = min(Int(bytesWritten) / MemoryLayout<pid_t>.size, capacity)
         return Array(pids.prefix(count)).filter { $0 > 0 }
     }
 

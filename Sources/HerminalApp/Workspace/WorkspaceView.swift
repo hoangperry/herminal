@@ -7,6 +7,7 @@ import SwiftUI
 import GhosttyKit
 import HerminalAgent
 import HerminalDB
+import os
 
 final class WorkspaceView: NSView {
     /// Hairline gap between panes; the dark container shows through as a divider.
@@ -211,11 +212,34 @@ final class WorkspaceView: NSView {
 
     // MARK: - Notes
 
+    private static let notesLog = Logger(
+        subsystem: "com.hoangperry.herminal", category: "notes"
+    )
+
+    /// Loads a session's note, logging (not swallowing) any storage error.
+    private func loadNote(_ sessionID: UUID) -> Note? {
+        do {
+            return try notesStore.note(forSession: sessionID)
+        } catch {
+            Self.notesLog.error("note load failed: \(error, privacy: .public)")
+            return nil
+        }
+    }
+
+    /// Persists a note, logging any storage error.
+    private func persistNote(_ note: Note) {
+        do {
+            try notesStore.upsert(note)
+        } catch {
+            Self.notesLog.error("note save failed: \(error, privacy: .public)")
+        }
+    }
+
     /// Loads the active session's note into the notes panel.
     private func updateNotesPanel() {
         guard isNotesVisible, let session = activeTab?.focusedPane else { return }
         let sessionID = session.id
-        let body = (try? notesStore.note(forSession: sessionID))?.body ?? ""
+        let body = loadNote(sessionID)?.body ?? ""
         let title = activeTab?.title ?? "herminal"
         notesHost.rootView = AnyView(
             NotesPanelView(sessionTitle: title, initialText: body) { [weak self] newText in
@@ -226,11 +250,10 @@ final class WorkspaceView: NSView {
     }
 
     private func saveNote(sessionID: UUID, body: String) {
-        let existing: Note? = (try? notesStore.note(forSession: sessionID)) ?? nil
-        var note = existing ?? Note(sessionID: sessionID)
+        var note = loadNote(sessionID) ?? Note(sessionID: sessionID)
         note.body = body
         note.updatedAt = Date()
-        try? notesStore.upsert(note)
+        persistNote(note)
     }
 
     // MARK: - Menu actions
@@ -256,13 +279,16 @@ final class WorkspaceView: NSView {
 
     @objc func exportNote(_ sender: Any?) {
         guard let session = activeTab?.focusedPane else { return }
-        let note: Note = (try? notesStore.note(forSession: session.id)) ?? nil
-            ?? Note(sessionID: session.id)
+        let note = loadNote(session.id) ?? Note(sessionID: session.id)
         let panel = NSSavePanel()
         panel.nameFieldStringValue = "herminal-note.md"
         panel.canCreateDirectories = true
         guard panel.runModal() == .OK, let url = panel.url else { return }
-        try? NotesExporter.exportMarkdown(note, to: url)
+        do {
+            try NotesExporter.exportMarkdown(note, to: url)
+        } catch {
+            Self.notesLog.error("note export failed: \(error, privacy: .public)")
+        }
     }
 
     @objc func importNote(_ sender: Any?) {
@@ -271,15 +297,18 @@ final class WorkspaceView: NSView {
         panel.allowsMultipleSelection = false
         panel.canChooseDirectories = false
         guard panel.runModal() == .OK, let url = panel.url else { return }
-        guard let imported = try? NotesExporter.importMarkdown(
-            from: url, sessionID: session.id
-        ) else { return }
+        let imported: Note
+        do {
+            imported = try NotesExporter.importMarkdown(from: url, sessionID: session.id)
+        } catch {
+            Self.notesLog.error("note import failed: \(error, privacy: .public)")
+            return
+        }
         // Keep the existing note's identity; replace its body.
-        let existing: Note? = (try? notesStore.note(forSession: session.id)) ?? nil
-        var note = existing ?? imported
+        var note = loadNote(session.id) ?? imported
         note.body = imported.body
         note.updatedAt = Date()
-        try? notesStore.upsert(note)
+        persistNote(note)
         if isNotesVisible { updateNotesPanel() }
     }
 

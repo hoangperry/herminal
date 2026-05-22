@@ -78,6 +78,11 @@ let package = Package(
             name: "HerminalAgentTests",
             dependencies: ["HerminalAgent"],
             path: "Tests/HerminalAgentTests"
+        ),
+        .testTarget(
+            name: "HerminalAppTests",
+            dependencies: ["HerminalApp"],
+            path: "Tests/HerminalAppTests"
         )
     ],
     swiftLanguageVersions: [.v6]
