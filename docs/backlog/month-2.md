@@ -20,8 +20,8 @@
 | M2-1 | ✅ | Design system: color + typography + spacing tokens | `Sources/HerminalApp/Design/DesignTokens.swift` — palette/typography/spacing/radius/motion; build green |
 | M2-2 | ✅ | Apply tokens to window chrome | Transparent titlebar + dark `surfaceBase` background; `makeWindow()` helper |
 | M2-3 | ✅ | Tab management (multi-session) | `WorkspaceView` + SwiftUI `TabBarView` + `AppMenu` (Cmd+T/W, Cmd+Shift+[ ]); verified launch |
-| M2-4 | 🔄 | Split panes (horizontal / vertical) | Split a window into multiple surfaces |
-| M2-5 | ⏳ | tmux-compat verification | Run tmux inside herminal; verify rendering/mouse/colors |
+| M2-4 | ✅ | Split panes (horizontal / vertical) | `WorkspaceTab` panes + manual layout; render verified (2 panes side-by-side). Cmd+D owner-verify |
+| M2-5 | 🔄 | tmux-compat verification | Run tmux inside herminal; verify rendering/mouse/colors |
 | M2-6 | ⏳ | Latency benchmark instrumentation (#12) | Measure keystroke→draw; needs CVDisplayLink hook |
 | M2-7 | ⏳ | Month 2 retrospective | Review, re-check scope (Option B/C re-open?) |
 
@@ -62,7 +62,9 @@ _None yet._
 
 ## Open Questions
 
-- **Q2-001:** Tabs — native `NSWindow` tab group vs custom tab bar? Native gives free macOS integration but less design control; custom fits the premium Raycast/Linear bar. To decide at M2-3.
+- **Q2-001 (resolved):** Tabs — native `NSWindow` tab group vs custom tab bar? → **custom** SwiftUI tab bar, for premium design control + future agent-status integration.
+- **Q2-002 (resolved):** Split layout — `NSSplitView` vs manual layout? → **manual layout**. `NSSplitView.addArrangedSubview` did not divide the panes reliably; manual frame layout in `layoutPanes()` is predictable. Trade-off: no drag-to-resize divider yet — deferred to v0.2.
+- **Q2-003 (open):** Recursive split trees (tmux-style nesting) — MVP does 1-axis splits per tab only. Recursive nesting deferred; revisit if owner needs it.
 
 ---
 

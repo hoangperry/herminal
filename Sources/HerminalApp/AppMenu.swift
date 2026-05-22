@@ -57,6 +57,20 @@ enum AppMenu {
         prevTab.keyEquivalentModifierMask = [.command, .shift]
         windowMenu.addItem(prevTab)
 
+        windowMenu.addItem(.separator())
+        windowMenu.addItem(NSMenuItem(
+            title: "Split Pane Right",
+            action: #selector(WorkspaceView.splitPaneVertical(_:)),
+            keyEquivalent: "d"
+        ))
+        let splitDown = NSMenuItem(
+            title: "Split Pane Down",
+            action: #selector(WorkspaceView.splitPaneHorizontal(_:)),
+            keyEquivalent: "d"
+        )
+        splitDown.keyEquivalentModifierMask = [.command, .shift]
+        windowMenu.addItem(splitDown)
+
         return mainMenu
     }
 }
