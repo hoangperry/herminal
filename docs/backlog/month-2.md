@@ -21,9 +21,9 @@
 | M2-2 | ✅ | Apply tokens to window chrome | Transparent titlebar + dark `surfaceBase` background; `makeWindow()` helper |
 | M2-3 | ✅ | Tab management (multi-session) | `WorkspaceView` + SwiftUI `TabBarView` + `AppMenu` (Cmd+T/W, Cmd+Shift+[ ]); verified launch |
 | M2-4 | ✅ | Split panes (horizontal / vertical) | `WorkspaceTab` panes + manual layout; render verified (2 panes side-by-side). Cmd+D owner-verify |
-| M2-5 | 🔄 | tmux-compat verification | Run tmux inside herminal; verify rendering/mouse/colors |
-| M2-6 | ⏳ | Latency benchmark instrumentation (#12) | Measure keystroke→draw; needs CVDisplayLink hook |
-| M2-7 | ⏳ | Month 2 retrospective | Review, re-check scope (Option B/C re-open?) |
+| M2-5 | ✅ | tmux-compat verification | tmux client+server spawn + run verified; htop full-screen TUI renders (colors/alt-screen). Visual tmux status bar = owner spot-check |
+| M2-6 | ✅ | Latency benchmark instrumentation (#12) | `LatencyProbe` reports tick p50/p95/p99 — measured p95=0.003ms (CPU-side). keydown→photon needs typometer |
+| M2-7 | 🔄 | Month 2 retrospective | Review, re-check scope (Option B/C re-open?) |
 
 ---
 

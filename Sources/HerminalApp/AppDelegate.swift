@@ -31,7 +31,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // context), so a steady 60 Hz timer drives the event loop for the spike.
         tickTimer = Timer.scheduledTimer(withTimeInterval: 1.0 / 60.0, repeats: true) { _ in
             MainActor.assumeIsolated {
+                let start = ContinuousClock.now
                 ghostty.tick()
+                LatencyProbe.shared.recordTick(ContinuousClock.now - start)
             }
         }
 
