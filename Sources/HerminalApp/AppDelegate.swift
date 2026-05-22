@@ -1,7 +1,7 @@
 // AppDelegate — builds the herminal window and drives the libghostty event loop.
-// Month-1 spike scope: one window, one terminal surface, timer-driven ticks.
 
 import AppKit
+import SwiftUI
 import HerminalCore
 
 @MainActor
@@ -21,18 +21,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         self.ghostty = ghostty
 
-        let surfaceView = HerminalSurfaceView(app: ghostty.app)
-        let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 900, height: 560),
-            styleMask: [.titled, .closable, .resizable, .miniaturizable],
-            backing: .buffered,
-            defer: false
-        )
-        window.title = "herminal"
-        window.contentView = surfaceView
-        window.center()
-        window.makeKeyAndOrderFront(nil)
-        window.makeFirstResponder(surfaceView)
+        NSApp.mainMenu = AppMenu.build()
+
+        let workspace = WorkspaceView(app: ghostty.app)
+        let window = AppDelegate.makeWindow(contentView: workspace)
         self.window = window
 
         // libghostty's wakeup_cb is a no-op (C function pointers cannot capture
@@ -44,6 +36,29 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         NSApp.activate(ignoringOtherApps: true)
+    }
+
+    /// Builds the herminal window with premium chrome styled from design tokens.
+    private static func makeWindow(contentView: NSView) -> NSWindow {
+        let window = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: 900, height: 560),
+            styleMask: [.titled, .closable, .resizable, .miniaturizable],
+            backing: .buffered,
+            defer: false
+        )
+        window.title = "herminal"
+        window.contentView = contentView
+
+        // Premium chrome: transparent title bar over a dark surface so the
+        // window reads as one intentional dark panel, not default AppKit grey.
+        window.titlebarAppearsTransparent = true
+        window.backgroundColor = NSColor(HerminalDesign.Palette.surfaceBase)
+        window.isMovableByWindowBackground = false
+        window.minSize = NSSize(width: 480, height: 320)
+
+        window.center()
+        window.makeKeyAndOrderFront(nil)
+        return window
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {

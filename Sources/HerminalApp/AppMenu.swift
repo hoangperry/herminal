@@ -1,0 +1,62 @@
+// AppMenu — the macOS main menu.
+// Tab actions target nil, so they travel the responder chain to the
+// WorkspaceView (which is in the chain as the window's content view).
+
+import AppKit
+
+enum AppMenu {
+    static func build() -> NSMenu {
+        let mainMenu = NSMenu()
+
+        // App menu
+        let appItem = NSMenuItem()
+        mainMenu.addItem(appItem)
+        let appMenu = NSMenu()
+        appItem.submenu = appMenu
+        appMenu.addItem(withTitle: "About herminal", action: nil, keyEquivalent: "")
+        appMenu.addItem(.separator())
+        appMenu.addItem(
+            withTitle: "Quit herminal",
+            action: #selector(NSApplication.terminate(_:)),
+            keyEquivalent: "q"
+        )
+
+        // File menu — tab lifecycle
+        let fileItem = NSMenuItem()
+        mainMenu.addItem(fileItem)
+        let fileMenu = NSMenu(title: "File")
+        fileItem.submenu = fileMenu
+        fileMenu.addItem(NSMenuItem(
+            title: "New Tab",
+            action: #selector(WorkspaceView.newTab(_:)),
+            keyEquivalent: "t"
+        ))
+        fileMenu.addItem(NSMenuItem(
+            title: "Close Tab",
+            action: #selector(WorkspaceView.closeTab(_:)),
+            keyEquivalent: "w"
+        ))
+
+        // Window menu — tab navigation
+        let windowItem = NSMenuItem()
+        mainMenu.addItem(windowItem)
+        let windowMenu = NSMenu(title: "Window")
+        windowItem.submenu = windowMenu
+        let nextTab = NSMenuItem(
+            title: "Next Tab",
+            action: #selector(WorkspaceView.nextTab(_:)),
+            keyEquivalent: "]"
+        )
+        nextTab.keyEquivalentModifierMask = [.command, .shift]
+        windowMenu.addItem(nextTab)
+        let prevTab = NSMenuItem(
+            title: "Previous Tab",
+            action: #selector(WorkspaceView.previousTab(_:)),
+            keyEquivalent: "["
+        )
+        prevTab.keyEquivalentModifierMask = [.command, .shift]
+        windowMenu.addItem(prevTab)
+
+        return mainMenu
+    }
+}
