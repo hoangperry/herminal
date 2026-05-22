@@ -1,14 +1,16 @@
 // WorkspaceView — the window's root content view.
-// Owns the tabs, hosts the SwiftUI tab strip, and lays out the active tab's
-// panes directly (manual split layout — see Q2-002 on NSSplitView).
+// Owns the tabs, hosts the SwiftUI tab strip + agent dashboard sidebar, and
+// lays out the active tab's panes directly (manual split layout — see Q2-002).
 
 import AppKit
 import SwiftUI
 import GhosttyKit
+import HerminalAgent
 
 final class WorkspaceView: NSView {
     /// Hairline gap between panes; the dark container shows through as a divider.
     private static let paneGap: CGFloat = 1
+    private static let dashboardWidth: CGFloat = 220
 
     private let app: ghostty_app_t
     private var tabs: [WorkspaceTab] = []
@@ -16,6 +18,10 @@ final class WorkspaceView: NSView {
 
     private let tabHost: NSHostingView<TabBarView>
     private let surfaceContainer: NSView
+    private let dashboardHost: NSHostingView<AgentDashboardView>
+    private var isDashboardVisible = false
+    // nonisolated(unsafe): invalidated in the nonisolated deinit.
+    private nonisolated(unsafe) var agentPollTimer: Timer?
 
     init(app: ghostty_app_t) {
         self.app = app
@@ -24,19 +30,27 @@ final class WorkspaceView: NSView {
             tabs: [], activeID: nil,
             onSelect: { _ in }, onClose: { _ in }, onNew: {}
         ))
+        self.dashboardHost = NSHostingView(rootView: AgentDashboardView(agents: []))
         super.init(frame: NSRect(x: 0, y: 0, width: 900, height: 560))
 
         // The container's dark fill shows between panes as a divider.
         surfaceContainer.wantsLayer = true
         surfaceContainer.layer?.backgroundColor = NSColor(HerminalDesign.Palette.border).cgColor
+        dashboardHost.isHidden = true
 
         addSubview(surfaceContainer)
         addSubview(tabHost)
+        addSubview(dashboardHost)
         addTab()
+        startAgentPolling()
     }
 
     required init?(coder: NSCoder) {
         fatalError("WorkspaceView does not support NSCoder")
+    }
+
+    deinit {
+        agentPollTimer?.invalidate()
     }
 
     private var activeTab: WorkspaceTab? {
@@ -53,13 +67,20 @@ final class WorkspaceView: NSView {
     override func layout() {
         super.layout()
         let barHeight = TabBarView.barHeight
+        let sidebar = isDashboardVisible ? Self.dashboardWidth : 0
+
+        dashboardHost.frame = CGRect(x: 0, y: 0, width: sidebar, height: bounds.height)
+        dashboardHost.isHidden = !isDashboardVisible
+
+        let contentX = sidebar
+        let contentWidth = max(bounds.width - sidebar, 0)
         tabHost.frame = CGRect(
-            x: 0, y: bounds.height - barHeight,
-            width: bounds.width, height: barHeight
+            x: contentX, y: bounds.height - barHeight,
+            width: contentWidth, height: barHeight
         )
         surfaceContainer.frame = CGRect(
-            x: 0, y: 0,
-            width: bounds.width, height: max(bounds.height - barHeight, 0)
+            x: contentX, y: 0,
+            width: contentWidth, height: max(bounds.height - barHeight, 0)
         )
         layoutPanes()
     }
@@ -157,6 +178,21 @@ final class WorkspaceView: NSView {
         }
     }
 
+    // MARK: - Agent dashboard
+
+    private func startAgentPolling() {
+        agentPollTimer = Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { [weak self] _ in
+            MainActor.assumeIsolated {
+                self?.refreshAgents()
+            }
+        }
+    }
+
+    private func refreshAgents() {
+        guard isDashboardVisible else { return }
+        dashboardHost.rootView = AgentDashboardView(agents: AgentDetector.detectAgents())
+    }
+
     // MARK: - Menu actions
 
     @objc func newTab(_ sender: Any?) { addTab() }
@@ -165,6 +201,12 @@ final class WorkspaceView: NSView {
     @objc func previousTab(_ sender: Any?) { selectPreviousTab() }
     @objc func splitPaneVertical(_ sender: Any?) { splitActivePane(vertical: true) }
     @objc func splitPaneHorizontal(_ sender: Any?) { splitActivePane(vertical: false) }
+
+    @objc func toggleAgentDashboard(_ sender: Any?) {
+        isDashboardVisible.toggle()
+        if isDashboardVisible { refreshAgents() }
+        needsLayout = true
+    }
 
     // MARK: - Refresh
 

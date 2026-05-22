@@ -71,6 +71,15 @@ enum AppMenu {
         splitDown.keyEquivalentModifierMask = [.command, .shift]
         windowMenu.addItem(splitDown)
 
+        windowMenu.addItem(.separator())
+        let toggleDashboard = NSMenuItem(
+            title: "Toggle Agent Dashboard",
+            action: #selector(WorkspaceView.toggleAgentDashboard(_:)),
+            keyEquivalent: "a"
+        )
+        toggleDashboard.keyEquivalentModifierMask = [.command, .shift]
+        windowMenu.addItem(toggleDashboard)
+
         return mainMenu
     }
 }

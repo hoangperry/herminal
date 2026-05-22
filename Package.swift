@@ -61,7 +61,7 @@ let package = Package(
         ),
         .executableTarget(
             name: "HerminalApp",
-            dependencies: ["HerminalCore", "GhosttyKit"],
+            dependencies: ["HerminalCore", "HerminalDB", "HerminalAgent", "GhosttyKit"],
             path: "Sources/HerminalApp"
         ),
         .testTarget(
