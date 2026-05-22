@@ -3,6 +3,7 @@
 import AppKit
 import SwiftUI
 import HerminalCore
+import HerminalDB
 
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
@@ -23,7 +24,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         NSApp.mainMenu = AppMenu.build()
 
-        let workspace = WorkspaceView(app: ghostty.app)
+        let workspace = WorkspaceView(app: ghostty.app, notesStore: AppDelegate.makeNotesStore())
         let window = AppDelegate.makeWindow(contentView: workspace)
         self.window = window
 
@@ -61,6 +62,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         window.center()
         window.makeKeyAndOrderFront(nil)
         return window
+    }
+
+    /// Opens the notes database in Application Support, falling back to an
+    /// in-memory store if the on-disk location is unavailable.
+    private static func makeNotesStore() -> NotesStore {
+        do {
+            let fileManager = FileManager.default
+            let directory = try fileManager.url(
+                for: .applicationSupportDirectory, in: .userDomainMask,
+                appropriateFor: nil, create: true
+            ).appendingPathComponent("herminal", isDirectory: true)
+            try fileManager.createDirectory(at: directory, withIntermediateDirectories: true)
+            let dbPath = directory.appendingPathComponent("notes.db").path
+            return try NotesStore(.uri(dbPath))
+        } catch {
+            NSLog("herminal: notes DB unavailable (\(error)) — using in-memory store")
+            // In-memory SQLite effectively never fails to open.
+            return try! NotesStore(.inMemory)
+        }
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {

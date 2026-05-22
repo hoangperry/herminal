@@ -24,8 +24,8 @@
 | M3-1 | ✅ | Notes storage (SQLite WAL) | `NotesStore` — Note model + upsert/fetch/delete/list; WAL; 5 Swift Testing cases pass |
 | M3-2 | ✅ | Agent process detection | `AgentDetector` — process-tree scan (libproc) for claude/codex/aider; 3 Swift Testing cases pass |
 | M3-3 | ✅ | Agent dashboard sidebar UI | `AgentDashboardView` SwiftUI sidebar + 2s poll; toggle Cmd+Shift+A. Render verified (header/count/empty state) |
-| M3-4 | 🔄 | Notes panel UI (per-tab) | Sidebar/sheet to view + edit a session's note |
-| M3-5 | ⏳ | Notes markdown export / import | Round-trip notes ↔ .md files |
+| M3-4 | ✅ | Notes panel UI (per-tab) | `NotesPanelView` right sidebar + autosave to `NotesStore`; toggle Cmd+Shift+N. Render verified |
+| M3-5 | 🔄 | Notes markdown export / import | Round-trip notes ↔ .md files |
 | M3-6 | ⏳ | Month 3 retrospective | Review, re-check 7-month scope |
 
 ---

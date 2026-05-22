@@ -1,46 +1,55 @@
 // WorkspaceView — the window's root content view.
-// Owns the tabs, hosts the SwiftUI tab strip + agent dashboard sidebar, and
-// lays out the active tab's panes directly (manual split layout — see Q2-002).
+// Owns the tabs, hosts the SwiftUI tab strip + agent dashboard (left) + notes
+// panel (right), and lays out the active tab's panes (manual split, Q2-002).
 
 import AppKit
 import SwiftUI
 import GhosttyKit
 import HerminalAgent
+import HerminalDB
 
 final class WorkspaceView: NSView {
     /// Hairline gap between panes; the dark container shows through as a divider.
     private static let paneGap: CGFloat = 1
     private static let dashboardWidth: CGFloat = 220
+    private static let notesWidth: CGFloat = 280
 
     private let app: ghostty_app_t
+    private let notesStore: NotesStore
     private var tabs: [WorkspaceTab] = []
     private var activeTabIndex = 0
 
     private let tabHost: NSHostingView<TabBarView>
     private let surfaceContainer: NSView
     private let dashboardHost: NSHostingView<AgentDashboardView>
+    private let notesHost: NSHostingView<AnyView>
     private var isDashboardVisible = false
+    private var isNotesVisible = false
     // nonisolated(unsafe): invalidated in the nonisolated deinit.
     private nonisolated(unsafe) var agentPollTimer: Timer?
 
-    init(app: ghostty_app_t) {
+    init(app: ghostty_app_t, notesStore: NotesStore) {
         self.app = app
+        self.notesStore = notesStore
         self.surfaceContainer = NSView(frame: .zero)
         self.tabHost = NSHostingView(rootView: TabBarView(
             tabs: [], activeID: nil,
             onSelect: { _ in }, onClose: { _ in }, onNew: {}
         ))
         self.dashboardHost = NSHostingView(rootView: AgentDashboardView(agents: []))
+        self.notesHost = NSHostingView(rootView: AnyView(EmptyView()))
         super.init(frame: NSRect(x: 0, y: 0, width: 900, height: 560))
 
         // The container's dark fill shows between panes as a divider.
         surfaceContainer.wantsLayer = true
         surfaceContainer.layer?.backgroundColor = NSColor(HerminalDesign.Palette.border).cgColor
         dashboardHost.isHidden = true
+        notesHost.isHidden = true
 
         addSubview(surfaceContainer)
         addSubview(tabHost)
         addSubview(dashboardHost)
+        addSubview(notesHost)
         addTab()
         startAgentPolling()
     }
@@ -67,13 +76,20 @@ final class WorkspaceView: NSView {
     override func layout() {
         super.layout()
         let barHeight = TabBarView.barHeight
-        let sidebar = isDashboardVisible ? Self.dashboardWidth : 0
+        let leftSidebar = isDashboardVisible ? Self.dashboardWidth : 0
+        let rightSidebar = isNotesVisible ? Self.notesWidth : 0
 
-        dashboardHost.frame = CGRect(x: 0, y: 0, width: sidebar, height: bounds.height)
+        dashboardHost.frame = CGRect(x: 0, y: 0, width: leftSidebar, height: bounds.height)
         dashboardHost.isHidden = !isDashboardVisible
 
-        let contentX = sidebar
-        let contentWidth = max(bounds.width - sidebar, 0)
+        notesHost.frame = CGRect(
+            x: bounds.width - rightSidebar, y: 0,
+            width: rightSidebar, height: bounds.height
+        )
+        notesHost.isHidden = !isNotesVisible
+
+        let contentX = leftSidebar
+        let contentWidth = max(bounds.width - leftSidebar - rightSidebar, 0)
         tabHost.frame = CGRect(
             x: contentX, y: bounds.height - barHeight,
             width: contentWidth, height: barHeight
@@ -193,6 +209,30 @@ final class WorkspaceView: NSView {
         dashboardHost.rootView = AgentDashboardView(agents: AgentDetector.detectAgents())
     }
 
+    // MARK: - Notes
+
+    /// Loads the active session's note into the notes panel.
+    private func updateNotesPanel() {
+        guard isNotesVisible, let session = activeTab?.focusedPane else { return }
+        let sessionID = session.id
+        let body = (try? notesStore.note(forSession: sessionID))?.body ?? ""
+        let title = activeTab?.title ?? "herminal"
+        notesHost.rootView = AnyView(
+            NotesPanelView(sessionTitle: title, initialText: body) { [weak self] newText in
+                self?.saveNote(sessionID: sessionID, body: newText)
+            }
+            .id(sessionID)
+        )
+    }
+
+    private func saveNote(sessionID: UUID, body: String) {
+        let existing: Note? = (try? notesStore.note(forSession: sessionID)) ?? nil
+        var note = existing ?? Note(sessionID: sessionID)
+        note.body = body
+        note.updatedAt = Date()
+        try? notesStore.upsert(note)
+    }
+
     // MARK: - Menu actions
 
     @objc func newTab(_ sender: Any?) { addTab() }
@@ -208,6 +248,12 @@ final class WorkspaceView: NSView {
         needsLayout = true
     }
 
+    @objc func toggleNotes(_ sender: Any?) {
+        isNotesVisible.toggle()
+        if isNotesVisible { updateNotesPanel() }
+        needsLayout = true
+    }
+
     // MARK: - Refresh
 
     private func refresh() {
@@ -220,6 +266,7 @@ final class WorkspaceView: NSView {
         layoutPanes()
         focusActivePane()
         tabHost.rootView = makeTabBar()
+        updateNotesPanel()
         needsLayout = true
     }
 

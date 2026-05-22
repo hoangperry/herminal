@@ -80,6 +80,14 @@ enum AppMenu {
         toggleDashboard.keyEquivalentModifierMask = [.command, .shift]
         windowMenu.addItem(toggleDashboard)
 
+        let toggleNotes = NSMenuItem(
+            title: "Toggle Notes",
+            action: #selector(WorkspaceView.toggleNotes(_:)),
+            keyEquivalent: "n"
+        )
+        toggleNotes.keyEquivalentModifierMask = [.command, .shift]
+        windowMenu.addItem(toggleNotes)
+
         return mainMenu
     }
 }
