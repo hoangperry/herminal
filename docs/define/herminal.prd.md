@@ -47,13 +47,15 @@ The market gap is narrow but real: no 2026 macOS terminal hits all five required
 - Current pain: Terminal IME bugs are unacceptable because Vietnamese prompts and commit text must not corrupt. Existing terminal notes are either absent or not linked to repo/session context.
 - Willingness to switch: High for a native-feeling app with excellent keyboard behavior, low latency, and an honest pet-project scope. Low tolerance for Electron-like feel or broken AppKit conventions.
 
-## 4. MVP Scope (3 Months)
+## 4. MVP Scope (7 Months)
+
+> **Timeline note:** This section was first drafted assuming a 3-month MVP. After resolving the 15 open questions (see Section 12 — Scope Creep), the owner chose **Option A: full scope, 7-month MVP**. The seven features below are unchanged; the timeline is 7 months. See Section 12 for the effort breakdown.
 
 Ruthless rule: the MVP is not a general terminal platform. It is a daily-driver candidate for one Vietnamese developer running Claude Code locally. If a feature does not directly support that job, it waits.
 
 ### MoSCoW Feature List
 
-Only these seven product features are considered for the 3-month MVP.
+Only these seven product features are considered for the 7-month MVP.
 
 | Priority | Feature | Decision |
 |---|---|---|
@@ -337,7 +339,7 @@ These require user decision before or during early coding:
 
 1. Is herminal intended to become open source? If yes, what license is acceptable given Ghostty/libghostty constraints?
 2. Is the goal personal daily-driver, public free tool, or eventual paid product?
-3. How many hours per week are realistically available for the next three months?
+3. How many hours per week are realistically available across the MVP timeline?
 4. What macOS versions and hardware are supported for MVP?
 5. Should note encryption be required before beta, or is local SQLite plus FileVault acceptable for v0.1?
 6. Is full `tmux -CC` control mode a post-MVP priority, or is standard tmux compatibility enough long-term?
@@ -360,7 +362,7 @@ Sau Define phase Q&A với chủ nhân, 15 open questions đã được trả l�
 | # | Question | Answer |
 |---|---|---|
 | 1+2 | License + goal | **Open source MIT**, public OSS, target community contribution |
-| 3 | Hours/week | **Full-time 40h+/week** (480h total cho 3 tháng) |
+| 3 | Hours/week | **Full-time 40h+/week** (~1200h total cho 7 tháng — xem Section 12) |
 | 4 | macOS support | **macOS 14+ Apple Silicon only** — không Universal Intel |
 | 5 | Note encryption | **FileVault baseline** trong MVP, SQLCipher post-MVP |
 | 6 | tmux -CC | **Defer v0.2** — MVP chỉ standard tmux trong PTY + launcher |
