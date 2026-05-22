@@ -26,7 +26,7 @@
 | M3-3 | ✅ | Agent dashboard sidebar UI | `AgentDashboardView` SwiftUI sidebar + 2s poll; toggle Cmd+Shift+A. Render verified (header/count/empty state) |
 | M3-4 | ✅ | Notes panel UI (per-tab) | `NotesPanelView` right sidebar + autosave to `NotesStore`; toggle Cmd+Shift+N. Render verified |
 | M3-5 | ✅ | Notes markdown export / import | `NotesExporter` + File menu Export/Import Note…; 2 round-trip tests pass |
-| M3-6 | 🔄 | Month 3 retrospective | Review, re-check 7-month scope |
+| M3-6 | ✅ | Month 3 retrospective | `docs/backlog/month-3-retrospective.md` — all M3 tasks done, 7-month scope on track |
 
 ---
 
@@ -44,6 +44,25 @@
   dependency — a clean start while the harder dashboard work is scoped.
 - Agent detection (M3-2) before dashboard UI (M3-3): the UI needs the data model.
 - Notes UI (M3-4) + export (M3-5) build on M3-1.
+
+### 2026-05-22 — Month 3 complete
+
+**All 5 Month-3 tasks shipped (M3-1..M3-5) + retrospective (M3-6):**
+- M3-1 — `NotesStore`: SQLite WAL per-session notes; 5 tests.
+- M3-2 — `AgentDetector`: process-tree scan (libproc) for claude/codex/aider; 3 tests.
+- M3-3 — `AgentDashboardView`: SwiftUI sidebar + 2s poll; Cmd+Shift+A. Render verified.
+- M3-4 — `NotesPanelView`: right-sidebar notes editor, autosave; Cmd+Shift+N. Render verified.
+- M3-5 — `NotesExporter`: markdown export/import + File-menu items; 2 tests.
+- Commits: `4e12692` (notes storage) → `3d5b2ad` (agent detection) → `ca9287e`
+  (dashboard) → `4607da5` (notes panel) → `b8182da` (export).
+
+**Carried to Month 4:** the GUI interactive-verification gap is now 3 months old
+and is the must-fix for Month 4 week 1. Plus #11 IME smoke test, agent status
+discrimination, agent↔pane mapping. See `month-3-retrospective.md`.
+
+**Scope check:** 7-month Option A on track — M1 ✅ M2 ✅ M3 ✅ (3 of 7). No
+downgrade needed; closing the verification gap in Month 4 is what makes
+"on track" real.
 
 ---
 
