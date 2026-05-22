@@ -36,6 +36,17 @@ enum AppMenu {
             action: #selector(WorkspaceView.closeTab(_:)),
             keyEquivalent: "w"
         ))
+        fileMenu.addItem(.separator())
+        fileMenu.addItem(NSMenuItem(
+            title: "Export Note…",
+            action: #selector(WorkspaceView.exportNote(_:)),
+            keyEquivalent: ""
+        ))
+        fileMenu.addItem(NSMenuItem(
+            title: "Import Note…",
+            action: #selector(WorkspaceView.importNote(_:)),
+            keyEquivalent: ""
+        ))
 
         // Window menu — tab navigation
         let windowItem = NSMenuItem()

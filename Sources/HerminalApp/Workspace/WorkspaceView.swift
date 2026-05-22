@@ -254,6 +254,35 @@ final class WorkspaceView: NSView {
         needsLayout = true
     }
 
+    @objc func exportNote(_ sender: Any?) {
+        guard let session = activeTab?.focusedPane else { return }
+        let note: Note = (try? notesStore.note(forSession: session.id)) ?? nil
+            ?? Note(sessionID: session.id)
+        let panel = NSSavePanel()
+        panel.nameFieldStringValue = "herminal-note.md"
+        panel.canCreateDirectories = true
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        try? NotesExporter.exportMarkdown(note, to: url)
+    }
+
+    @objc func importNote(_ sender: Any?) {
+        guard let session = activeTab?.focusedPane else { return }
+        let panel = NSOpenPanel()
+        panel.allowsMultipleSelection = false
+        panel.canChooseDirectories = false
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        guard let imported = try? NotesExporter.importMarkdown(
+            from: url, sessionID: session.id
+        ) else { return }
+        // Keep the existing note's identity; replace its body.
+        let existing: Note? = (try? notesStore.note(forSession: session.id)) ?? nil
+        var note = existing ?? imported
+        note.body = imported.body
+        note.updatedAt = Date()
+        try? notesStore.upsert(note)
+        if isNotesVisible { updateNotesPanel() }
+    }
+
     // MARK: - Refresh
 
     private func refresh() {
