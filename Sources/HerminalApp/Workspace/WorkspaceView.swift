@@ -13,31 +13,44 @@ final class WorkspaceView: NSView {
     /// Hairline gap between panes; the dark container shows through as a divider.
     private static let paneGap: CGFloat = 1
     private static let dashboardWidth: CGFloat = 220
+    private static let sshPanelWidth: CGFloat = 280
     private static let notesWidth: CGFloat = 280
+
+    /// At most one widget occupies the left sidebar — agents and SSH share
+    /// the slot so the surface always gets the maximum content width.
+    private enum LeftSidebar {
+        case none
+        case agents
+        case ssh
+    }
 
     private let app: ghostty_app_t
     private let notesStore: NotesStore
+    private let sshHostsStore: SSHHostsStore
     private var tabs: [WorkspaceTab] = []
     private var activeTabIndex = 0
 
     private let tabHost: NSHostingView<TabBarView>
     private let surfaceContainer: NSView
     private let dashboardHost: NSHostingView<AgentDashboardView>
+    private let sshPanelHost: NSHostingView<AnyView>
     private let notesHost: NSHostingView<AnyView>
-    private var isDashboardVisible = false
+    private var leftSidebar: LeftSidebar = .none
     private var isNotesVisible = false
     // nonisolated(unsafe): invalidated in the nonisolated deinit.
     private nonisolated(unsafe) var agentPollTimer: Timer?
 
-    init(app: ghostty_app_t, notesStore: NotesStore) {
+    init(app: ghostty_app_t, notesStore: NotesStore, sshHostsStore: SSHHostsStore) {
         self.app = app
         self.notesStore = notesStore
+        self.sshHostsStore = sshHostsStore
         self.surfaceContainer = NSView(frame: .zero)
         self.tabHost = NSHostingView(rootView: TabBarView(
             tabs: [], activeID: nil,
             onSelect: { _ in }, onClose: { _ in }, onNew: {}
         ))
         self.dashboardHost = NSHostingView(rootView: AgentDashboardView(agents: []))
+        self.sshPanelHost = NSHostingView(rootView: AnyView(EmptyView()))
         self.notesHost = NSHostingView(rootView: AnyView(EmptyView()))
         super.init(frame: NSRect(x: 0, y: 0, width: 900, height: 560))
 
@@ -45,11 +58,13 @@ final class WorkspaceView: NSView {
         surfaceContainer.wantsLayer = true
         surfaceContainer.layer?.backgroundColor = NSColor(HerminalDesign.Palette.border).cgColor
         dashboardHost.isHidden = true
+        sshPanelHost.isHidden = true
         notesHost.isHidden = true
 
         addSubview(surfaceContainer)
         addSubview(tabHost)
         addSubview(dashboardHost)
+        addSubview(sshPanelHost)
         addSubview(notesHost)
         addTab()
         startAgentPolling()
@@ -77,11 +92,20 @@ final class WorkspaceView: NSView {
     override func layout() {
         super.layout()
         let barHeight = TabBarView.barHeight
-        let leftSidebar = isDashboardVisible ? Self.dashboardWidth : 0
+        let leftWidth: CGFloat = {
+            switch leftSidebar {
+            case .none: return 0
+            case .agents: return Self.dashboardWidth
+            case .ssh: return Self.sshPanelWidth
+            }
+        }()
         let rightSidebar = isNotesVisible ? Self.notesWidth : 0
 
-        dashboardHost.frame = CGRect(x: 0, y: 0, width: leftSidebar, height: bounds.height)
-        dashboardHost.isHidden = !isDashboardVisible
+        dashboardHost.frame = CGRect(x: 0, y: 0, width: leftWidth, height: bounds.height)
+        dashboardHost.isHidden = leftSidebar != .agents
+
+        sshPanelHost.frame = CGRect(x: 0, y: 0, width: leftWidth, height: bounds.height)
+        sshPanelHost.isHidden = leftSidebar != .ssh
 
         notesHost.frame = CGRect(
             x: bounds.width - rightSidebar, y: 0,
@@ -89,8 +113,8 @@ final class WorkspaceView: NSView {
         )
         notesHost.isHidden = !isNotesVisible
 
-        let contentX = leftSidebar
-        let contentWidth = max(bounds.width - leftSidebar - rightSidebar, 0)
+        let contentX = leftWidth
+        let contentWidth = max(bounds.width - leftWidth - rightSidebar, 0)
         tabHost.frame = CGRect(
             x: contentX, y: bounds.height - barHeight,
             width: contentWidth, height: barHeight
@@ -206,8 +230,65 @@ final class WorkspaceView: NSView {
     }
 
     private func refreshAgents() {
-        guard isDashboardVisible else { return }
+        guard leftSidebar == .agents else { return }
         dashboardHost.rootView = AgentDashboardView(agents: AgentDetector.detectAgents())
+    }
+
+    // MARK: - SSH hosts panel
+
+    private static let sshLog = Logger(
+        subsystem: "com.hoangperry.herminal", category: "ssh"
+    )
+
+    private func loadHosts() -> [SSHHost] {
+        do {
+            return try sshHostsStore.allHosts()
+        } catch {
+            Self.sshLog.error("hosts load failed: \(error, privacy: .public)")
+            return []
+        }
+    }
+
+    private func refreshSSHPanel() {
+        let hosts = loadHosts()
+        sshPanelHost.rootView = AnyView(
+            SSHHostsPanel(
+                hosts: hosts,
+                onConnect: { [weak self] host in self?.connectSSH(host) },
+                onSave: { [weak self] host in self?.saveSSHHost(host) },
+                onDelete: { [weak self] id in self?.deleteSSHHost(id: id) }
+            )
+        )
+    }
+
+    private func saveSSHHost(_ host: SSHHost) {
+        do {
+            try sshHostsStore.upsert(host)
+        } catch {
+            Self.sshLog.error("host save failed: \(error, privacy: .public)")
+        }
+        refreshSSHPanel()
+    }
+
+    private func deleteSSHHost(id: UUID) {
+        do {
+            try sshHostsStore.delete(id: id)
+        } catch {
+            Self.sshLog.error("host delete failed: \(error, privacy: .public)")
+        }
+        refreshSSHPanel()
+    }
+
+    /// Connects to a saved host. M4-3 just stamps `last_connected_at` and
+    /// logs — the actual `ssh` spawn into a new pane lands in M4-4.
+    private func connectSSH(_ host: SSHHost) {
+        do {
+            try sshHostsStore.touchLastConnected(id: host.id)
+        } catch {
+            Self.sshLog.error("last-connected stamp failed: \(error, privacy: .public)")
+        }
+        Self.sshLog.info("connect requested for \(host.nickname, privacy: .public) (\(host.user, privacy: .public)@\(host.hostname, privacy: .public):\(host.port, privacy: .public))")
+        refreshSSHPanel()
     }
 
     // MARK: - Notes
@@ -266,8 +347,14 @@ final class WorkspaceView: NSView {
     @objc func splitPaneHorizontal(_ sender: Any?) { splitActivePane(vertical: false) }
 
     @objc func toggleAgentDashboard(_ sender: Any?) {
-        isDashboardVisible.toggle()
-        if isDashboardVisible { refreshAgents() }
+        leftSidebar = (leftSidebar == .agents) ? .none : .agents
+        if leftSidebar == .agents { refreshAgents() }
+        needsLayout = true
+    }
+
+    @objc func toggleSSHHosts(_ sender: Any?) {
+        leftSidebar = (leftSidebar == .ssh) ? .none : .ssh
+        if leftSidebar == .ssh { refreshSSHPanel() }
         needsLayout = true
     }
 

@@ -19,7 +19,7 @@
 | M4-0 | ✅ | GUI test harness (debt fix) | `HERMINAL_TEST_TEXT` env → `ghostty_surface_text` inject; `Scripts/run-test-harness.sh`; 4/4 runs PASS. **Verification gap closed** |
 | M4-1 | ✅ | Codex CLI detection verify | Exposed 2 real bugs: (1) bracketed-paste swallowed harness `\n`, (2) `proc_listchildpids` broken on macOS Sequoia. Fixed both: `Scripts/verify-codex-detection.sh` 1/1 PASS, AgentDetector now uses `sysctl(KERN_PROC_ALL)` |
 | M4-2 | ✅ | SSH connection model + storage | `SSHHost` value type + `SSHHostsStore` SQLite WAL store. 9 tests covering CRUD + validation + last-connected timestamp. Q4-001 resolved: SQLite chosen for symmetry with NotesStore |
-| M4-3 | ⏳ | SSH Connection Manager UI | Sidebar list with add / edit / connect |
+| M4-3 | ✅ | SSH Connection Manager UI | Left-sidebar panel (`SSHHostsPanel`) — list + inline add/edit form + Connect/Edit/Delete context menu. Shares the left slot with the agent dashboard (mutually exclusive). Toggle: ⌘⇧S |
 | M4-4 | ⏳ | SSH connect — spawn ssh in new tab | Open a host in a new tab via libghostty `command` |
 | M4-5 | ⏳ | Month 4 retrospective | Re-check 7-month scope after the heaviest UI month |
 
@@ -107,6 +107,37 @@ rows but the cost of SQLite at this scale is essentially nil.
   last-connected stamping.
 
 Full test suite: 29/29 PASS.
+
+### 2026-05-24 — M4-3 SSH Connection Manager UI
+
+Sidebar slot policy: agents and SSH share the LEFT side, mutually
+exclusive. The reason — most workflows have either "what's running"
+(agents) or "what should I connect to" (SSH hosts) on screen, not both
+at once. Stacking them would steal width from the surface and most
+users would just hide the one they don't want anyway. A single toggle
+hotkey per panel keeps muscle-memory simple.
+
+- `SSHHostsPanel` — list of saved hosts with `Connect` button and
+  `Edit` / `Delete` in the context menu. Inline header `+` switches to
+  the form view (`SSHHostFormView`) without opening a sheet or popover
+  so the panel never loses its place in the layout.
+- `SSHHostFormView` — fields for nickname, hostname, user, port. Uses
+  `SSHHost.validated(...)` and surfaces the error inline below the form
+  rather than throwing or crashing. Edits preserve `createdAt` and
+  `lastConnectedAt`, bumping only `updatedAt`.
+- `WorkspaceView`: `LeftSidebar` enum (`.none | .agents | .ssh`) drives
+  layout. `connectSSH(_:)` stamps `last_connected_at` and logs the
+  request — actual `ssh` spawn lands in M4-4.
+- `AppDelegate` extracts `appSupportFile(_:)` to centralise the
+  Application-Support path resolution that the two stores were
+  duplicating, and now opens both `notes.db` and `ssh-hosts.db`.
+- Menu: `Toggle SSH Hosts` (⌘⇧S) added under Window.
+
+Smoke test: app launches under the test harness, `ssh-hosts.db` +
+`-shm` + `-wal` files appear in `~/Library/Application Support/herminal`
+(confirming WAL-mode SQLite init succeeded). UI panel itself is
+exercised manually — automated UI tests would require something like
+XCUITest, deferred to Month 5 polish.
 
 ---
 

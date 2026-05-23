@@ -91,6 +91,14 @@ enum AppMenu {
         toggleDashboard.keyEquivalentModifierMask = [.command, .shift]
         windowMenu.addItem(toggleDashboard)
 
+        let toggleSSH = NSMenuItem(
+            title: "Toggle SSH Hosts",
+            action: #selector(WorkspaceView.toggleSSHHosts(_:)),
+            keyEquivalent: "s"
+        )
+        toggleSSH.keyEquivalentModifierMask = [.command, .shift]
+        windowMenu.addItem(toggleSSH)
+
         let toggleNotes = NSMenuItem(
             title: "Toggle Notes",
             action: #selector(WorkspaceView.toggleNotes(_:)),

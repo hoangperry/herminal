@@ -25,7 +25,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         NSApp.mainMenu = AppMenu.build()
 
-        let workspace = WorkspaceView(app: ghostty.app, notesStore: AppDelegate.makeNotesStore())
+        let workspace = WorkspaceView(
+            app: ghostty.app,
+            notesStore: AppDelegate.makeNotesStore(),
+            sshHostsStore: AppDelegate.makeSSHHostsStore()
+        )
         let window = AppDelegate.makeWindow(contentView: workspace)
         self.window = window
 
@@ -114,19 +118,38 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// in-memory store if the on-disk location is unavailable.
     private static func makeNotesStore() -> NotesStore {
         do {
-            let fileManager = FileManager.default
-            let directory = try fileManager.url(
-                for: .applicationSupportDirectory, in: .userDomainMask,
-                appropriateFor: nil, create: true
-            ).appendingPathComponent("herminal", isDirectory: true)
-            try fileManager.createDirectory(at: directory, withIntermediateDirectories: true)
-            let dbPath = directory.appendingPathComponent("notes.db").path
+            let dbPath = try appSupportFile("notes.db")
             return try NotesStore(.uri(dbPath))
         } catch {
             NSLog("herminal: notes DB unavailable (\(error)) — using in-memory store")
             // In-memory SQLite effectively never fails to open.
             return try! NotesStore(.inMemory)
         }
+    }
+
+    /// Opens the SSH hosts database in Application Support, falling back to
+    /// an in-memory store if the on-disk location is unavailable.
+    private static func makeSSHHostsStore() -> SSHHostsStore {
+        do {
+            let dbPath = try appSupportFile("ssh-hosts.db")
+            return try SSHHostsStore(.uri(dbPath))
+        } catch {
+            NSLog("herminal: ssh hosts DB unavailable (\(error)) — using in-memory store")
+            return try! SSHHostsStore(.inMemory)
+        }
+    }
+
+    /// Resolves an Application Support file path under our app subdirectory,
+    /// creating the directory on demand. Centralises the duplicate plumbing
+    /// the two store factories were repeating.
+    private static func appSupportFile(_ name: String) throws -> String {
+        let fileManager = FileManager.default
+        let directory = try fileManager.url(
+            for: .applicationSupportDirectory, in: .userDomainMask,
+            appropriateFor: nil, create: true
+        ).appendingPathComponent("herminal", isDirectory: true)
+        try fileManager.createDirectory(at: directory, withIntermediateDirectories: true)
+        return directory.appendingPathComponent(name).path
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
