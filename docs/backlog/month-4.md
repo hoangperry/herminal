@@ -21,7 +21,7 @@
 | M4-2 | ✅ | SSH connection model + storage | `SSHHost` value type + `SSHHostsStore` SQLite WAL store. 9 tests covering CRUD + validation + last-connected timestamp. Q4-001 resolved: SQLite chosen for symmetry with NotesStore |
 | M4-3 | ✅ | SSH Connection Manager UI | Left-sidebar panel (`SSHHostsPanel`) — list + inline add/edit form + Connect/Edit/Delete context menu. Shares the left slot with the agent dashboard (mutually exclusive). Toggle: ⌘⇧S |
 | M4-4 | ✅ | SSH connect — spawn ssh in new tab | `HerminalSurfaceView.init(command:)` forwards into libghostty `config.command`. Verified end-to-end via `Scripts/verify-ssh-spawn.sh` |
-| M4-5 | ⏳ | Month 4 retrospective | Re-check 7-month scope after the heaviest UI month |
+| M4-5 | ✅ | Month 4 retrospective | `month-4-retrospective.md` — verification gap CLOSED, 4/7 months done, no scope downgrade needed |
 
 ## Month 5 plan (preview)
 
