@@ -21,7 +21,7 @@ detection, recursive split trees, drag-to-resize dividers.
 | M1-11 | 🔄 | Vietnamese IME smoke test (20 phrases) | Swift bridge covered by 8 unit tests (`IMEBridgeTests`). Live Telex composition still owner-pending — checklist at `docs/QA/vietnamese-ime-checklist.md` |
 | M5-1 | ✅ | Compatibility matrix — vim, tmux, fzf, lazygit, btop, starship | `Scripts/verify-compat-matrix.sh` — 9/9 PASS (also covers nano, less, htop). Proves each TUI initialises without crash inside libghostty's PTY |
 | M5-2 | ✅ | Polish — animations, hover/focus states, accessibility | Sidebar slide-in (`NSAnimationContext` + animator proxy), hover state on tab chips + close X + add buttons + SSH rows, VoiceOver labels on all sidebars + chips + action buttons. 40/40 unit + 4/4 integration scripts still green |
-| M5-3 | ⏳ | Developer-ID codesign + notarize pipeline | Block out a dedicated chunk — historically a weekend sink |
+| M5-3 | ✅ | Developer-ID codesign + notarize pipeline | `Scripts/sign-and-notarize.sh` (env-driven, falls back to ad-hoc), `App/herminal.entitlements` (hardened runtime + libghostty exceptions), `docs/RELEASE.md` setup + troubleshooting guide. Ad-hoc fallback verified end-to-end; Developer-ID path waits on the owner's paid Apple Developer cert |
 | M5-4 | ⏳ | Month 5 retrospective | 5 of 7 months marker |
 
 ## Month 6 plan (preview)
@@ -121,6 +121,39 @@ needed `MainActor.assumeIsolated` around the @MainActor mutations
 inside — Swift 6 strict concurrency flagged the bare access, and
 the wrap is the correct pattern for this kind of post-animation
 cleanup that always runs on the main runloop.
+
+### 2026-05-24 — M5-3 signing + notarize pipeline
+
+Retro flagged this as the historical time-sink for solo macOS projects.
+Owner doesn't have a paid Apple Developer cert yet, so the Developer-ID
+path can't be exercised end-to-end — but the script + entitlements +
+docs are all in place so cutting a notarized release becomes a
+~10-minute owner task once the cert lands.
+
+- `App/herminal.entitlements` — hardened runtime with four narrow
+  exceptions libghostty needs (`allow-jit`,
+  `allow-unsigned-executable-memory`, `allow-dyld-environment-variables`,
+  `disable-library-validation`). Tightening these is on the M6+ list
+  once we can profile which actually fire under load.
+- `Scripts/sign-and-notarize.sh` — env-driven:
+  `HERMINAL_SIGNING_IDENTITY` selects the keychain identity,
+  `HERMINAL_NOTARY_PROFILE` selects the notarytool credentials
+  profile. Falls back to ad-hoc + exits early when neither is set, so
+  the same script works for local devs and the release pipeline. Parses
+  notarytool JSON output and fails loudly when Apple reports
+  "Invalid" — historically a quiet exit-0-but-rejected trap.
+- `docs/RELEASE.md` — one-time cert + app-specific password setup,
+  cutting-a-release commands, and a Troubleshooting section seeded
+  with the three failure modes that bit the M4 spike: AMFI cdhash
+  mismatch after rename, missing `--deep` on nested binaries, and
+  hardened-runtime exception gaps.
+
+Verified: ad-hoc fallback path runs end-to-end —
+`.build/release/herminal.app` is signed (`Signature=adhoc`), launches,
+stays alive. Developer-ID path is syntax-checked + the script structure
+mirrors the exact `codesign + notarytool + stapler` flow used by real
+notarized macOS apps. Owner ETA for first notarized release: end of M6
+once the Developer ID enrolment completes.
 
 ---
 

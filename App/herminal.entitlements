@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!-- Hardened runtime is required for notarization. Each exception below
+         exists because libghostty's Zig runtime + JIT-adjacent paths need
+         the relaxation; if we ever ship pure Swift-only code the flags
+         can be tightened. -->
+
+    <!-- libghostty's Metal renderer + the shell spawn path use
+         posix_spawn / execve in ways that hardened runtime would otherwise
+         block. Required for both M2 multi-session shells and M4 SSH spawn. -->
+    <key>com.apple.security.cs.allow-unsigned-executable-memory</key>
+    <true/>
+    <key>com.apple.security.cs.allow-jit</key>
+    <true/>
+
+    <!-- DYLD interpose paths used by ghostty's shell-integration injection. -->
+    <key>com.apple.security.cs.allow-dyld-environment-variables</key>
+    <true/>
+
+    <!-- We exec arbitrary user binaries (their shell, ssh, vim, …) from
+         the pane. Disable library validation so children with their own
+         signing identities can launch. -->
+    <key>com.apple.security.cs.disable-library-validation</key>
+    <true/>
+</dict>
+</plist>
