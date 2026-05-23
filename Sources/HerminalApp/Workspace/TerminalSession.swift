@@ -10,8 +10,8 @@ final class TerminalSession: Identifiable {
     let surfaceView: HerminalSurfaceView
     var title: String
 
-    init(app: ghostty_app_t, title: String = "herminal") {
-        self.surfaceView = HerminalSurfaceView(app: app)
+    init(app: ghostty_app_t, title: String = "herminal", command: String? = nil) {
+        self.surfaceView = HerminalSurfaceView(app: app, command: command)
         self.title = title
     }
 }

@@ -20,7 +20,7 @@
 | M4-1 | ✅ | Codex CLI detection verify | Exposed 2 real bugs: (1) bracketed-paste swallowed harness `\n`, (2) `proc_listchildpids` broken on macOS Sequoia. Fixed both: `Scripts/verify-codex-detection.sh` 1/1 PASS, AgentDetector now uses `sysctl(KERN_PROC_ALL)` |
 | M4-2 | ✅ | SSH connection model + storage | `SSHHost` value type + `SSHHostsStore` SQLite WAL store. 9 tests covering CRUD + validation + last-connected timestamp. Q4-001 resolved: SQLite chosen for symmetry with NotesStore |
 | M4-3 | ✅ | SSH Connection Manager UI | Left-sidebar panel (`SSHHostsPanel`) — list + inline add/edit form + Connect/Edit/Delete context menu. Shares the left slot with the agent dashboard (mutually exclusive). Toggle: ⌘⇧S |
-| M4-4 | ⏳ | SSH connect — spawn ssh in new tab | Open a host in a new tab via libghostty `command` |
+| M4-4 | ✅ | SSH connect — spawn ssh in new tab | `HerminalSurfaceView.init(command:)` forwards into libghostty `config.command`. Verified end-to-end via `Scripts/verify-ssh-spawn.sh` |
 | M4-5 | ⏳ | Month 4 retrospective | Re-check 7-month scope after the heaviest UI month |
 
 ## Month 5 plan (preview)
@@ -138,6 +138,37 @@ Smoke test: app launches under the test harness, `ssh-hosts.db` +
 (confirming WAL-mode SQLite init succeeded). UI panel itself is
 exercised manually — automated UI tests would require something like
 XCUITest, deferred to Month 5 polish.
+
+### 2026-05-24 — M4-4 SSH connect: spawn ssh in a new tab
+
+Wires "Connect" through to a real PTY. libghostty's `surface_config`
+has a `command` field that overrides the default shell; when set, it
+also flips `wait-after-command=true` so the pane stays visible after
+`ssh` exits (so the user can see the disconnect message before closing).
+
+- `HerminalSurfaceView(app:command:)` — optional command, kept in a
+  heap-owned C buffer (`strdup`) so the pointer stays valid for the
+  full surface lifetime, not just the `withCString` call. Freed in
+  `deinit`. `nonisolated(unsafe)` because deinit on NSView is
+  nonisolated and the buffer is an `UnsafeMutablePointer` (non-Sendable).
+- `TerminalSession.init(app:title:command:)` and
+  `WorkspaceTab.init(app:command:title:)` plumb the command down.
+- `WorkspaceView.addTab(command:title:)` opens a new tab whose first
+  pane runs that command.
+- `connectSSH(_:)` now builds the shell command via
+  `sshCommand(for:)` (single-quoted user@host, `-p` only when the port
+  isn't 22) and opens it in a new tab. Last-connected gets stamped and
+  the panel re-renders so the recency badge updates immediately.
+- `AppDelegate`: `HERMINAL_TEST_SPAWN_COMMAND` env hook exercises the
+  exact same `addTab(command:)` path from a script. Used by
+  `Scripts/verify-ssh-spawn.sh` for end-to-end verification without
+  needing an SSH server.
+
+Shell-quoting is the kind of thing that's painful to get wrong and easy
+to regress, so `SSHCommandTests` covers: port-22 omits the flag,
+non-22 emits `-p N`, embedded single quotes get escaped.
+
+Verify: `Scripts/verify-ssh-spawn.sh` PASS. Unit suite 32/32 PASS.
 
 ---
 

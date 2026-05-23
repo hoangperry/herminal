@@ -171,6 +171,14 @@ final class WorkspaceView: NSView {
         refresh()
     }
 
+    /// Opens a new tab that runs `command` instead of the default shell.
+    /// Used by the SSH manager to spawn `ssh user@host` in a fresh pane.
+    func addTab(command: String, title: String) {
+        tabs.append(WorkspaceTab(app: app, command: command, title: title))
+        activeTabIndex = tabs.count - 1
+        refresh()
+    }
+
     func selectNextTab() {
         guard !tabs.isEmpty else { return }
         activeTabIndex = (activeTabIndex + 1) % tabs.count
@@ -279,16 +287,38 @@ final class WorkspaceView: NSView {
         refreshSSHPanel()
     }
 
-    /// Connects to a saved host. M4-3 just stamps `last_connected_at` and
-    /// logs — the actual `ssh` spawn into a new pane lands in M4-4.
+    /// Opens a new tab that spawns `ssh` into the saved host, stamps the
+    /// last-connected time, and refreshes the panel so the recency badge
+    /// updates immediately.
     private func connectSSH(_ host: SSHHost) {
+        let command = Self.sshCommand(for: host)
+        Self.sshLog.info("opening ssh tab: \(command, privacy: .public)")
+        addTab(command: command, title: host.nickname)
         do {
             try sshHostsStore.touchLastConnected(id: host.id)
         } catch {
             Self.sshLog.error("last-connected stamp failed: \(error, privacy: .public)")
         }
-        Self.sshLog.info("connect requested for \(host.nickname, privacy: .public) (\(host.user, privacy: .public)@\(host.hostname, privacy: .public):\(host.port, privacy: .public))")
         refreshSSHPanel()
+    }
+
+    /// Builds the shell command that libghostty will exec in the new pane.
+    /// User/host get single-quoted to defang any wild characters in saved
+    /// metadata (we're feeding this to /bin/sh -c via libghostty).
+    /// Internal for direct testing — quoting logic is the kind of thing
+    /// that's painful to get wrong and easy to regress.
+    static func sshCommand(for host: SSHHost) -> String {
+        let target = "\(quoted(host.user))@\(quoted(host.hostname))"
+        if host.port == 22 {
+            return "ssh \(target)"
+        }
+        return "ssh -p \(host.port) \(target)"
+    }
+
+    /// Single-quote a shell argument, escaping any embedded single quotes.
+    private static func quoted(_ value: String) -> String {
+        let escaped = value.replacingOccurrences(of: "'", with: "'\\''")
+        return "'\(escaped)'"
     }
 
     // MARK: - Notes

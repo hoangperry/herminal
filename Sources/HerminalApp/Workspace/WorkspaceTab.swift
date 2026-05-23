@@ -16,8 +16,8 @@ final class WorkspaceTab: Identifiable {
     private(set) var isVerticalSplit: Bool
     private(set) var focusedPaneIndex: Int
 
-    init(app: ghostty_app_t) {
-        self.panes = [TerminalSession(app: app)]
+    init(app: ghostty_app_t, command: String? = nil, title: String = "herminal") {
+        self.panes = [TerminalSession(app: app, title: title, command: command)]
         self.isVerticalSplit = true
         self.focusedPaneIndex = 0
     }

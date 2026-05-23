@@ -53,6 +53,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if let testText = env["HERMINAL_TEST_TEXT"] {
             scheduleTestInjection(text: testText, into: workspace)
         }
+        // M4-4 verification hook: when HERMINAL_TEST_SPAWN_COMMAND is set,
+        // open a tab that runs the command via libghostty's `config.command`
+        // path instead of the default shell. Used by
+        // `Scripts/verify-ssh-spawn.sh` to prove the SSH-connect mechanism
+        // wires through to a real PTY exec.
+        if let spawnCommand = env["HERMINAL_TEST_SPAWN_COMMAND"] {
+            NSLog("herminal: spawning test tab with command=\(spawnCommand)")
+            Task { @MainActor in
+                // Wait until the first tab settles before adding ours —
+                // libghostty serializes surface creation on the IO thread.
+                try? await Task.sleep(nanoseconds: 2_000_000_000)
+                workspace.addTab(command: spawnCommand, title: "spawn-test")
+            }
+        }
     }
 
     private func scheduleTestInjection(text: String, into workspace: WorkspaceView) {

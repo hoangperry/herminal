@@ -8,6 +8,11 @@ import GhosttyKit
 
 final class HerminalSurfaceView: NSView {
     private let app: ghostty_app_t
+    /// Optional spawn command (overrides the user's default shell). The bytes
+    /// are kept in a heap-owned C buffer so the pointer stays valid for the
+    /// entire surface lifetime, not just the `withCString` call.
+    /// `nonisolated(unsafe)`: freed once in the nonisolated NSView deinit.
+    private nonisolated(unsafe) let commandBuffer: UnsafeMutablePointer<CChar>?
     // nonisolated(unsafe): a C handle freed once in deinit (NSView deinit is nonisolated).
     private nonisolated(unsafe) var surface: ghostty_surface_t?
 
@@ -19,8 +24,9 @@ final class HerminalSurfaceView: NSView {
     /// IME's committed text instead of sending it straight to the PTY.
     private var keyTextAccumulator: [String]?
 
-    init(app: ghostty_app_t) {
+    init(app: ghostty_app_t, command: String? = nil) {
         self.app = app
+        self.commandBuffer = command.flatMap { $0.isEmpty ? nil : strdup($0) }
         // Non-zero frame: libghostty's renderer needs non-zero layer bounds
         // (see Ghostty's SurfaceView_AppKit init comment).
         super.init(frame: NSRect(x: 0, y: 0, width: 800, height: 600))
@@ -29,6 +35,7 @@ final class HerminalSurfaceView: NSView {
     required init?(coder: NSCoder) {
         fatalError("HerminalSurfaceView does not support NSCoder")
     }
+
 
     // MARK: - Surface lifecycle
 
@@ -52,6 +59,12 @@ final class HerminalSurfaceView: NSView {
             ?? 2.0
         config.scale_factor = Double(scaleFactor)
         config.font_size = 0 // 0 = inherit from config
+        // Spawn a custom command (e.g. `ssh user@host`) instead of the user's
+        // default shell. libghostty sets `wait-after-command=true` whenever a
+        // command is provided so the pane stays visible after `ssh` exits.
+        if let commandBuffer {
+            config.command = UnsafePointer(commandBuffer)
+        }
 
         guard let surface = ghostty_surface_new(app, &config) else {
             NSLog("herminal: ghostty_surface_new failed")
@@ -266,6 +279,9 @@ final class HerminalSurfaceView: NSView {
     deinit {
         if let surface {
             ghostty_surface_free(surface)
+        }
+        if let commandBuffer {
+            free(commandBuffer)
         }
     }
 }
