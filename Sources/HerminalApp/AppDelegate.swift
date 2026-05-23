@@ -4,6 +4,7 @@ import AppKit
 import SwiftUI
 import HerminalCore
 import HerminalDB
+import HerminalAgent
 
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
@@ -51,13 +52,35 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func scheduleTestInjection(text: String, into workspace: WorkspaceView) {
-        NSLog("herminal: test harness scheduled (will inject in 4s)")
+        let preInjectDelaySeconds = ProcessInfo.processInfo.environment["HERMINAL_TEST_DELAY"]
+            .flatMap { UInt64($0) } ?? 8
+        NSLog("herminal: test harness scheduled (will inject in \(preInjectDelaySeconds)s)")
+        let agentDumpPath = ProcessInfo.processInfo.environment["HERMINAL_TEST_AGENT_DUMP"]
         Task { @MainActor in
-            // 4 seconds lets the shell finish login + shell-integration setup
-            // even on a cold cache. Anything less is flaky.
-            try? await Task.sleep(nanoseconds: 4_000_000_000)
+            // Default 8s lets a normal interactive shell finish init and
+            // render its first prompt. Heavy .zshrc setups (oh-my-zsh +
+            // pyenv + nvm + ...) need more — override via HERMINAL_TEST_DELAY.
+            try? await Task.sleep(nanoseconds: preInjectDelaySeconds * 1_000_000_000)
             NSLog("herminal: injecting test text (\(text.count) chars)")
             workspace.injectTextIntoActivePane(text)
+
+            if let agentDumpPath {
+                // Give the injected command time to spawn its child process —
+                // shell parse + fork + exec can take a couple of seconds.
+                try? await Task.sleep(nanoseconds: 6_000_000_000)
+                let agents = AgentDetector.detectAgents()
+                var lines = agents
+                    .map { "\($0.kind.rawValue) \($0.processName) \($0.pid)" }
+                if ProcessInfo.processInfo.environment["HERMINAL_TEST_TREE_DUMP"] != nil {
+                    // Diagnostic: include the whole subtree so the harness can
+                    // see what zsh actually spawned. Helps debug missing matches.
+                    lines.append("--- full subtree ---")
+                    lines.append(contentsOf: AgentDetector.dumpSubtree(of: getpid()))
+                }
+                let dump = lines.joined(separator: "\n")
+                try? dump.write(toFile: agentDumpPath, atomically: true, encoding: .utf8)
+                NSLog("herminal: dumped \(agents.count) agents to \(agentDumpPath)")
+            }
             // The harness script controls lifecycle (polls for the expected
             // side-effect, then pkill). Self-terminating here would close the
             // shell before its output had a chance to flush.

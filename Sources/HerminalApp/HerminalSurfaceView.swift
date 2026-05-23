@@ -103,11 +103,45 @@ final class HerminalSurfaceView: NSView {
     /// keyboard or input source (osascript / Telex composition would corrupt it).
     func injectText(_ text: String) {
         guard let surface else { return }
-        let count = text.utf8.count
-        guard count > 0 else { return }
-        text.withCString { ptr in
-            ghostty_surface_text(surface, ptr, UInt(count))
+        guard !text.isEmpty else { return }
+        // libghostty's surface_text path routes through completeClipboardPaste,
+        // which honours bracketed-paste mode — under bracketed paste, an
+        // embedded "\n" is treated as a literal newline inside the command
+        // buffer, NOT a command terminator. So split the text on newlines,
+        // send each segment as text, and send the newlines as Enter key
+        // events that always execute the command.
+        ghostty_surface_set_focus(surface, true)
+        let segments = text.split(separator: "\n", omittingEmptySubsequences: false)
+        for (index, segment) in segments.enumerated() {
+            let body = String(segment)
+            if !body.isEmpty {
+                let count = body.utf8.count
+                body.withCString { ptr in
+                    ghostty_surface_text(surface, ptr, UInt(count))
+                }
+            }
+            // Send Enter between segments — the last empty segment after a
+            // trailing "\n" still produces an Enter, which is what the
+            // harness wants.
+            if index < segments.count - 1 {
+                sendEnterKey(to: surface)
+            }
         }
+    }
+
+    /// Sends a synthesized Return keypress through the libghostty input path
+    /// so the shell treats it as a real Enter — bypassing bracketed paste.
+    private func sendEnterKey(to surface: ghostty_surface_t) {
+        var keyEvent = ghostty_input_key_s()
+        keyEvent.action = GHOSTTY_ACTION_PRESS
+        keyEvent.keycode = 36 // kVK_Return
+        keyEvent.mods = GHOSTTY_MODS_NONE
+        keyEvent.consumed_mods = GHOSTTY_MODS_NONE
+        keyEvent.composing = false
+        keyEvent.unshifted_codepoint = 0x0D
+        _ = ghostty_surface_key(surface, keyEvent)
+        keyEvent.action = GHOSTTY_ACTION_RELEASE
+        _ = ghostty_surface_key(surface, keyEvent)
     }
 
     // MARK: - Keyboard input
