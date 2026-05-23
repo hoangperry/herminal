@@ -67,6 +67,62 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 workspace.addTab(command: spawnCommand, title: "spawn-test")
             }
         }
+
+        // M5 smoke-test hook: when HERMINAL_TEST_SMOKE_PLAN is set, walk
+        // through a hardcoded sequence of interactive actions and dump the
+        // resulting state to HERMINAL_TEST_STATE_DUMP. Used by
+        // `Scripts/verify-smoke-m1-m3.sh` to assert tabs/splits/sidebars
+        // all wire through without crashing or silently desyncing.
+        if env["HERMINAL_TEST_SMOKE_PLAN"] != nil {
+            let dumpPath = env["HERMINAL_TEST_STATE_DUMP"]
+            scheduleSmokePlan(into: workspace, dumpPath: dumpPath)
+        }
+    }
+
+    /// Walks the workspace through every interactive code path once so the
+    /// harness can prove menus + toggles + splits + tabs all work. Spaced
+    /// 0.5s apart to give libghostty time to react between actions.
+    private func scheduleSmokePlan(into workspace: WorkspaceView, dumpPath: String?) {
+        NSLog("herminal: smoke plan armed (dump=\(dumpPath ?? "<unset>"))")
+        Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 2_000_000_000)
+            NSLog("herminal: smoke: addTab x2")
+            workspace.addTab()
+            try? await Task.sleep(nanoseconds: 500_000_000)
+            workspace.addTab()
+            try? await Task.sleep(nanoseconds: 500_000_000)
+            NSLog("herminal: smoke: split vertical x2")
+            workspace.splitActivePane(vertical: true)
+            try? await Task.sleep(nanoseconds: 500_000_000)
+            workspace.splitActivePane(vertical: true)
+            try? await Task.sleep(nanoseconds: 500_000_000)
+            NSLog("herminal: smoke: toggleAgentDashboard")
+            workspace.toggleAgentDashboard(nil)
+            try? await Task.sleep(nanoseconds: 500_000_000)
+            NSLog("herminal: smoke: toggleSSHHosts (mutex with agents)")
+            workspace.toggleSSHHosts(nil)
+            try? await Task.sleep(nanoseconds: 500_000_000)
+            NSLog("herminal: smoke: toggleNotes")
+            workspace.toggleNotes(nil)
+            try? await Task.sleep(nanoseconds: 500_000_000)
+            NSLog("herminal: smoke: nextTab x2")
+            workspace.selectNextTab()
+            try? await Task.sleep(nanoseconds: 200_000_000)
+            workspace.selectNextTab()
+            try? await Task.sleep(nanoseconds: 500_000_000)
+            NSLog("herminal: smoke: previousTab")
+            workspace.selectPreviousTab()
+            try? await Task.sleep(nanoseconds: 500_000_000)
+            NSLog("herminal: smoke: closeActivePane")
+            workspace.closeActivePane()
+            try? await Task.sleep(nanoseconds: 500_000_000)
+            let state = workspace.dumpState()
+            NSLog("herminal: smoke: final state\n\(state)")
+            if let dumpPath {
+                try? state.write(toFile: dumpPath, atomically: true, encoding: .utf8)
+                NSLog("herminal: smoke: state written to \(dumpPath)")
+            }
+        }
     }
 
     private func scheduleTestInjection(text: String, into workspace: WorkspaceView) {

@@ -455,6 +455,32 @@ final class WorkspaceView: NSView {
         activeTab?.focusedPane.surfaceView.injectText(text)
     }
 
+    /// Test-harness diagnostic: snapshots the workspace's interactive state
+    /// as plain text — used by `Scripts/verify-smoke-m1-m3.sh` to assert
+    /// menu actions and sidebar toggles actually take effect.
+    func dumpState() -> String {
+        let sidebar: String = {
+            switch leftSidebar {
+            case .none: return "none"
+            case .agents: return "agents"
+            case .ssh: return "ssh"
+            }
+        }()
+        let paneCounts = tabs.map { String($0.panes.count) }.joined(separator: ",")
+        let axis = activeTab.map { $0.isVerticalSplit ? "vertical" : "horizontal" } ?? "n/a"
+        let focused = activeTab?.focusedPaneIndex ?? -1
+        return """
+        tabs=\(tabs.count)
+        active_tab=\(activeTabIndex)
+        active_title=\(activeTab?.title ?? "<none>")
+        panes_per_tab=\(paneCounts)
+        active_split_axis=\(axis)
+        focused_pane=\(focused)
+        left_sidebar=\(sidebar)
+        notes_visible=\(isNotesVisible)
+        """
+    }
+
     private func makeTabBar() -> TabBarView {
         TabBarView(
             tabs: tabs.map { TabBarView.Tab(id: $0.id, title: $0.title) },
