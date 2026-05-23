@@ -18,7 +18,7 @@ detection, recursive split trees, drag-to-resize dividers.
 
 | # | Status | Task | Notes |
 |---|---|---|---|
-| M1-11 | ⏳ | Vietnamese IME smoke test (20 phrases) | Owner manual test — 4 months old. Run during M5-2 polish |
+| M1-11 | 🔄 | Vietnamese IME smoke test (20 phrases) | Swift bridge covered by 8 unit tests (`IMEBridgeTests`). Live Telex composition still owner-pending — checklist at `docs/QA/vietnamese-ime-checklist.md` |
 | M5-1 | ✅ | Compatibility matrix — vim, tmux, fzf, lazygit, btop, starship | `Scripts/verify-compat-matrix.sh` — 9/9 PASS (also covers nano, less, htop). Proves each TUI initialises without crash inside libghostty's PTY |
 | M5-2 | ⏳ | Polish — animations, hover/focus states, accessibility | Bento-aware design pass, VoiceOver labels |
 | M5-3 | ⏳ | Developer-ID codesign + notarize pipeline | Block out a dedicated chunk — historically a weekend sink |
