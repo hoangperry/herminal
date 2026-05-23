@@ -22,7 +22,7 @@ detection, recursive split trees, drag-to-resize dividers.
 | M5-1 | ✅ | Compatibility matrix — vim, tmux, fzf, lazygit, btop, starship | `Scripts/verify-compat-matrix.sh` — 9/9 PASS (also covers nano, less, htop). Proves each TUI initialises without crash inside libghostty's PTY |
 | M5-2 | ✅ | Polish — animations, hover/focus states, accessibility | Sidebar slide-in (`NSAnimationContext` + animator proxy), hover state on tab chips + close X + add buttons + SSH rows, VoiceOver labels on all sidebars + chips + action buttons. 40/40 unit + 4/4 integration scripts still green |
 | M5-3 | ✅ | Developer-ID codesign + notarize pipeline | `Scripts/sign-and-notarize.sh` (env-driven, falls back to ad-hoc), `App/herminal.entitlements` (hardened runtime + libghostty exceptions), `docs/RELEASE.md` setup + troubleshooting guide. Ad-hoc fallback verified end-to-end; Developer-ID path waits on the owner's paid Apple Developer cert |
-| M5-4 | ⏳ | Month 5 retrospective | 5 of 7 months marker |
+| M5-4 | ✅ | Month 5 retrospective | `month-5-retrospective.md` — 5/7 months done, no scope downgrade. Carry to M6: IME live test + agent status + agent↔pane mapping + first notarized release |
 
 ## Month 6 plan (preview)
 
