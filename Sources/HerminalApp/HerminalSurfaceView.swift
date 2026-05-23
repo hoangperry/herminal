@@ -98,6 +98,18 @@ final class HerminalSurfaceView: NSView {
         return super.resignFirstResponder()
     }
 
+    /// Injects raw text into the surface — bypasses key events / IME entirely.
+    /// Used by the GUI test harness so input does not depend on the system
+    /// keyboard or input source (osascript / Telex composition would corrupt it).
+    func injectText(_ text: String) {
+        guard let surface else { return }
+        let count = text.utf8.count
+        guard count > 0 else { return }
+        text.withCString { ptr in
+            ghostty_surface_text(surface, ptr, UInt(count))
+        }
+    }
+
     // MARK: - Keyboard input
 
     override func keyDown(with event: NSEvent) {

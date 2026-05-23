@@ -39,6 +39,29 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         NSApp.activate(ignoringOtherApps: true)
+
+        // GUI test harness: when HERMINAL_TEST_TEXT is set, inject the text
+        // into the active surface and exit. Lets CI / a script drive herminal
+        // without osascript / system IME interference.
+        let env = ProcessInfo.processInfo.environment
+        NSLog("herminal: HERMINAL_TEST_TEXT=\(env["HERMINAL_TEST_TEXT"]?.debugDescription ?? "<unset>")")
+        if let testText = env["HERMINAL_TEST_TEXT"] {
+            scheduleTestInjection(text: testText, into: workspace)
+        }
+    }
+
+    private func scheduleTestInjection(text: String, into workspace: WorkspaceView) {
+        NSLog("herminal: test harness scheduled (will inject in 4s)")
+        Task { @MainActor in
+            // 4 seconds lets the shell finish login + shell-integration setup
+            // even on a cold cache. Anything less is flaky.
+            try? await Task.sleep(nanoseconds: 4_000_000_000)
+            NSLog("herminal: injecting test text (\(text.count) chars)")
+            workspace.injectTextIntoActivePane(text)
+            // The harness script controls lifecycle (polls for the expected
+            // side-effect, then pkill). Self-terminating here would close the
+            // shell before its output had a chance to flush.
+        }
     }
 
     /// Builds the herminal window with premium chrome styled from design tokens.

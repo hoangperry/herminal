@@ -332,6 +332,12 @@ final class WorkspaceView: NSView {
         window?.makeFirstResponder(activeTab?.focusedPane.surfaceView)
     }
 
+    /// Test-harness entry point: send raw text to the active pane's surface
+    /// without going through the keyboard.
+    func injectTextIntoActivePane(_ text: String) {
+        activeTab?.focusedPane.surfaceView.injectText(text)
+    }
+
     private func makeTabBar() -> TabBarView {
         TabBarView(
             tabs: tabs.map { TabBarView.Tab(id: $0.id, title: $0.title) },
