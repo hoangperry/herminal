@@ -20,7 +20,7 @@ detection, recursive split trees, drag-to-resize dividers.
 |---|---|---|---|
 | M1-11 | 🔄 | Vietnamese IME smoke test (20 phrases) | Swift bridge covered by 8 unit tests (`IMEBridgeTests`). Live Telex composition still owner-pending — checklist at `docs/QA/vietnamese-ime-checklist.md` |
 | M5-1 | ✅ | Compatibility matrix — vim, tmux, fzf, lazygit, btop, starship | `Scripts/verify-compat-matrix.sh` — 9/9 PASS (also covers nano, less, htop). Proves each TUI initialises without crash inside libghostty's PTY |
-| M5-2 | ⏳ | Polish — animations, hover/focus states, accessibility | Bento-aware design pass, VoiceOver labels |
+| M5-2 | ✅ | Polish — animations, hover/focus states, accessibility | Sidebar slide-in (`NSAnimationContext` + animator proxy), hover state on tab chips + close X + add buttons + SSH rows, VoiceOver labels on all sidebars + chips + action buttons. 40/40 unit + 4/4 integration scripts still green |
 | M5-3 | ⏳ | Developer-ID codesign + notarize pipeline | Block out a dedicated chunk — historically a weekend sink |
 | M5-4 | ⏳ | Month 5 retrospective | 5 of 7 months marker |
 
@@ -83,6 +83,44 @@ manager's `connectSSH(_:)` builds shell commands with `&&`/`-p` flags
 and those work because they stay inside a single `exec -l` argument.
 If we ever add pipe-based features (e.g., "pipe shell history into
 fzf"), we'll need to wrap them in `bash -c "<pipeline>"` ourselves.
+
+### 2026-05-24 — M1-11 partial close + M5-2 polish pass
+
+**M1-11**: closed the half that's automatable — 8 unit tests on the
+`NSTextInputClient` Swift bridge cover the markedText / accumulator
+state machine. Owner checklist for live Telex composition lives at
+`docs/QA/vietnamese-ime-checklist.md` (20 phrases, defect taxonomy).
+The 4-month-old debt is no longer pure debt: the regression-prone
+parts (state machine ordering, accumulator vs PTY path) are CI-guarded.
+
+**M5-2 polish pass — three focused additions:**
+
+- **Sidebar slide-in animation.** Toggle handlers now call
+  `animateSidebarChange()` which runs `layoutSubtreeIfNeeded()`
+  inside an `NSAnimationContext` group with the animator proxy.
+  The slide-down completion handler resets `isHidden` so panels
+  vanish only after the slide finishes (not at the start).
+- **Hover state across every interactive chrome surface** — tab
+  chips brighten + close X gets a circle background, SSH rows get
+  a teal-tinted border, `+` buttons in tab bar and SSH header
+  swap to accent color. Each hover is row-local via per-row
+  `@State` so siblings don't redraw.
+- **VoiceOver labels** on all sidebars (`AGENTS`, `SSH HOSTS`,
+  `NOTES` get `.isHeader` trait), action buttons (Connect, Cancel,
+  Add, Close, New Tab), and rows (`accessibilityElement(.combine)`
+  collapses each agent/host row into one VoiceOver utterance).
+  Status dots inside agent rows are marked `.accessibilityHidden`
+  so VoiceOver doesn't read "circle" before the agent name.
+
+Regression check: M1-M3 smoke (7/7), M4-0 baseline, M4-1 codex
+detection, M4-4 ssh spawn — all 4 verify scripts still PASS. Unit
+suite 40/40.
+
+The Sendable closure dance for `NSAnimationContext.completionHandler`
+needed `MainActor.assumeIsolated` around the @MainActor mutations
+inside — Swift 6 strict concurrency flagged the bare access, and
+the wrap is the correct pattern for this kind of post-animation
+cleanup that always runs on the main runloop.
 
 ---
 

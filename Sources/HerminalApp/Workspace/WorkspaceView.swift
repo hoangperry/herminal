@@ -89,6 +89,11 @@ final class WorkspaceView: NSView {
 
     // MARK: - Layout
 
+    /// True only inside the brief animation window opened by a sidebar
+    /// toggle — `layout()` switches to the animator proxy in this case so
+    /// the slide is smooth instead of snapping.
+    private var isAnimatingLayout = false
+
     override func layout() {
         super.layout()
         let barHeight = TabBarView.barHeight
@@ -101,17 +106,31 @@ final class WorkspaceView: NSView {
         }()
         let rightSidebar = isNotesVisible ? Self.notesWidth : 0
 
-        dashboardHost.frame = CGRect(x: 0, y: 0, width: leftWidth, height: bounds.height)
-        dashboardHost.isHidden = leftSidebar != .agents
+        // Pre-toggle: keep the panel visible during a hide animation so the
+        // slide reads as motion rather than a pop. The animator restores
+        // `isHidden` at the end of the run (see animateSidebarChange()).
+        if !isAnimatingLayout {
+            dashboardHost.isHidden = leftSidebar != .agents
+            sshPanelHost.isHidden = leftSidebar != .ssh
+            notesHost.isHidden = !isNotesVisible
+        }
 
-        sshPanelHost.frame = CGRect(x: 0, y: 0, width: leftWidth, height: bounds.height)
-        sshPanelHost.isHidden = leftSidebar != .ssh
-
-        notesHost.frame = CGRect(
+        let dashboardTarget = CGRect(x: 0, y: 0, width: leftWidth, height: bounds.height)
+        let sshTarget = CGRect(x: 0, y: 0, width: leftWidth, height: bounds.height)
+        let notesTarget = CGRect(
             x: bounds.width - rightSidebar, y: 0,
             width: rightSidebar, height: bounds.height
         )
-        notesHost.isHidden = !isNotesVisible
+
+        if isAnimatingLayout {
+            dashboardHost.animator().frame = dashboardTarget
+            sshPanelHost.animator().frame = sshTarget
+            notesHost.animator().frame = notesTarget
+        } else {
+            dashboardHost.frame = dashboardTarget
+            sshPanelHost.frame = sshTarget
+            notesHost.frame = notesTarget
+        }
 
         let contentX = leftWidth
         let contentWidth = max(bounds.width - leftWidth - rightSidebar, 0)
@@ -379,19 +398,48 @@ final class WorkspaceView: NSView {
     @objc func toggleAgentDashboard(_ sender: Any?) {
         leftSidebar = (leftSidebar == .agents) ? .none : .agents
         if leftSidebar == .agents { refreshAgents() }
-        needsLayout = true
+        animateSidebarChange()
     }
 
     @objc func toggleSSHHosts(_ sender: Any?) {
         leftSidebar = (leftSidebar == .ssh) ? .none : .ssh
         if leftSidebar == .ssh { refreshSSHPanel() }
-        needsLayout = true
+        animateSidebarChange()
     }
 
     @objc func toggleNotes(_ sender: Any?) {
         isNotesVisible.toggle()
         if isNotesVisible { updateNotesPanel() }
-        needsLayout = true
+        animateSidebarChange()
+    }
+
+    /// Slides the sidebars to their new geometry instead of snapping. The
+    /// `isHidden` flags are deferred until the slide finishes so panels
+    /// don't pop out at the start of a hide.
+    private func animateSidebarChange() {
+        // Make sure all panels are visible during the animation; the
+        // completion handler restores the correct hidden state.
+        dashboardHost.isHidden = false
+        sshPanelHost.isHidden = false
+        notesHost.isHidden = false
+        isAnimatingLayout = true
+        NSAnimationContext.runAnimationGroup({ ctx in
+            ctx.duration = HerminalDesign.Motion.normal
+            ctx.timingFunction = CAMediaTimingFunction(name: .easeOut)
+            ctx.allowsImplicitAnimation = true
+            self.needsLayout = true
+            self.layoutSubtreeIfNeeded()
+        }, completionHandler: { [weak self] in
+            // The completion handler is Sendable; jump back to the main
+            // actor before touching @MainActor-isolated state.
+            MainActor.assumeIsolated {
+                guard let self else { return }
+                self.isAnimatingLayout = false
+                self.dashboardHost.isHidden = self.leftSidebar != .agents
+                self.sshPanelHost.isHidden = self.leftSidebar != .ssh
+                self.notesHost.isHidden = !self.isNotesVisible
+            }
+        })
     }
 
     @objc func exportNote(_ sender: Any?) {

@@ -38,10 +38,12 @@ struct AgentDashboardView: View {
             Text("AGENTS")
                 .font(HerminalDesign.Typography.caption)
                 .foregroundStyle(HerminalDesign.Palette.textTertiary)
+                .accessibilityAddTraits(.isHeader)
             Spacer()
             Text("\(agents.count)")
                 .font(HerminalDesign.Typography.caption)
                 .foregroundStyle(HerminalDesign.Palette.textSecondary)
+                .accessibilityLabel("\(agents.count) agent\(agents.count == 1 ? "" : "s") running")
         }
         .padding(.horizontal, HerminalDesign.Spacing.md)
         .frame(height: TabBarView.barHeight)
@@ -59,6 +61,7 @@ struct AgentDashboardView: View {
             Circle()
                 .fill(HerminalDesign.Palette.statusRunning)
                 .frame(width: 7, height: 7)
+                .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 1) {
                 Text(Self.label(for: agent.kind))
                     .font(HerminalDesign.Typography.bodyEmphasis)
@@ -76,6 +79,8 @@ struct AgentDashboardView: View {
             RoundedRectangle(cornerRadius: HerminalDesign.Radius.sm)
                 .fill(HerminalDesign.Palette.surfaceOverlay)
         )
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(Self.label(for: agent.kind)) agent running, pid \(agent.pid)")
     }
 
     private static func label(for kind: AgentKind) -> String {

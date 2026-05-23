@@ -36,11 +36,13 @@ struct NotesPanelView: View {
             Text("NOTES")
                 .font(HerminalDesign.Typography.caption)
                 .foregroundStyle(HerminalDesign.Palette.textTertiary)
+                .accessibilityAddTraits(.isHeader)
             Spacer()
             Text(sessionTitle)
                 .font(HerminalDesign.Typography.caption)
                 .foregroundStyle(HerminalDesign.Palette.textSecondary)
                 .lineLimit(1)
+                .accessibilityLabel("Notes for session \(sessionTitle)")
         }
         .padding(.horizontal, HerminalDesign.Spacing.md)
         .frame(height: TabBarView.barHeight)
