@@ -13,11 +13,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var tickTimer: Timer?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        // Touch the diary singleton first so crash handlers install before
+        // any libghostty / Metal init that could fault.
+        Diary.shared.log("applicationDidFinishLaunching", category: "lifecycle")
+
         let ghostty: GhosttyApp
         do {
             ghostty = try GhosttyApp()
         } catch {
-            NSLog("herminal: GhosttyApp startup failed: \(error)")
+            Diary.shared.log("GhosttyApp startup failed: \(error)", category: "lifecycle")
             NSApp.terminate(nil)
             return
         }
@@ -227,6 +231,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationWillTerminate(_ notification: Notification) {
+        Diary.shared.log("applicationWillTerminate", category: "lifecycle")
+        Diary.shared.flush()
         tickTimer?.invalidate()
         tickTimer = nil
     }

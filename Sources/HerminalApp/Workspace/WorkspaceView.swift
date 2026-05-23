@@ -187,6 +187,7 @@ final class WorkspaceView: NSView {
     func addTab() {
         tabs.append(WorkspaceTab(app: app))
         activeTabIndex = tabs.count - 1
+        Diary.shared.log("addTab — total=\(tabs.count)", category: "tabs")
         refresh()
     }
 
@@ -195,6 +196,7 @@ final class WorkspaceView: NSView {
     func addTab(command: String, title: String) {
         tabs.append(WorkspaceTab(app: app, command: command, title: title))
         activeTabIndex = tabs.count - 1
+        Diary.shared.log("addTab command=\(command) title=\(title)", category: "tabs")
         refresh()
     }
 
@@ -233,6 +235,7 @@ final class WorkspaceView: NSView {
     /// the tab's split axis.
     func splitActivePane(vertical: Bool) {
         activeTab?.split(app: app, vertical: vertical)
+        Diary.shared.log("splitActivePane vertical=\(vertical)", category: "panes")
         refresh()
     }
 
@@ -240,8 +243,10 @@ final class WorkspaceView: NSView {
     func closeActivePane() {
         guard let tab = activeTab else { return }
         if tab.closeFocusedPane() {
+            Diary.shared.log("closeActivePane → tab \(tab.id) empty, closing tab", category: "panes")
             closeTab(id: tab.id)
         } else {
+            Diary.shared.log("closeActivePane remaining=\(tab.panes.count)", category: "panes")
             refresh()
         }
     }
@@ -312,11 +317,14 @@ final class WorkspaceView: NSView {
     private func connectSSH(_ host: SSHHost) {
         let command = Self.sshCommand(for: host)
         Self.sshLog.info("opening ssh tab: \(command, privacy: .public)")
+        Diary.shared.log("ssh connect \(host.nickname) (\(host.user)@\(host.hostname):\(host.port))",
+                         category: "ssh")
         addTab(command: command, title: host.nickname)
         do {
             try sshHostsStore.touchLastConnected(id: host.id)
         } catch {
             Self.sshLog.error("last-connected stamp failed: \(error, privacy: .public)")
+            Diary.shared.log("ssh last-connected stamp failed: \(error)", category: "ssh")
         }
         refreshSSHPanel()
     }
