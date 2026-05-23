@@ -18,7 +18,7 @@
 | M1-11 | ⏳ | Vietnamese IME smoke test (20 phrases) | Owner manual test — debt from Month 1 |
 | M4-0 | ✅ | GUI test harness (debt fix) | `HERMINAL_TEST_TEXT` env → `ghostty_surface_text` inject; `Scripts/run-test-harness.sh`; 4/4 runs PASS. **Verification gap closed** |
 | M4-1 | ✅ | Codex CLI detection verify | Exposed 2 real bugs: (1) bracketed-paste swallowed harness `\n`, (2) `proc_listchildpids` broken on macOS Sequoia. Fixed both: `Scripts/verify-codex-detection.sh` 1/1 PASS, AgentDetector now uses `sysctl(KERN_PROC_ALL)` |
-| M4-2 | ⏳ | SSH connection model + storage | `SSHHost` model + persisted list (SQLite or plist) |
+| M4-2 | ✅ | SSH connection model + storage | `SSHHost` value type + `SSHHostsStore` SQLite WAL store. 9 tests covering CRUD + validation + last-connected timestamp. Q4-001 resolved: SQLite chosen for symmetry with NotesStore |
 | M4-3 | ⏳ | SSH Connection Manager UI | Sidebar list with add / edit / connect |
 | M4-4 | ⏳ | SSH connect — spawn ssh in new tab | Open a host in a new tab via libghostty `command` |
 | M4-5 | ⏳ | Month 4 retrospective | Re-check 7-month scope after the heaviest UI month |
@@ -86,9 +86,33 @@ first real use.**
 reports `p_comm=bash`), launches herminal, injects `touch && /tmp/codex 30`,
 and asserts the dump file contains a `codex` line. 1/1 PASS.
 
+### 2026-05-24 — M4-2 SSH host model + store
+
+Q4-001 decided in favour of SQLite — same pattern as `NotesStore`, no extra
+storage idiom to learn, and `(updated_at DESC)` index keeps the sidebar
+ordering cheap once host counts grow. Plist would have been simpler at 5-50
+rows but the cost of SQLite at this scale is essentially nil.
+
+- `SSHHost` value type: id, nickname, hostname, user, port (1-65535),
+  created_at, updated_at, last_connected_at. Secrets stay out — they
+  belong in `~/.ssh/config` or Keychain, not herminal's DB.
+- `SSHHost.validated(...)` enforces input rules at the model boundary so
+  the UI never has to second-guess what's safe to upsert.
+- `SSHHostsStore`: WAL-mode SQLite, `upsert/host/allHosts/delete`, plus
+  `touchLastConnected(id:)` which updates only the connect timestamp
+  (does NOT bump `updated_at` — connection telemetry should not promote
+  the row in the sidebar's recency sort).
+- Test coverage: 9 cases — round-trip, in-place update, recency ordering,
+  delete, unknown id, validation (empty hostname + port bounds), and
+  last-connected stamping.
+
+Full test suite: 29/29 PASS.
+
 ---
 
 ## Open Questions
 
-- **Q4-001:** SSH host storage — SQLite (reuse NotesStore pattern) vs plist?
-  SQLite gives indexing + future filtering; plist is simpler. To decide at M4-2.
+- **Q4-001:** ~~SSH host storage — SQLite vs plist?~~ **Resolved (M4-2):** SQLite.
+  Row count stays small (5-50 hosts typical) so the perf delta is essentially
+  nil, but SQLite gives us one storage idiom across notes + hosts (less
+  cognitive cost) and indexing headroom for future search/filter UI.
