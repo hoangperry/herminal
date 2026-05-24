@@ -23,7 +23,7 @@ decision (Q5-002).
 | M6-1a | ✅ | Crash diary + log capture | `Diary` singleton; ring buffer + signal handler; writes `~/Library/Application Support/herminal/diary.log` |
 | M6-1b | ✅ | Dogfood checklist + journal template + daily-runner | `docs/QA/dogfood-checklist.md`, `docs/QA/dogfood-journal-template.md`, `Scripts/dogfood-daily.sh` (5/5 PASS) |
 | M6-pre | ✅ | Agent status discrimination (M3 carry) | `AgentStatusTracker` — CPU-delta heuristic. Dashboard now shows running/idle/starting instead of always-running. **Critical bug fix discovered along the way: `proc_pid_rusage` reports mach absolute time units, NOT nanoseconds — was under-reporting by 42×** |
-| M6-2 | ⏳ | 30-day daily-driver run | **Owner manual.** 30 consecutive days, herminal as primary terminal. Each day: copy journal template, run `Scripts/dogfood-daily.sh`, fill in friction matrix, commit |
+| M6-2 | 🔄 | 30-day daily-driver run | **Owner manual.** Day 1 baseline filed by agent at `docs/QA/dogfood/day-01-2026-05-25.md` (5/5 dogfood-daily PASS, no leak in 60s extended run, no crashes, one P2 sequencing flake noted). **Days 2-30 are owner-driven.** Pre-M7 gate: ≥20/30 days = "Y" to "would I use it tomorrow?" |
 | M6-3 | 🔄 | Month 6 retrospective | This file (template ready; final pass after M6-2 completes) |
 
 ## Month 7 plan (preview)
