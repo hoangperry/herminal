@@ -33,6 +33,13 @@ for entry in "${CHECKS[@]}"; do
     IFS='|' read -r label script <<< "$entry"
     label_trimmed="$(echo -n "$label" | sed 's/[[:space:]]*$//')"
     printf "  %-22s ... " "$label_trimmed"
+    # The previous check's `pkill -9` is async — give the kernel a beat
+    # to release the bundle's resources (Metal layer, PTY fds) before
+    # the next check launches a fresh HerminalApp. Without this, the
+    # next launch's surface init occasionally races and the inject path
+    # silently no-ops.
+    pkill -9 -x HerminalApp 2>/dev/null
+    sleep 2
     if [ "$script" = "run-test-harness.sh" ]; then
         rm -f /tmp/herminal-dogfood-baseline.txt
         out="$("$REPO_ROOT/Scripts/$script" \

@@ -59,14 +59,14 @@ struct AgentDashboardView: View {
     private func agentRow(_ agent: DetectedAgent) -> some View {
         HStack(spacing: HerminalDesign.Spacing.sm) {
             Circle()
-                .fill(HerminalDesign.Palette.statusRunning)
+                .fill(Self.color(for: agent.status))
                 .frame(width: 7, height: 7)
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 1) {
                 Text(Self.label(for: agent.kind))
                     .font(HerminalDesign.Typography.bodyEmphasis)
                     .foregroundStyle(HerminalDesign.Palette.textPrimary)
-                Text("pid \(agent.pid) · running")
+                Text("pid \(agent.pid) · \(Self.statusText(agent.status))")
                     .font(HerminalDesign.Typography.caption)
                     .foregroundStyle(HerminalDesign.Palette.textTertiary)
             }
@@ -80,7 +80,29 @@ struct AgentDashboardView: View {
                 .fill(HerminalDesign.Palette.surfaceOverlay)
         )
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(Self.label(for: agent.kind)) agent running, pid \(agent.pid)")
+        .accessibilityLabel("\(Self.label(for: agent.kind)) agent \(Self.statusText(agent.status)), pid \(agent.pid)")
+    }
+
+    private static func color(for status: AgentStatus) -> Color {
+        switch status {
+        case .running: HerminalDesign.Palette.statusRunning
+        case .idle: HerminalDesign.Palette.statusIdle
+        case .needsInput: HerminalDesign.Palette.statusRunning
+        case .exitedSuccess: HerminalDesign.Palette.statusDone
+        case .exitedError: HerminalDesign.Palette.statusError
+        case .unknown: HerminalDesign.Palette.statusIdle
+        }
+    }
+
+    private static func statusText(_ status: AgentStatus) -> String {
+        switch status {
+        case .running: "running"
+        case .idle: "idle"
+        case .needsInput: "needs input"
+        case .exitedSuccess: "done"
+        case .exitedError: "error"
+        case .unknown: "starting"
+        }
     }
 
     private static func label(for kind: AgentKind) -> String {

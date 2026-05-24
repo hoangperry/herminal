@@ -20,8 +20,19 @@ public struct DetectedAgent: Sendable, Equatable, Identifiable {
     public let id: pid_t
     public let kind: AgentKind
     public let processName: String
+    /// Activity inferred from CPU sampling between two `AgentStatusTracker`
+    /// calls. `.unknown` when only one sample exists (first sighting).
+    public let status: AgentStatus
 
     public var pid: pid_t { id }
+
+    public init(id: pid_t, kind: AgentKind, processName: String,
+                status: AgentStatus = .unknown) {
+        self.id = id
+        self.kind = kind
+        self.processName = processName
+        self.status = status
+    }
 }
 
 public enum AgentDetector {
@@ -77,11 +88,94 @@ public enum AgentDetector {
         for child in snapshot.children(of: pid) {
             let name = snapshot.name(of: child)
             if let kind = AgentKind.detect(processName: name) {
-                found.append(DetectedAgent(id: child, kind: kind, processName: name))
+                found.append(DetectedAgent(id: child, kind: kind,
+                                           processName: name, status: .unknown))
             }
             scan(child, snapshot: snapshot, into: &found, visited: &visited)
         }
     }
+}
+
+/// Differentiates "running" from "idle" agents by sampling per-PID CPU
+/// usage between calls. The agent dashboard polls every 2s; this tracker
+/// remembers the previous sample and infers status from the delta.
+///
+/// Threshold rationale: a Claude/Codex/Aider session that's actively
+/// processing a request burns at least one core (1.0s/s) — even at 5% of
+/// one core (0.05s/s of CPU per second of wall time) we mark it
+/// `.running`. An idle TUI loop polling stdin sits well below that.
+public final class AgentStatusTracker: @unchecked Sendable {
+    private struct Sample {
+        let cpuSeconds: TimeInterval
+        let wallTime: TimeInterval
+    }
+
+    private let threshold: Double
+    private var samples: [pid_t: Sample] = [:]
+    private let lock = NSLock()
+
+    public init(threshold: Double = 0.05) {
+        self.threshold = threshold
+    }
+
+    /// Enriches each `DetectedAgent` with a freshly inferred `status`.
+    /// First sighting always returns `.unknown` — we need two samples to
+    /// compute a delta. The caller (dashboard) lives with that for one
+    /// poll cycle; the badge flips on the second tick.
+    public func annotate(_ agents: [DetectedAgent]) -> [DetectedAgent] {
+        let now = Date().timeIntervalSince1970
+        lock.lock()
+        defer { lock.unlock() }
+        var alive: Set<pid_t> = []
+        let result = agents.map { agent -> DetectedAgent in
+            alive.insert(agent.pid)
+            let cpu = Self.cpuSeconds(forPID: agent.pid)
+            defer { samples[agent.pid] = Sample(cpuSeconds: cpu, wallTime: now) }
+            guard let previous = samples[agent.pid] else {
+                return agent  // First sighting → .unknown carries through
+            }
+            let cpuDelta = cpu - previous.cpuSeconds
+            let wallDelta = now - previous.wallTime
+            guard wallDelta > 0 else { return agent }
+            let status: AgentStatus = (cpuDelta / wallDelta) >= threshold
+                ? .running : .idle
+            return DetectedAgent(id: agent.pid, kind: agent.kind,
+                                 processName: agent.processName, status: status)
+        }
+        // Evict samples for PIDs that no longer exist so the cache doesn't
+        // grow without bound across many short-lived agent invocations.
+        samples = samples.filter { alive.contains($0.key) }
+        return result
+    }
+
+    /// Total user+system CPU time for a PID, in seconds. Returns 0 if the
+    /// process is gone or `proc_pid_rusage` declines (sandbox, perms).
+    private static func cpuSeconds(forPID pid: pid_t) -> TimeInterval {
+        var info = rusage_info_current()
+        let result = withUnsafeMutablePointer(to: &info) { ptr in
+            ptr.withMemoryRebound(to: rusage_info_t?.self, capacity: 1) { reboundPtr in
+                proc_pid_rusage(pid, RUSAGE_INFO_CURRENT, reboundPtr)
+            }
+        }
+        guard result == 0 else { return 0 }
+        // `ri_user_time` + `ri_system_time` are MACH ABSOLUTE TIME UNITS,
+        // not nanoseconds — verified empirically (Apple Silicon reports
+        // 1 mach unit = 125/3 ≈ 41.67 ns; treating the field as ns
+        // under-reported CPU by a factor of ~42 and made every agent
+        // look idle). Convert via the cached timebase ratio.
+        let machTotal = info.ri_user_time + info.ri_system_time
+        let ns = machTotal * UInt64(machTimebase.numer) / UInt64(machTimebase.denom)
+        return TimeInterval(ns) / 1_000_000_000
+    }
+
+    /// Mach timebase ratio for converting `mach_absolute_time` units to
+    /// nanoseconds. Read once at first access — the ratio is constant
+    /// for the lifetime of the process.
+    private static let machTimebase: mach_timebase_info_data_t = {
+        var info = mach_timebase_info_data_t()
+        mach_timebase_info(&info)
+        return info
+    }()
 }
 
 /// One-shot snapshot of the system process table via `sysctl(KERN_PROC_ALL)`.

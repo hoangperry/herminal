@@ -27,6 +27,7 @@ final class WorkspaceView: NSView {
     private let app: ghostty_app_t
     private let notesStore: NotesStore
     private let sshHostsStore: SSHHostsStore
+    private let agentStatusTracker = AgentStatusTracker()
     private var tabs: [WorkspaceTab] = []
     private var activeTabIndex = 0
 
@@ -263,7 +264,9 @@ final class WorkspaceView: NSView {
 
     private func refreshAgents() {
         guard leftSidebar == .agents else { return }
-        dashboardHost.rootView = AgentDashboardView(agents: AgentDetector.detectAgents())
+        let raw = AgentDetector.detectAgents()
+        let annotated = agentStatusTracker.annotate(raw)
+        dashboardHost.rootView = AgentDashboardView(agents: annotated)
     }
 
     // MARK: - SSH hosts panel
