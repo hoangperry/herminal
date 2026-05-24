@@ -94,6 +94,61 @@ public final class Diary: @unchecked Sendable {
         }
     }
 
+    /// Exports the diary's last `maxLines` entries with PII redacted —
+    /// suitable for pasting into a GitHub bug report. The promise from
+    /// `SECURITY.md` is that herminal sends nothing over the network on
+    /// its own; this method exists so the OWNER can opt-in to sharing
+    /// the diary with full visibility of exactly what bytes leave the
+    /// machine.
+    ///
+    /// Redactions:
+    /// - User home prefix (`/Users/<name>`) → `/Users/<redacted>`
+    /// - libghostty surface addresses (`0x[0-9a-f]+`) → `0x<addr>`
+    /// - PIDs are KEPT — they're useful for cross-referencing the
+    ///   crash diary's signal handler line with the process tree at
+    ///   the time of crash, and they're meaningless to anyone outside
+    ///   the machine that produced them.
+    public func exportRedacted(maxLines: Int = 200) -> String {
+        let snapshot = recentEntries().suffix(maxLines)
+        return snapshot
+            .map(Self.redact)
+            .joined(separator: "\n")
+    }
+
+    /// Internal-but-public so the test suite can verify the redaction
+    /// rules without touching the live disk file. Stateless.
+    public static func redact(_ entry: String) -> String {
+        let homePrefix = NSHomeDirectory()
+        // 1. Substring replace the user's specific home (e.g.
+        //    `/Users/hoangperry`) with `/Users/<redacted>`. Catches
+        //    everything below the home too (`/Users/x/Library/...`).
+        var redacted = entry
+        if !homePrefix.isEmpty, redacted.contains(homePrefix) {
+            redacted = redacted.replacingOccurrences(of: homePrefix,
+                                                     with: "/Users/<redacted>")
+        }
+        // 2. Generic `/Users/<anything-but-/>` catch-all for entries
+        //    that mention OTHER users' homes (rare, but possible if
+        //    the user ran `ls /Users/...` and we logged a derived path).
+        if let re = try? NSRegularExpression(
+            pattern: #"/Users/[^/\s"']+"#, options: [.caseInsensitive]
+        ) {
+            let range = NSRange(redacted.startIndex..., in: redacted)
+            redacted = re.stringByReplacingMatches(
+                in: redacted, range: range, withTemplate: "/Users/<redacted>")
+        }
+        // 3. libghostty surface addresses — high-entropy pointer ints
+        //    aren't PII but they're noise on the report side.
+        if let re = try? NSRegularExpression(
+            pattern: #"0x[0-9a-fA-F]{6,}"#, options: []
+        ) {
+            let range = NSRange(redacted.startIndex..., in: redacted)
+            redacted = re.stringByReplacingMatches(
+                in: redacted, range: range, withTemplate: "0x<addr>")
+        }
+        return redacted
+    }
+
     // MARK: - Internal
 
     private func append(entry: String) {
