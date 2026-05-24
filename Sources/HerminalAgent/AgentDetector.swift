@@ -87,12 +87,82 @@ public enum AgentDetector {
         visited.insert(pid)
         for child in snapshot.children(of: pid) {
             let name = snapshot.name(of: child)
-            if let kind = AgentKind.detect(processName: name) {
+            // Primary path: short name matches a known agent CLI directly.
+            // Fallback for wrapper interpreters (node/python/bun/deno):
+            // the kernel records `p_comm=node` for `npx @anthropic-ai/claude`,
+            // so we have to peek at argv to find the actual agent name.
+            // argv reads are skipped for everything that already matched on
+            // p_comm because they're more expensive (one sysctl per PID).
+            let kind: AgentKind? = {
+                if let direct = AgentKind.detect(processName: name) {
+                    return direct
+                }
+                if AgentKind.isInterpreter(name: name) {
+                    let argv = ProcessArgvReader.argv(forPID: child)
+                    return AgentKind.detect(interpreterArgv: argv)
+                }
+                return nil
+            }()
+            if let kind {
+                let displayName = AgentKind.isInterpreter(name: name)
+                    ? "\(kind.rawValue) (\(name))"
+                    : name
                 found.append(DetectedAgent(id: child, kind: kind,
-                                           processName: name, status: .unknown))
+                                           processName: displayName, status: .unknown))
             }
             scan(child, snapshot: snapshot, into: &found, visited: &visited)
         }
+    }
+}
+
+/// Reads process argv via `sysctl(KERN_PROCARGS2)`. Used by
+/// `AgentDetector` to disambiguate wrapper interpreters (node, python)
+/// from their script arguments. Static utility — no state.
+public enum ProcessArgvReader {
+    /// Returns the argv array for `pid` (excluding the executable path
+    /// prefix), or an empty array if the kernel refuses (process gone,
+    /// permission denied, kernel buffer parse failed).
+    public static func argv(forPID pid: pid_t) -> [String] {
+        // KERN_PROCARGS2 buffer layout:
+        //   int32 argc
+        //   char  exec_path[]              (null-terminated, then padding)
+        //   char  argv[0][]                (null-terminated)
+        //   char  argv[1][]
+        //   ...
+        //   char  envvar[i][]
+        var mib: [Int32] = [CTL_KERN, KERN_PROCARGS2, pid]
+        var size = 0
+        if sysctl(&mib, UInt32(mib.count), nil, &size, nil, 0) != 0 || size == 0 {
+            return []
+        }
+        var buffer = [UInt8](repeating: 0, count: size)
+        if sysctl(&mib, UInt32(mib.count), &buffer, &size, nil, 0) != 0 {
+            return []
+        }
+        guard size >= MemoryLayout<Int32>.size else { return [] }
+        let argc = buffer.withUnsafeBytes { $0.load(as: Int32.self) }
+        guard argc > 0 else { return [] }
+        var pos = MemoryLayout<Int32>.size
+
+        // Step over the exec_path string, then over the padding nulls
+        // that align the start of argv[0].
+        while pos < size && buffer[pos] != 0 { pos += 1 }
+        while pos < size && buffer[pos] == 0 { pos += 1 }
+
+        var args: [String] = []
+        var current: [UInt8] = []
+        while pos < size && args.count < Int(argc) {
+            if buffer[pos] == 0 {
+                if let s = String(bytes: current, encoding: .utf8), !s.isEmpty {
+                    args.append(s)
+                }
+                current.removeAll(keepingCapacity: true)
+            } else {
+                current.append(buffer[pos])
+            }
+            pos += 1
+        }
+        return args
     }
 }
 
@@ -255,5 +325,53 @@ extension AgentKind {
         case "aider": return .aider
         default: return nil
         }
+    }
+
+    /// True when the process name is a script interpreter that might be
+    /// hosting an agent CLI (`node @anthropic-ai/claude-code/cli.js`,
+    /// `python -m aider`, ...). Used by `AgentDetector` to decide
+    /// whether to spend a sysctl on argv inspection.
+    public static func isInterpreter(name: String) -> Bool {
+        switch name.lowercased() {
+        case "node", "python", "python3", "bun", "deno":
+            return true
+        default:
+            return false
+        }
+    }
+
+    /// Inspects an interpreter's argv (e.g. `["node",
+    /// "/path/.bin/claude", ...]`) for a recognisable agent CLI. Looks at:
+    ///   1. Basename of any argv element — catches `.bin/claude`,
+    ///      `cli.js` under a known package directory, plain `claude`.
+    ///   2. Substring match against the full argv (lowercased) for the
+    ///      known npm package names (`@anthropic-ai/claude-code`,
+    ///      `@openai/codex`).
+    public static func detect(interpreterArgv argv: [String]) -> AgentKind? {
+        guard !argv.isEmpty else { return nil }
+        // 2. Package-name substring is the highest-confidence signal.
+        let joined = argv.joined(separator: " ").lowercased()
+        if joined.contains("@anthropic-ai/claude") || joined.contains("claude-code") {
+            return .claudeCode
+        }
+        if joined.contains("@openai/codex") {
+            return .codex
+        }
+        if joined.contains("aider-chat") || joined.contains("/aider/") {
+            return .aider
+        }
+        // 1. Basename match. Skip argv[0] — it's the interpreter itself.
+        for arg in argv.dropFirst() {
+            // Trim option flags so `-m aider` and `--script /x/aider.js`
+            // resolve to the same payload.
+            let trimmed = arg.split(separator: "/").last.map(String.init) ?? arg
+            switch trimmed.lowercased() {
+            case "claude", "claude.js", "claude-cli": return .claudeCode
+            case "codex", "codex.js", "codex-cli": return .codex
+            case "aider", "aider.py": return .aider
+            default: continue
+            }
+        }
+        return nil
     }
 }
