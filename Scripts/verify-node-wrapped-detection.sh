@@ -44,11 +44,12 @@ INJECT=$'touch '"$CHECK_FILE"$' && python3 '"$FAKE_AIDER"$'\n'
 LOG=$(mktemp)
 HERMINAL_TEST_TEXT="$INJECT" \
 HERMINAL_TEST_AGENT_DUMP="$AGENT_DUMP" \
+HERMINAL_TEST_DELAY=12 \
 "$APP_BIN" > "$LOG" 2>&1 &
 APP_PID=$!
 
-# Inject T+8s → dump T+14s → wait 18s.
-sleep 18
+# Inject T+12s → dump T+18s → wait 22s (M8: startup pushed past 8s).
+sleep 22
 
 cleanup() {
     kill -9 $APP_PID 2>/dev/null

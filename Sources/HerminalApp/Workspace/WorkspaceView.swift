@@ -5,6 +5,7 @@
 import AppKit
 import SwiftUI
 import GhosttyKit
+import HerminalCore
 import HerminalAgent
 import HerminalDB
 import os
@@ -266,7 +267,31 @@ final class WorkspaceView: NSView {
         guard leftSidebar == .agents else { return }
         let raw = AgentDetector.detectAgents()
         let annotated = agentStatusTracker.annotate(raw)
-        dashboardHost.rootView = AgentDashboardView(agents: annotated)
+        // M8/A2: if ANY surface rang its bell in the last 10s, promote
+        // every running/idle agent to .needsInput. Per-surface attribution
+        // (which agent belongs to which surface) is the M8/A3 follow-up;
+        // for now bell-anywhere → all-agents-flagged keeps the UX honest
+        // without faking precision we don't have yet.
+        let anyRecentBell = surfaceAddresses.contains {
+            BellRegistry.shared.hasRecentBell(forSurfaceAddress: $0)
+        }
+        let final: [DetectedAgent] = anyRecentBell
+            ? annotated.map { agent in
+                guard agent.status == .idle || agent.status == .running else { return agent }
+                return DetectedAgent(id: agent.pid, kind: agent.kind,
+                                     processName: agent.processName,
+                                     status: .needsInput)
+            }
+            : annotated
+        dashboardHost.rootView = AgentDashboardView(agents: final)
+    }
+
+    /// All libghostty surface addresses across every tab + every pane.
+    /// Used by the bell-needs-input promotion in `refreshAgents()`.
+    private var surfaceAddresses: [Int] {
+        tabs.flatMap { tab in
+            tab.panes.compactMap { $0.surfaceView.surfaceAddress }
+        }
     }
 
     // MARK: - SSH hosts panel

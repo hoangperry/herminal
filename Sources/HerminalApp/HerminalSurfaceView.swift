@@ -114,6 +114,13 @@ final class HerminalSurfaceView: NSView {
     /// Injects raw text into the surface — bypasses key events / IME entirely.
     /// Used by the GUI test harness so input does not depend on the system
     /// keyboard or input source (osascript / Telex composition would corrupt it).
+    /// libghostty surface address as an integer — used by `BellRegistry`
+    /// to attribute bell events to the right pane. nil until libghostty
+    /// has actually allocated the surface (post-`viewDidMoveToWindow`).
+    var surfaceAddress: Int? {
+        surface.map { Int(bitPattern: $0) }
+    }
+
     func injectText(_ text: String) {
         guard let surface else { return }
         guard !text.isEmpty else { return }

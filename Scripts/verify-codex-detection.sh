@@ -47,11 +47,13 @@ INJECT=$'touch '"$CHECK_FILE"$' && '"$CODEX_BIN"$' 30\n'
 
 HERMINAL_TEST_TEXT="$INJECT" \
 HERMINAL_TEST_AGENT_DUMP="$AGENT_DUMP" \
+HERMINAL_TEST_DELAY=12 \
 "$APP_BIN" > "$LOG" 2>&1 &
 APP_PID=$!
 
-# Inject fires at T+8s, dump at T+14s. Wait 18s for safety.
-sleep 18
+# Inject fires at T+12s, dump at T+18s. Wait 22s for safety
+# (bumped from 18 in M8 once startup work pushed shell-prompt past 8s).
+sleep 22
 
 cleanup() {
     kill -9 $APP_PID 2>/dev/null

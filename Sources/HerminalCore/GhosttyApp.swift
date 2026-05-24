@@ -76,11 +76,33 @@ public final class GhosttyApp {
             userdata: nil,
             supports_selection_clipboard: false,
             wakeup_cb: { _ in },
-            action_cb: { _, _, _ in false },
+            action_cb: Self.handleAction,
             read_clipboard_cb: { _, _, _ in false },
             confirm_read_clipboard_cb: { _, _, _, _ in },
             write_clipboard_cb: { _, _, _, _, _ in },
             close_surface_cb: { _, _ in }
         )
+    }
+
+    /// Dispatches libghostty's action callbacks. Currently routes
+    /// `GHOSTTY_ACTION_RING_BELL` to `BellRegistry` for the agent-needs-input
+    /// detection (M8/A2 / Q6-001) and returns false (= unhandled) for
+    /// everything else. `nonisolated` because libghostty calls this from
+    /// renderer / IO threads.
+    private nonisolated static let handleAction: ghostty_runtime_action_cb = { _, target, action in
+        switch action.tag {
+        case GHOSTTY_ACTION_RING_BELL:
+            // Bell is always per-surface — record the address so the
+            // dashboard can attribute the bell to the right session.
+            if target.tag == GHOSTTY_TARGET_SURFACE,
+               let surface = target.target.surface {
+                BellRegistry.shared.recordBell(
+                    surfaceAddress: Int(bitPattern: surface)
+                )
+            }
+            return true
+        default:
+            return false
+        }
     }
 }

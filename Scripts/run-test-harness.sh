@@ -38,13 +38,20 @@ rm -f "$CHECK_FILE"
 pkill -9 -x HerminalApp 2>/dev/null
 
 LOG=$(mktemp)
-( HERMINAL_TEST_TEXT="$TEXT" lldb --batch -o "run" "$APP_BIN" > "$LOG" 2>&1 & )
+# HERMINAL_TEST_DELAY=12 — bumped from the AppDelegate default of 8s
+# in M8 once startup work (Diary signal-handler install, BellRegistry
+# wiring, agent status sampling, …) pushed the shell-prompt-ready
+# moment past 8s on a normal laptop. 12s gives comfortable headroom
+# for heavy .zshrc setups (oh-my-zsh + pyenv + nvm) without dragging
+# the harness's overall wall time noticeably (we poll for the marker
+# file rather than blocking on a fixed sleep).
+( HERMINAL_TEST_TEXT="$TEXT" HERMINAL_TEST_DELAY=12 \
+    lldb --batch -o "run" "$APP_BIN" > "$LOG" 2>&1 & )
 
 # Poll for the side-effect file rather than relying on a fixed sleep —
 # the shell startup + injection settling time varies on a busy machine.
-# (Injection itself happens around T+4s; allow several more seconds for
-# the shell to actually execute the command.)
-for _ in $(seq 1 25); do
+# Injection now happens around T+12s; allow 30 iterations of 1s polls.
+for _ in $(seq 1 30); do
     sleep 1
     [ -f "$CHECK_FILE" ] && break
 done
