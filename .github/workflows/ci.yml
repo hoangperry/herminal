@@ -1,0 +1,103 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# Cancel any in-flight run for the same PR / branch when a new commit lands.
+# Saves runner minutes and avoids redundant work on rapid iterations.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Fast lane: HerminalDB + HerminalAgent are pure Swift with no libghostty
+  # dependency. Their unit tests cover 70%+ of the codebase logic. Running
+  # them in a dedicated job gives PR authors quick feedback (<2 min) before
+  # the slower full-build job finishes.
+  core-libs:
+    name: Core libraries (DB + Agent)
+    runs-on: macos-15
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: false  # libghostty not needed for these targets
+
+      - name: Cache SPM resolved dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            .build
+            ~/Library/Caches/org.swift.swiftpm
+          key: ${{ runner.os }}-spm-corelibs-${{ hashFiles('Package.resolved') }}
+          restore-keys: |
+            ${{ runner.os }}-spm-corelibs-
+
+      - name: Run HerminalDB tests
+        run: swift test --filter "HerminalDBTests"
+
+      - name: Run HerminalAgent tests
+        run: swift test --filter "HerminalAgentTests"
+
+  # Slow lane: builds the full app including the libghostty xcframework via
+  # Zig. Runs the App-layer tests (IME bridge, Workspace, Diary) that need
+  # libghostty to link. Only required for main; PRs can rely on the fast
+  # lane unless they touch HerminalApp / HerminalCore.
+  full-build:
+    name: Full build + app tests
+    runs-on: macos-15
+    timeout-minutes: 45
+    if: github.event_name == 'push' || contains(github.event.pull_request.labels.*.name, 'full-build')
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install Zig 0.15.2 + Metal toolchain
+        run: |
+          brew install zig
+          # Verify the version libghostty expects.
+          zig version
+
+      - name: Cache libghostty xcframework
+        id: cache-ghostty
+        uses: actions/cache@v4
+        with:
+          path: Vendor/libghostty/macos/GhosttyKit.xcframework
+          # Bump the cache key by the submodule SHA so any libghostty
+          # update invalidates the cached framework automatically.
+          key: ghostty-xcframework-${{ hashFiles('.gitmodules', 'Vendor/libghostty/build.zig') }}
+
+      - name: Cache SPM build
+        uses: actions/cache@v4
+        with:
+          path: |
+            .build
+            ~/Library/Caches/org.swift.swiftpm
+          key: ${{ runner.os }}-spm-fullbuild-${{ hashFiles('Package.resolved') }}
+          restore-keys: |
+            ${{ runner.os }}-spm-fullbuild-
+
+      - name: Build libghostty xcframework (if not cached)
+        if: steps.cache-ghostty.outputs.cache-hit != 'true'
+        run: Scripts/bootstrap.sh
+
+      - name: swift build
+        run: swift build
+
+      - name: swift test (full suite)
+        run: swift test
+
+      - name: Assemble .app bundle
+        run: Scripts/make-app-bundle.sh
+
+      - name: Upload built bundle as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: herminal-app-${{ github.sha }}
+          path: .build/herminal.app
+          # 7 days is enough for triage; longer wastes free-tier storage.
+          retention-days: 7
