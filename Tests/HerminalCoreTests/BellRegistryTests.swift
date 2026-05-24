@@ -2,7 +2,12 @@ import Foundation
 import Testing
 @testable import HerminalCore
 
-@Suite("BellRegistry")
+/// BellRegistry is a singleton (its real-world counterpart is one
+/// global because libghostty's action_cb is one global). Tests share
+/// `BellRegistry.shared` and reset before each case — `.serialized`
+/// ensures Swift Testing doesn't run them in parallel and let one
+/// case's bells leak into another's counter assertion.
+@Suite("BellRegistry", .serialized)
 struct BellRegistryTests {
     /// Use a fresh BellRegistry isolation per test by resetting the
     /// singleton — `BellRegistry.shared` is one global because libghostty's
