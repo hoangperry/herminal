@@ -43,10 +43,13 @@ if [[ "$VERSION" == v* ]]; then
     exit 2
 fi
 
-# 1. Clean working tree.
-if [ -n "$(git status --porcelain)" ]; then
+# 1. Clean working tree. `--ignore-submodules=dirty` skips the libghostty
+#    submodule's internal build artefacts (zig-pkg/, zig-out/, etc.) —
+#    what matters for reproducibility is the submodule SHA pin, not its
+#    working tree.
+if [ -n "$(git status --porcelain --ignore-submodules=dirty)" ]; then
     echo "ERROR: working tree has uncommitted changes" >&2
-    git status --short >&2
+    git status --short --ignore-submodules=dirty >&2
     exit 1
 fi
 
