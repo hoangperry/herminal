@@ -269,20 +269,32 @@ final class WorkspaceView: NSView {
         let annotated = agentStatusTracker.annotate(raw)
         // M8/A2: if ANY surface rang its bell in the last 10s, promote
         // every running/idle agent to .needsInput. Per-surface attribution
-        // (which agent belongs to which surface) is the M8/A3 follow-up;
-        // for now bell-anywhere → all-agents-flagged keeps the UX honest
-        // without faking precision we don't have yet.
-        let anyRecentBell = surfaceAddresses.contains {
-            BellRegistry.shared.hasRecentBell(forSurfaceAddress: $0)
+        // is the M9/A3 follow-up (below) — but bells fire per-surface and
+        // the agent↔pane mapper now tells us which session each agent
+        // lives in, so we can scope the promotion when both signals agree.
+        // Backstop: when the mapping fails (tabHint nil), fall back to
+        // the M8 any-bell-promotes-all behaviour so we never under-flag.
+        let bellAddresses = Set(
+            surfaceAddresses.filter { BellRegistry.shared.hasRecentBell(forSurfaceAddress: $0) }
+        )
+        let anyBell = !bellAddresses.isEmpty
+
+        // M9/A3: ask the mapper for tab indices. Session creation order =
+        // tab order in the current single-axis layout.
+        let sessionStarts = tabs.flatMap { $0.panes.map { $0.createdAt } }
+        let mapped = AgentPaneMapper.annotate(annotated,
+                                              sessionStartTimes: sessionStarts)
+
+        let final: [DetectedAgent] = mapped.map { agent in
+            guard anyBell else { return agent }
+            guard agent.status == .idle || agent.status == .running else { return agent }
+            return DetectedAgent(
+                id: agent.pid, kind: agent.kind,
+                processName: agent.processName,
+                status: .needsInput,
+                tabHint: agent.tabHint
+            )
         }
-        let final: [DetectedAgent] = anyRecentBell
-            ? annotated.map { agent in
-                guard agent.status == .idle || agent.status == .running else { return agent }
-                return DetectedAgent(id: agent.pid, kind: agent.kind,
-                                     processName: agent.processName,
-                                     status: .needsInput)
-            }
-            : annotated
         dashboardHost.rootView = AgentDashboardView(agents: final)
     }
 

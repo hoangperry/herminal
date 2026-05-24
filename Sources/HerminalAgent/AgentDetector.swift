@@ -23,15 +23,21 @@ public struct DetectedAgent: Sendable, Equatable, Identifiable {
     /// Activity inferred from CPU sampling between two `AgentStatusTracker`
     /// calls. `.unknown` when only one sample exists (first sighting).
     public let status: AgentStatus
+    /// Tab index (0-based) hosting this agent, or nil if the
+    /// `AgentPaneMapper` heuristic couldn't pair it. Shown in the
+    /// dashboard as "Tab N" so the user knows where to look.
+    public let tabHint: Int?
 
     public var pid: pid_t { id }
 
     public init(id: pid_t, kind: AgentKind, processName: String,
-                status: AgentStatus = .unknown) {
+                status: AgentStatus = .unknown,
+                tabHint: Int? = nil) {
         self.id = id
         self.kind = kind
         self.processName = processName
         self.status = status
+        self.tabHint = tabHint
     }
 }
 
@@ -252,34 +258,74 @@ public final class AgentStatusTracker: @unchecked Sendable {
 /// Built once per detection cycle and queried in O(1) for child lookup.
 /// (`proc_listchildpids` returns broken data on macOS 14+; ps/pgrep use this
 /// same sysctl path under the hood.)
-final class ProcessSnapshot {
-    private struct Entry {
-        let pid: pid_t
-        let ppid: pid_t
-        let name: String
+public final class ProcessSnapshot {
+    public struct Entry {
+        public let pid: pid_t
+        public let ppid: pid_t
+        public let name: String
+        /// Kernel-recorded process start time (in absolute system
+        /// reference). Used by `AgentPaneMapper` to pair logins to
+        /// sessions by creation order. Wall-clock — not mach absolute.
+        public let startTime: TimeInterval
     }
 
     private let childrenByPPID: [pid_t: [pid_t]]
     private let namesByPID: [pid_t: String]
+    private let parentByPID: [pid_t: pid_t]
+    private let startTimeByPID: [pid_t: TimeInterval]
 
-    init() {
+    public init() {
         let entries = ProcessSnapshot.readKernelProcessTable()
         var children: [pid_t: [pid_t]] = [:]
         var names: [pid_t: String] = [:]
+        var parents: [pid_t: pid_t] = [:]
+        var starts: [pid_t: TimeInterval] = [:]
         for entry in entries {
             children[entry.ppid, default: []].append(entry.pid)
             names[entry.pid] = entry.name
+            parents[entry.pid] = entry.ppid
+            starts[entry.pid] = entry.startTime
         }
         self.childrenByPPID = children
         self.namesByPID = names
+        self.parentByPID = parents
+        self.startTimeByPID = starts
     }
 
-    func children(of pid: pid_t) -> [pid_t] {
+    public func children(of pid: pid_t) -> [pid_t] {
         childrenByPPID[pid] ?? []
     }
 
-    func name(of pid: pid_t) -> String {
+    public func name(of pid: pid_t) -> String {
         namesByPID[pid] ?? ""
+    }
+
+    /// Direct parent PID, or nil if the process is missing or is init.
+    public func parent(of pid: pid_t) -> pid_t? {
+        guard let ppid = parentByPID[pid], ppid > 0 else { return nil }
+        return ppid
+    }
+
+    /// Kernel-recorded start time. Returns 0 for an unknown PID — callers
+    /// should treat 0 as "unknown" rather than "very early."
+    public func startTime(of pid: pid_t) -> TimeInterval {
+        startTimeByPID[pid] ?? 0
+    }
+
+    /// Walks the PPID chain from `pid` upward, returning the first
+    /// ancestor whose process name matches `name`. Used by
+    /// `AgentPaneMapper` to find the login process that owns each
+    /// agent. Limits depth to defend against the (theoretical) PPID
+    /// cycle in a corrupt snapshot.
+    public func nearestAncestor(of pid: pid_t, named name: String) -> pid_t? {
+        var current = parent(of: pid)
+        var hops = 0
+        while let p = current, hops < 64 {
+            if self.name(of: p).lowercased() == name.lowercased() { return p }
+            current = parent(of: p)
+            hops += 1
+        }
+        return nil
     }
 
     private static func readKernelProcessTable() -> [Entry] {
@@ -305,13 +351,89 @@ final class ProcessSnapshot {
             let pid = proc.kp_proc.p_pid
             let ppid = proc.kp_eproc.e_ppid
             guard pid > 0 else { return nil }
+            // p_starttime is a `timeval` (seconds + microseconds). Convert
+            // to a wall-clock TimeInterval — used as a sort key for the
+            // login → session pairing in AgentPaneMapper.
+            let start = TimeInterval(proc.kp_proc.p_starttime.tv_sec) +
+                        TimeInterval(proc.kp_proc.p_starttime.tv_usec) / 1_000_000
             let name = withUnsafePointer(to: proc.kp_proc.p_comm) { ptr in
                 ptr.withMemoryRebound(to: CChar.self,
                                       capacity: MemoryLayout.size(ofValue: proc.kp_proc.p_comm)) {
                     String(cString: $0)
                 }
             }
-            return Entry(pid: pid, ppid: ppid, name: name)
+            return Entry(pid: pid, ppid: ppid, name: name, startTime: start)
+        }
+    }
+}
+
+/// Pairs detected agents with the herminal tab their PTY lives in.
+///
+/// libghostty doesn't expose a per-surface PID, so the mapper guesses by
+/// process-tree position: it finds each agent's nearest `login` ancestor,
+/// sorts all login children of herminal by kernel start time, and pairs
+/// the Nth-oldest login with the Nth-oldest session (caller supplies
+/// `sessionStartTimes`). If herminal's tabs were created in the same
+/// order their PTYs spawned — which is always true today, since both
+/// happen inline on the main actor — the pairing is exact.
+///
+/// Edge cases the heuristic handles cleanly:
+/// - Tab close: the corresponding login disappears, the next call's
+///   pairing shifts by one and re-aligns.
+/// - Concurrent splits / multiple panes per tab: each pane's surface
+///   spawns its own login, so panes get their own entry in the pairing.
+/// - Tab reorder via drag (post-MVP, not shipped yet): would break the
+///   pairing — caller would need to switch to a stable ID join when
+///   that lands.
+public enum AgentPaneMapper {
+    /// Annotates `agents` with `tabHint` indices using the heuristic
+    /// described above. Pass `sessionStartTimes` in *tab order* — each
+    /// entry is the wall-clock TimeInterval when the tab's first pane
+    /// was created. Returns the same agents in the same order; only
+    /// `tabHint` may change.
+    public static func annotate(
+        _ agents: [DetectedAgent],
+        herminalPID: pid_t = getpid(),
+        sessionStartTimes: [TimeInterval],
+        snapshot: ProcessSnapshot? = nil
+    ) -> [DetectedAgent] {
+        guard !sessionStartTimes.isEmpty else { return agents }
+        let snap = snapshot ?? ProcessSnapshot()
+
+        // Collect all login children of herminal in start-time order.
+        let loginsByStart: [(pid: pid_t, startTime: TimeInterval)] = snap
+            .children(of: herminalPID)
+            .filter { snap.name(of: $0).lowercased() == "login" }
+            .map { (pid: $0, startTime: snap.startTime(of: $0)) }
+            .sorted { $0.startTime < $1.startTime }
+
+        // Sort sessions by their creation time and remember the original
+        // tab-order index — we want `tabHint` to refer to the user-visible
+        // tab order, not the start-time-sorted order.
+        let sessionsByStart = sessionStartTimes.enumerated()
+            .map { (originalIndex: $0.offset, startTime: $0.element) }
+            .sorted { $0.startTime < $1.startTime }
+
+        // Pair nth-oldest login → nth-oldest session.
+        var tabIndexForLoginPID: [pid_t: Int] = [:]
+        for (n, login) in loginsByStart.enumerated() {
+            guard n < sessionsByStart.count else { break }
+            tabIndexForLoginPID[login.pid] = sessionsByStart[n].originalIndex
+        }
+
+        // For each agent, walk up to a login ancestor and look it up.
+        return agents.map { agent in
+            guard let loginPID = snap.nearestAncestor(of: agent.pid, named: "login"),
+                  let tabIndex = tabIndexForLoginPID[loginPID] else {
+                return agent
+            }
+            return DetectedAgent(
+                id: agent.pid,
+                kind: agent.kind,
+                processName: agent.processName,
+                status: agent.status,
+                tabHint: tabIndex
+            )
         }
     }
 }

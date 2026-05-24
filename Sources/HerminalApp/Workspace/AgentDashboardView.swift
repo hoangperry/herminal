@@ -63,9 +63,24 @@ struct AgentDashboardView: View {
                 .frame(width: 7, height: 7)
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 1) {
-                Text(Self.label(for: agent.kind))
-                    .font(HerminalDesign.Typography.bodyEmphasis)
-                    .foregroundStyle(HerminalDesign.Palette.textPrimary)
+                HStack(spacing: HerminalDesign.Spacing.xs) {
+                    Text(Self.label(for: agent.kind))
+                        .font(HerminalDesign.Typography.bodyEmphasis)
+                        .foregroundStyle(HerminalDesign.Palette.textPrimary)
+                    if let tab = agent.tabHint {
+                        // M9/A3: pane mapper found a tab — surface it so
+                        // the user knows where to look. Numbered 1-based
+                        // to match the user-visible tab strip.
+                        Text("Tab \(tab + 1)")
+                            .font(HerminalDesign.Typography.caption)
+                            .foregroundStyle(HerminalDesign.Palette.accent)
+                            .padding(.horizontal, 4)
+                            .background(
+                                RoundedRectangle(cornerRadius: 3)
+                                    .fill(HerminalDesign.Palette.accent.opacity(0.15))
+                            )
+                    }
+                }
                 Text("pid \(agent.pid) · \(Self.statusText(agent.status))")
                     .font(HerminalDesign.Typography.caption)
                     .foregroundStyle(HerminalDesign.Palette.textTertiary)
@@ -80,7 +95,15 @@ struct AgentDashboardView: View {
                 .fill(HerminalDesign.Palette.surfaceOverlay)
         )
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(Self.label(for: agent.kind)) agent \(Self.statusText(agent.status)), pid \(agent.pid)")
+        .accessibilityLabel(Self.a11yLabel(for: agent))
+    }
+
+    private static func a11yLabel(for agent: DetectedAgent) -> String {
+        let base = "\(label(for: agent.kind)) agent \(statusText(agent.status)), pid \(agent.pid)"
+        if let tab = agent.tabHint {
+            return "\(base), in tab \(tab + 1)"
+        }
+        return base
     }
 
     private static func color(for status: AgentStatus) -> Color {

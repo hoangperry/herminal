@@ -9,9 +9,14 @@ final class TerminalSession: Identifiable {
     nonisolated let id = UUID()
     let surfaceView: HerminalSurfaceView
     var title: String
+    /// Wall-clock creation time. Used by `AgentPaneMapper` to pair this
+    /// session with the libghostty login process spawned alongside it
+    /// (Nth-oldest login → Nth-oldest session).
+    let createdAt: TimeInterval
 
     init(app: ghostty_app_t, title: String = "herminal", command: String? = nil) {
         self.surfaceView = HerminalSurfaceView(app: app, command: command)
         self.title = title
+        self.createdAt = Date().timeIntervalSince1970
     }
 }
