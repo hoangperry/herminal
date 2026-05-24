@@ -20,7 +20,7 @@ done; days 2-30 ongoing), plus the post-MVP defer list from M6-3.
 | M7-1b | ✅ | CI — GitHub Actions | Two-lane workflow (core-libs fast, full-build slow); caches SPM + libghostty xcframework |
 | M7-1c | ✅ | Release tooling | `CHANGELOG.md` (Keep-a-Changelog 1.1), `Scripts/release.sh` (version-gated, dogfood-daily-gated, signed, prints `gh release create` line) |
 | M7-1d | ✅ | README v0.1.0 + launch copy | README reflects shipped state with badges + tour; `docs/launch/` has press kit + Twitter thread + LinkedIn post (drafts) |
-| M7-2 | ⏳ | Beta launch | **Owner manual.** Cut v0.1.0 with `Scripts/release.sh`, post Twitter thread + LinkedIn post, monitor first issues |
+| M7-2 | 🔄 | Beta launch | Tag `v0.1.0` cut + pushed; draft pre-release on GitHub with ad-hoc-signed `herminal-v0.1.0.zip` (5.7 MB) + CHANGELOG notes. **Owner finishes:** (1) review + publish the draft, (2) post `docs/launch/twitter-thread.md`, (3) post `docs/launch/linkedin-post.md`, (4) re-cut as v0.1.1 once Developer-ID lands so users skip the Gatekeeper warning |
 | M7-3 | 🔄 | Month 7 retro + post-MVP roadmap | This file (infrastructure pass done; final pass after M7-2 + first feedback wave) |
 
 ---
@@ -151,6 +151,40 @@ want to *share* the diary on crash reports:
   press kit (single-page hand-out), Twitter thread (6 tweets),
   LinkedIn post (~1300 chars). Screenshot/GIF placeholders pinned
   to `docs/launch/assets/`.
+
+### 2026-05-25 — M7-2 first tag + draft release cut
+
+- `Scripts/release.sh 0.1.0` ran clean: dogfood-daily 5/5 PASS,
+  release build assembled, ad-hoc-signed (no Developer-ID yet),
+  zipped to `.build/release/herminal-v0.1.0.zip` (5.7 MB), annotated
+  git tag `v0.1.0` created locally.
+- Tag pushed to origin (`git push origin v0.1.0`).
+- Draft pre-release created via `gh release create v0.1.0 --draft
+  --prerelease` with the zip as the asset and the [0.1.0] CHANGELOG
+  block extracted into `--notes-file`. `--prerelease` flag set
+  because the bundle is ad-hoc-signed; users will see the Gatekeeper
+  "downloaded from internet" warning until v0.1.1 cuts a notarized
+  build.
+- Bug found while cutting: `release.sh`'s dirty-tree check tripped
+  on libghostty submodule's internal `zig-pkg/` build artefact —
+  fixed by switching to `git status --ignore-submodules=dirty`
+  (commit `d5abe4a`) before re-running the release.
+
+Owner steps remaining to finish M7-2:
+1. Review the draft release at
+   `gh release view v0.1.0` (or in the GitHub UI).
+2. Click "Publish release" (or `gh release edit v0.1.0 --draft=false`)
+   once the assets look right.
+3. Drop hero screenshot + agent dashboard GIF into
+   `docs/launch/assets/`, update the placeholders in
+   `twitter-thread.md` and `linkedin-post.md`.
+4. Post the Twitter thread + LinkedIn post.
+5. Watch the issue tracker — bug template prompts for diary excerpt
+   + dogfood journal day, so triage should be tight.
+6. Re-cut as `v0.1.1` notarized once the Developer-ID cert lands
+   (the signing pipeline is already env-driven; flip the two env
+   vars and `Scripts/release.sh 0.1.1` produces a Gatekeeper-clean
+   build).
 
 ---
 
