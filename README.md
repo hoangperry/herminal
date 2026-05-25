@@ -11,6 +11,8 @@
 **Status:** v0.1.0 beta — M7 of 7 ([CHANGELOG](CHANGELOG.md)).
 **Platform:** macOS 14+ Apple Silicon.
 
+> 🇻🇳 Phiên bản tiếng Việt: [`README.vi.md`](README.vi.md)
+
 ---
 
 ## What is herminal
