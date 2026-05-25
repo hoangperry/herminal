@@ -9,6 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+**Window state restoration (M12-P5)**
+- Window frame (x/y/width/height) persists across launches via a new
+  internal `WindowState` namespace under UserDefaults. Validated on
+  load — frames whose centre lies off every currently-attached screen
+  fall back to the default centred geometry, so disconnecting a second
+  monitor doesn't strand the window.
+- Left sidebar (Agents / SSH / none) and Notes panel visibility also
+  persist. WorkspaceView restores both BEFORE the first layout pass
+  so the user lands in the same workspace shape they left.
+- AppDelegate is the NSWindowDelegate; `windowDidMove` / `windowDidResize`
+  write the latest frame back to UserDefaults.
+
 **Tab close confirmation (M12-P4)**
 - Closing a tab whose panes hold a non-empty note now shows an NSAlert
   asking for confirmation. The check runs on both close paths: the

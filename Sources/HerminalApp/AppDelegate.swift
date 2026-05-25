@@ -7,10 +7,14 @@ import HerminalDB
 import HerminalAgent
 
 @MainActor
-final class AppDelegate: NSObject, NSApplicationDelegate {
+final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private var ghostty: GhosttyApp?
     private var window: NSWindow?
     private var tickTimer: Timer?
+    /// Set after we restore the workspace state in didFinishLaunching so
+    /// the windowDidMove/Resize callbacks don't write back the default
+    /// frame on first launch. (M12-P5)
+    private var windowStateReady = false
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         // Register UserDefaults defaults FIRST so any other init code that
@@ -38,13 +42,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         NSApp.mainMenu = AppMenu.build()
 
+        let savedState = WindowState.load()
         let workspace = WorkspaceView(
             app: ghostty.app,
             notesStore: AppDelegate.makeNotesStore(),
             sshHostsStore: AppDelegate.makeSSHHostsStore()
         )
-        let window = AppDelegate.makeWindow(contentView: workspace)
+        workspace.applyRestoredSidebarState(savedState)
+        let window = AppDelegate.makeWindow(contentView: workspace,
+                                            savedFrame: savedState.frame)
+        window.delegate = self
         self.window = window
+        windowStateReady = true
 
         // libghostty's wakeup_cb is a no-op (C function pointers cannot capture
         // context), so a steady 60 Hz timer drives the event loop for the spike.
@@ -206,9 +215,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     #endif
 
     /// Builds the herminal window with premium chrome styled from design tokens.
-    private static func makeWindow(contentView: NSView) -> NSWindow {
+    private static func makeWindow(contentView: NSView,
+                                   savedFrame: NSRect? = nil) -> NSWindow {
+        let defaultRect = NSRect(x: 0, y: 0, width: 900, height: 560)
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 900, height: 560),
+            contentRect: savedFrame ?? defaultRect,
             styleMask: [.titled, .closable, .resizable, .miniaturizable],
             backing: .buffered,
             defer: false
@@ -223,7 +234,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         window.isMovableByWindowBackground = false
         window.minSize = NSSize(width: 480, height: 320)
 
-        window.center()
+        if savedFrame == nil {
+            window.center()
+        } else {
+            // setFrame after construction so AppKit clamps to the screen if
+            // needed (the centre-in-screen check in WindowState already
+            // filtered out wildly invalid frames).
+            window.setFrame(savedFrame!, display: false)
+        }
         window.makeKeyAndOrderFront(nil)
         return window
     }
@@ -270,6 +288,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// PreferencesWindow into view; opens it lazily on first use.
     @objc func openPreferences(_ sender: Any?) {
         PreferencesWindow.show()
+    }
+
+    // MARK: - NSWindowDelegate (M12-P5)
+
+    func windowDidResize(_ notification: Notification) {
+        persistWindowFrame()
+    }
+
+    func windowDidMove(_ notification: Notification) {
+        persistWindowFrame()
+    }
+
+    private func persistWindowFrame() {
+        guard windowStateReady, let frame = window?.frame else { return }
+        WindowState.saveFrame(frame)
     }
 
     /// Sets `HerminalDesign.currentTheme` from the persisted preference.

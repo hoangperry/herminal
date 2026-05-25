@@ -635,19 +635,50 @@ final class WorkspaceView: NSView {
     @objc func toggleAgentDashboard(_ sender: Any?) {
         leftSidebar = (leftSidebar == .agents) ? .none : .agents
         if leftSidebar == .agents { refreshAgents() }
+        persistSidebarState()
         animateSidebarChange()
     }
 
     @objc func toggleSSHHosts(_ sender: Any?) {
         leftSidebar = (leftSidebar == .ssh) ? .none : .ssh
         if leftSidebar == .ssh { refreshSSHPanel() }
+        persistSidebarState()
         animateSidebarChange()
     }
 
     @objc func toggleNotes(_ sender: Any?) {
         isNotesVisible.toggle()
         if isNotesVisible { updateNotesPanel() }
+        persistSidebarState()
         animateSidebarChange()
+    }
+
+    /// Re-apply the workspace-level sidebar state from the last session.
+    /// AppDelegate calls this BEFORE the window is shown so the first
+    /// layout already reserves space for whatever the owner had open.
+    /// (M12-P5)
+    func applyRestoredSidebarState(_ snapshot: WindowState.Snapshot) {
+        switch snapshot.leftSidebar {
+        case .none: leftSidebar = .none
+        case .agents: leftSidebar = .agents
+        case .ssh: leftSidebar = .ssh
+        }
+        isNotesVisible = snapshot.notesVisible
+        if leftSidebar == .agents { refreshAgents() }
+        if leftSidebar == .ssh { refreshSSHPanel() }
+        if isNotesVisible { updateNotesPanel() }
+        needsLayout = true
+    }
+
+    private func persistSidebarState() {
+        let mapped: WindowState.LeftSidebar = {
+            switch leftSidebar {
+            case .none: return .none
+            case .agents: return .agents
+            case .ssh: return .ssh
+            }
+        }()
+        WindowState.saveSidebar(left: mapped, notesVisible: isNotesVisible)
     }
 
     /// M9/C-light: flip between dark and light theme. SwiftUI re-evaluates
