@@ -1,0 +1,175 @@
+name: Release
+
+# Triggers on every `vX.Y.Z` tag pushed to the repo. Manual dispatch
+# is also wired so the owner can rerun a release that needs
+# re-uploading without re-tagging.
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to release (e.g. v0.1.0). Must already exist.'
+        required: true
+        type: string
+
+# A release writes back to the repo (creates the GH release, uploads
+# assets). Avoid two concurrent runs racing on the same tag.
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  # `gh release create/upload` needs write on the contents API.
+  contents: write
+
+jobs:
+  build-and-release:
+    name: Build, sign, package, publish
+    runs-on: macos-15
+    timeout-minutes: 60
+    steps:
+      - name: Resolve target tag
+        id: tag
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "tag=${{ inputs.tag }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=${{ github.ref_name }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.tag.outputs.tag }}
+          submodules: recursive
+
+      - name: Install Zig (libghostty toolchain)
+        run: brew install zig
+
+      - name: Cache libghostty xcframework
+        id: cache-ghostty
+        uses: actions/cache@v4
+        with:
+          path: Vendor/libghostty/macos/GhosttyKit.xcframework
+          key: ghostty-xcframework-${{ hashFiles('.gitmodules', 'Vendor/libghostty/build.zig') }}
+
+      - name: Build libghostty xcframework (if not cached)
+        if: steps.cache-ghostty.outputs.cache-hit != 'true'
+        run: Scripts/bootstrap.sh
+
+      - name: Cache SPM build
+        uses: actions/cache@v4
+        with:
+          path: |
+            .build
+            ~/Library/Caches/org.swift.swiftpm
+          key: ${{ runner.os }}-spm-release-${{ hashFiles('Package.resolved') }}
+          restore-keys: |
+            ${{ runner.os }}-spm-release-
+
+      - name: Import Developer-ID signing certificate
+        if: ${{ secrets.APPLE_DEVELOPER_CERT_P12 != '' }}
+        env:
+          CERT_P12_BASE64: ${{ secrets.APPLE_DEVELOPER_CERT_P12 }}
+          CERT_PASSWORD: ${{ secrets.APPLE_CERT_PASSWORD }}
+        run: |
+          # Create a temporary keychain that the run owns; gets torn
+          # down with the runner so secrets never leak into a cached
+          # login keychain.
+          KEYCHAIN_PATH="$RUNNER_TEMP/build.keychain-db"
+          KEYCHAIN_PASSWORD="$(openssl rand -base64 24)"
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 7200 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          # Decode + import the .p12 the owner uploaded as a secret.
+          echo "$CERT_P12_BASE64" | base64 --decode > "$RUNNER_TEMP/cert.p12"
+          security import "$RUNNER_TEMP/cert.p12" \
+            -P "$CERT_PASSWORD" \
+            -A -t cert -f pkcs12 \
+            -k "$KEYCHAIN_PATH"
+          security list-keychains -d user -s "$KEYCHAIN_PATH" $(security list-keychains -d user | tr -d '"')
+          security set-key-partition-list \
+            -S apple-tool:,apple:,codesign: \
+            -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          rm -f "$RUNNER_TEMP/cert.p12"
+
+      - name: Store notarytool credentials
+        if: ${{ secrets.APPLE_ID != '' }}
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+        run: |
+          xcrun notarytool store-credentials herminal-notarize \
+            --apple-id "$APPLE_ID" \
+            --team-id "$APPLE_TEAM_ID" \
+            --password "$APPLE_APP_SPECIFIC_PASSWORD"
+
+      - name: Sign + notarize
+        env:
+          HERMINAL_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          HERMINAL_NOTARY_PROFILE: herminal-notarize
+        run: Scripts/sign-and-notarize.sh
+
+      - name: Package as DMG
+        run: Scripts/make-dmg.sh "${{ steps.tag.outputs.tag }}"
+
+      - name: Extract release notes from CHANGELOG
+        id: notes
+        run: |
+          # The release.sh script has the same awk; we duplicate inline
+          # so the CI run doesn't depend on the script's success state.
+          VERSION="${TAG#v}"
+          awk -v v="$VERSION" '
+            BEGIN { capture = 0 }
+            /^## \[/ {
+              if (capture == 1) { exit }
+              if ($0 ~ "^## \\[" v "\\]") { capture = 1; next }
+            }
+            capture == 1 { print }
+          ' CHANGELOG.md > "$RUNNER_TEMP/notes.md"
+          echo "notes_path=$RUNNER_TEMP/notes.md" >> "$GITHUB_OUTPUT"
+        env:
+          TAG: ${{ steps.tag.outputs.tag }}
+
+      - name: Create or update GitHub release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.tag.outputs.tag }}
+          NOTES_PATH: ${{ steps.notes.outputs.notes_path }}
+        run: |
+          ZIP=".build/release/herminal-$TAG.zip"
+          DMG=".build/release/herminal-$TAG.dmg"
+          if ! gh release view "$TAG" >/dev/null 2>&1; then
+            gh release create "$TAG" \
+              "$ZIP" "$DMG" \
+              --title "herminal $TAG" \
+              --notes-file "$NOTES_PATH" \
+              --draft
+          else
+            # Existing release (e.g. workflow_dispatch rerun) — refresh
+            # the assets so a re-run replaces stale binaries.
+            gh release upload "$TAG" "$ZIP" "$DMG" --clobber
+          fi
+
+      - name: Generate + upload Sparkle appcast
+        # The appcast format is defined in docs/appcast-template.xml.
+        # Until Sparkle ships in the .app (see Updater.swift TODO),
+        # we still publish the file so the URL contract holds and
+        # external pollers can preview the upcoming feed.
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.tag.outputs.tag }}
+        run: |
+          VERSION="${TAG#v}"
+          ZIP=".build/release/herminal-$TAG.zip"
+          SIZE=$(stat -f%z "$ZIP")
+          PUB_DATE="$(LC_ALL=en_US.UTF-8 date -u '+%a, %d %b %Y %H:%M:%S +0000')"
+          OUT="$RUNNER_TEMP/appcast.xml"
+          sed \
+            -e "s/0.1.0/$VERSION/g" \
+            -e "s/Sun, 25 May 2026 00:00:00 +0000/$PUB_DATE/" \
+            -e "s/length=\"5950000\"/length=\"$SIZE\"/" \
+            docs/appcast-template.xml > "$OUT"
+          gh release upload "$TAG" "$OUT" --clobber
