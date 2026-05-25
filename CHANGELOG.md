@@ -9,6 +9,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+**Preferences foundation (M12-P1)**
+- `Preferences` enum centralises 8 UserDefaults keys (theme, terminal
+  font size + padding, cursor blink, default shell path, status-bar
+  visibility, close-with-note confirmation, first-run flag) with a
+  single `defaultsDictionary()` registered at launch.
+- SwiftUI Settings scene (`PreferencesView`) — 4 tabs (General /
+  Appearance / Terminal / Shell), bound via `@AppStorage`, hosted in an
+  AppKit window by `PreferencesWindow`. Opens via `⌘,` from the app
+  menu.
+- Theme picker gains a "Follow System" option that reads
+  `NSApp.effectiveAppearance` at launch and on each `Preferences`
+  notification, mapping to dark or light. Manual `⌘⇧L` still works
+  but resets when the picker is changed.
+- AppKit listeners (`WorkspaceView`) repaint chrome when
+  `Preferences.didChangeNotification` fires so theme flips from the
+  Settings window reflow the tab bar, sidebars, notes pane, and
+  window background without a relaunch.
+
 **Agent dashboard depth (Theme A — fully closed in M8/M9)**
 - Node/Python-wrapped agent detection via `sysctl(KERN_PROCARGS2)`.
   Catches `npx @anthropic-ai/claude-code`, `python3 -m aider`, etc. —

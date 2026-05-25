@@ -15,6 +15,14 @@ enum AppMenu {
         appItem.submenu = appMenu
         appMenu.addItem(withTitle: "About herminal", action: nil, keyEquivalent: "")
         appMenu.addItem(.separator())
+        // ⌘, is the macOS-wide Settings/Preferences convention. Target
+        // is the AppDelegate; responder chain reaches it via NSApp.
+        appMenu.addItem(NSMenuItem(
+            title: "Settings…",
+            action: #selector(AppDelegate.openPreferences(_:)),
+            keyEquivalent: ","
+        ))
+        appMenu.addItem(.separator())
         appMenu.addItem(
             withTitle: "Quit herminal",
             action: #selector(NSApplication.terminate(_:)),

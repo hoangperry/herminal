@@ -70,6 +70,16 @@ final class WorkspaceView: NSView {
         addSubview(notesHost)
         addTab()
         startAgentPolling()
+        // M12-P1: live-update path. Settings flips post the notification;
+        // we re-read everything that depends on a preference value and
+        // repaint. Cheap because the SwiftUI hosts re-evaluate Palette
+        // tokens automatically once we rebuild their rootView.
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(preferencesDidChange),
+            name: Preferences.didChangeNotification,
+            object: nil
+        )
     }
 
     required init?(coder: NSCoder) {
@@ -78,6 +88,11 @@ final class WorkspaceView: NSView {
 
     deinit {
         agentPollTimer?.invalidate()
+        NotificationCenter.default.removeObserver(
+            self,
+            name: Preferences.didChangeNotification,
+            object: nil
+        )
     }
 
     private var activeTab: WorkspaceTab? {
@@ -495,6 +510,34 @@ final class WorkspaceView: NSView {
     /// we still need to nudge the AppKit chrome (window background +
     /// surface container) explicitly because those colours were resolved
     /// at init time.
+    /// Listener for `Preferences.didChangeNotification` — re-applies the
+    /// persisted theme (handles both manual flips and the `.system`
+    /// follow-the-appearance case) and repaints all SwiftUI hosts so
+    /// design tokens re-evaluate. (M12-P1)
+    @objc func preferencesDidChange() {
+        switch Preferences.theme {
+        case .dark: HerminalDesign.currentTheme = .dark
+        case .light: HerminalDesign.currentTheme = .light
+        case .system:
+            let isDark = NSApp.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+            HerminalDesign.currentTheme = isDark ? .dark : .light
+        }
+        repaintChrome()
+    }
+
+    /// Pushes a fresh rootView into every SwiftUI host so design tokens
+    /// re-evaluate against the current theme. AppKit-resolved colours
+    /// (window background, surface container) also get refreshed.
+    private func repaintChrome() {
+        window?.backgroundColor = NSColor(HerminalDesign.Palette.surfaceBase)
+        surfaceContainer.layer?.backgroundColor = NSColor(HerminalDesign.Palette.border).cgColor
+        tabHost.rootView = makeTabBar()
+        if leftSidebar == .agents { refreshAgents() }
+        if leftSidebar == .ssh { refreshSSHPanel() }
+        if isNotesVisible { updateNotesPanel() }
+        needsLayout = true
+    }
+
     @objc func toggleTheme(_ sender: Any?) {
         HerminalDesign.currentTheme = HerminalDesign.currentTheme == .dark ? .light : .dark
         // Refresh AppKit-resolved colours.
