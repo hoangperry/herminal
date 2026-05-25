@@ -107,6 +107,15 @@ enum AppMenu {
         toggleNotes.keyEquivalentModifierMask = [.command, .shift]
         windowMenu.addItem(toggleNotes)
 
+        windowMenu.addItem(.separator())
+        let toggleTheme = NSMenuItem(
+            title: "Toggle Light / Dark Theme",
+            action: #selector(WorkspaceView.toggleTheme(_:)),
+            keyEquivalent: "l"
+        )
+        toggleTheme.keyEquivalentModifierMask = [.command, .shift]
+        windowMenu.addItem(toggleTheme)
+
         return mainMenu
     }
 }

@@ -461,6 +461,32 @@ final class WorkspaceView: NSView {
         animateSidebarChange()
     }
 
+    /// M9/C-light: flip between dark and light theme. SwiftUI re-evaluates
+    /// the `@MainActor` Palette tokens because their backing var changed;
+    /// we still need to nudge the AppKit chrome (window background +
+    /// surface container) explicitly because those colours were resolved
+    /// at init time.
+    @objc func toggleTheme(_ sender: Any?) {
+        HerminalDesign.currentTheme = HerminalDesign.currentTheme == .dark ? .light : .dark
+        // Refresh AppKit-resolved colours.
+        window?.backgroundColor = NSColor(HerminalDesign.Palette.surfaceBase)
+        surfaceContainer.layer?.backgroundColor = NSColor(HerminalDesign.Palette.border).cgColor
+        // Rebuild all SwiftUI hosts so they pick up the new colour values.
+        tabHost.rootView = makeTabBar()
+        if leftSidebar == .agents { refreshAgents() }
+        if leftSidebar == .ssh { refreshSSHPanel() }
+        if isNotesVisible { updateNotesPanel() }
+        // Reset the dashboard if visible so the new palette lands now,
+        // not on the next 2s poll.
+        if leftSidebar == .agents {
+            dashboardHost.rootView = AgentDashboardView(agents: [])
+            refreshAgents()
+        }
+        Diary.shared.log("toggled to \(HerminalDesign.currentTheme.rawValue) theme",
+                         category: "ui")
+        needsLayout = true
+    }
+
     /// Slides the sidebars to their new geometry instead of snapping. The
     /// `isHidden` flags are deferred until the slide finishes so panels
     /// don't pop out at the start of a hide.

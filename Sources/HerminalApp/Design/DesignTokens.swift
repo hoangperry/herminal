@@ -9,34 +9,126 @@ import SwiftUI
 
 enum HerminalDesign {
 
+    // MARK: - Theme switching
+    //
+    // M9/C-light closes Q5-002: light theme variant. The runtime theme is
+    // a settable static — every Palette accessor checks it and returns
+    // the appropriate sRGB value. We keep the dark theme as default
+    // (PRD: Raycast/Linear-style "premium dark"); the light theme exists
+    // for users whose macOS appearance is set to Light and who want
+    // herminal to follow. Auto-follow-system is post-MVP — for now the
+    // owner toggles via Window menu (⌘⇧L).
+    enum Theme: String, CaseIterable {
+        case dark
+        case light
+    }
+
+    /// `nonisolated(unsafe)`: read from any view-update path on the main
+    /// thread; mutated only by the menu toggle, which is also main-thread.
+    /// No cross-thread access possible (all UI is @MainActor).
+    nonisolated(unsafe) static var currentTheme: Theme = .dark
+
     // MARK: - Color Palette
     //
-    // Dark-first. Values are sRGB, derived from OKLCH intent (noted in
-    // comments) so the ladder stays perceptually even.
+    // Each token is a computed `Color` that branches on `currentTheme`.
+    // Dark values were the M2 originals; light values were chosen so the
+    // contrast ladder (primary > secondary > tertiary) reads the same and
+    // the accent stays in the same hue family (just tonally lighter).
     enum Palette {
-        // Surfaces — layered depth, cool near-black.
-        static let surfaceBase = Color(red: 0.063, green: 0.067, blue: 0.078)      // oklch ~16% — window background
-        static let surfaceElevated = Color(red: 0.090, green: 0.094, blue: 0.106)  // oklch ~20% — tab bar, side panels
-        static let surfaceOverlay = Color(red: 0.122, green: 0.128, blue: 0.142)   // oklch ~24% — popovers, notes sheet
+        // Surfaces — layered depth.
+        static var surfaceBase: Color {
+            switch HerminalDesign.currentTheme {
+            case .dark: return Color(red: 0.063, green: 0.067, blue: 0.078)
+            case .light: return Color(red: 0.98, green: 0.98, blue: 0.99)
+            }
+        }
+        static var surfaceElevated: Color {
+            switch HerminalDesign.currentTheme {
+            case .dark: return Color(red: 0.090, green: 0.094, blue: 0.106)
+            case .light: return Color(red: 0.96, green: 0.96, blue: 0.97)
+            }
+        }
+        static var surfaceOverlay: Color {
+            switch HerminalDesign.currentTheme {
+            case .dark: return Color(red: 0.122, green: 0.128, blue: 0.142)
+            case .light: return Color(red: 0.93, green: 0.93, blue: 0.95)
+            }
+        }
 
-        // Text — emphasis ladder.
-        static let textPrimary = Color(red: 0.93, green: 0.94, blue: 0.96)
-        static let textSecondary = Color(red: 0.62, green: 0.64, blue: 0.69)
-        static let textTertiary = Color(red: 0.40, green: 0.42, blue: 0.47)
+        // Text — emphasis ladder. Light theme inverts the ladder direction.
+        static var textPrimary: Color {
+            switch HerminalDesign.currentTheme {
+            case .dark: return Color(red: 0.93, green: 0.94, blue: 0.96)
+            case .light: return Color(red: 0.13, green: 0.14, blue: 0.16)
+            }
+        }
+        static var textSecondary: Color {
+            switch HerminalDesign.currentTheme {
+            case .dark: return Color(red: 0.62, green: 0.64, blue: 0.69)
+            case .light: return Color(red: 0.36, green: 0.38, blue: 0.43)
+            }
+        }
+        static var textTertiary: Color {
+            switch HerminalDesign.currentTheme {
+            case .dark: return Color(red: 0.40, green: 0.42, blue: 0.47)
+            case .light: return Color(red: 0.55, green: 0.57, blue: 0.62)
+            }
+        }
 
-        // Accent — herminal signature: teal-cyan (terminal heritage, modern feel).
-        static let accent = Color(red: 0.32, green: 0.78, blue: 0.74)
-        static let accentMuted = Color(red: 0.22, green: 0.46, blue: 0.45)
+        // Accent — same hue, tonally adjusted per theme so it pops in both.
+        static var accent: Color {
+            switch HerminalDesign.currentTheme {
+            case .dark: return Color(red: 0.32, green: 0.78, blue: 0.74)
+            case .light: return Color(red: 0.16, green: 0.55, blue: 0.51)
+            }
+        }
+        static var accentMuted: Color {
+            switch HerminalDesign.currentTheme {
+            case .dark: return Color(red: 0.22, green: 0.46, blue: 0.45)
+            case .light: return Color(red: 0.55, green: 0.78, blue: 0.75)
+            }
+        }
 
-        // Hairline borders / dividers — opacity over surface.
-        static let border = Color.white.opacity(0.08)
-        static let divider = Color.white.opacity(0.05)
+        // Borders / dividers — neutral overlay that works in both.
+        static var border: Color {
+            switch HerminalDesign.currentTheme {
+            case .dark: return Color.white.opacity(0.08)
+            case .light: return Color.black.opacity(0.10)
+            }
+        }
+        static var divider: Color {
+            switch HerminalDesign.currentTheme {
+            case .dark: return Color.white.opacity(0.05)
+            case .light: return Color.black.opacity(0.06)
+            }
+        }
 
-        // Semantic / agent status — used by the Month 3 agent dashboard.
-        static let statusRunning = Color(red: 0.36, green: 0.72, blue: 1.00)
-        static let statusIdle = Color(red: 0.55, green: 0.57, blue: 0.62)
-        static let statusDone = Color(red: 0.40, green: 0.80, blue: 0.52)
-        static let statusError = Color(red: 0.95, green: 0.45, blue: 0.42)
+        // Semantic / agent status — same hues, slight desaturation for light
+        // so they don't shout on a high-luminance background.
+        static var statusRunning: Color {
+            switch HerminalDesign.currentTheme {
+            case .dark: return Color(red: 0.36, green: 0.72, blue: 1.00)
+            case .light: return Color(red: 0.22, green: 0.50, blue: 0.85)
+            }
+        }
+        static var statusIdle: Color {
+            switch HerminalDesign.currentTheme {
+            case .dark: return Color(red: 0.55, green: 0.57, blue: 0.62)
+            case .light: return Color(red: 0.48, green: 0.50, blue: 0.55)
+            }
+        }
+        static var statusDone: Color {
+            switch HerminalDesign.currentTheme {
+            case .dark: return Color(red: 0.40, green: 0.80, blue: 0.52)
+            case .light: return Color(red: 0.22, green: 0.62, blue: 0.36)
+            }
+        }
+        static var statusError: Color {
+            switch HerminalDesign.currentTheme {
+            case .dark: return Color(red: 0.95, green: 0.45, blue: 0.42)
+            case .light: return Color(red: 0.78, green: 0.28, blue: 0.26)
+            }
+        }
     }
 
     // MARK: - Typography
