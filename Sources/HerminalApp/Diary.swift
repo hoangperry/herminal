@@ -94,6 +94,16 @@ public final class Diary: @unchecked Sendable {
         }
     }
 
+    /// Current on-disk file size. Returns 0 if stat fails (e.g. the file
+    /// hasn't been created yet, or in test runs that point at a missing
+    /// directory). Cheap — single `stat(2)`, safe to call from the UI
+    /// thread.
+    public func fileSizeBytes() -> Int64 {
+        let attrs = try? FileManager.default.attributesOfItem(atPath: fileURL.path)
+        guard let size = attrs?[.size] as? NSNumber else { return 0 }
+        return size.int64Value
+    }
+
     /// Exports the diary's last `maxLines` entries with PII redacted —
     /// suitable for pasting into a GitHub bug report. The promise from
     /// `SECURITY.md` is that herminal sends nothing over the network on

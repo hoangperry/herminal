@@ -28,6 +28,20 @@ final class LatencyProbe {
         if samples.count >= reportEvery { flush() }
     }
 
+    /// Live p95 over whatever samples are currently buffered. Returns nil
+    /// until we have at least 30 samples (~0.5 s of ticks) so the status
+    /// bar doesn't display a misleading single-sample number.
+    ///
+    /// Cheap on purpose — copies + sorts the buffer, called once per
+    /// second from the status bar. The full 600-sample window is only ~5
+    /// KB of doubles, so the sort is well under 100 µs.
+    func snapshotP95Milliseconds() -> Double? {
+        guard samples.count >= 30 else { return nil }
+        let sorted = samples.sorted()
+        let index = min(Int(Double(sorted.count) * 0.95), sorted.count - 1)
+        return sorted[index]
+    }
+
     private func flush() {
         guard !samples.isEmpty else { return }
         let sorted = samples.sorted()

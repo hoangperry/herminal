@@ -9,6 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+**Status bar (M12-P2)**
+- New 22pt strip at the window bottom showing live tick-latency p95
+  (from `LatencyProbe.snapshotP95Milliseconds()`), detected agent count
+  (cached from the 2 s agent poll regardless of dashboard visibility),
+  diary file size, and the current theme — with a `(system)` tag when
+  `Follow System` is selected.
+- Refreshes once per second from a SwiftUI Timer publisher inside
+  `StatusBarView`; the underlying reads are cheap (one sort over ≤600
+  doubles + one stat(2) + one int read), so the overhead is negligible.
+- Visibility honours the `showStatusBar` preference (M12-P1). Hiding
+  the bar removes the strip entirely — sidebars + surface container
+  reclaim the height.
+
 **Preferences foundation (M12-P1)**
 - `Preferences` enum centralises 8 UserDefaults keys (theme, terminal
   font size + padding, cursor blink, default shell path, status-bar

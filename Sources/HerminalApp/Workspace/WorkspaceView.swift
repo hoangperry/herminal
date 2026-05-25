@@ -37,10 +37,15 @@ final class WorkspaceView: NSView {
     private let dashboardHost: NSHostingView<AgentDashboardView>
     private let sshPanelHost: NSHostingView<AnyView>
     private let notesHost: NSHostingView<AnyView>
+    private let statusBarHost: NSHostingView<StatusBarView>
     private var leftSidebar: LeftSidebar = .none
     private var isNotesVisible = false
     // nonisolated(unsafe): invalidated in the nonisolated deinit.
     private nonisolated(unsafe) var agentPollTimer: Timer?
+    /// Cache of `AgentDetector.detectAgents().count`, refreshed on every
+    /// agent poll regardless of whether the dashboard sidebar is open —
+    /// the status bar needs it even when the panel is closed.
+    private var latestAgentCount: Int = 0
 
     init(app: ghostty_app_t, notesStore: NotesStore, sshHostsStore: SSHHostsStore) {
         self.app = app
@@ -54,7 +59,20 @@ final class WorkspaceView: NSView {
         self.dashboardHost = NSHostingView(rootView: AgentDashboardView(agents: []))
         self.sshPanelHost = NSHostingView(rootView: AnyView(EmptyView()))
         self.notesHost = NSHostingView(rootView: AnyView(EmptyView()))
+        // Stub probe — replaced below after `self` is available so we can
+        // safely capture `latestAgentCount`. NSHostingView needs a rootView
+        // at construction time, so we seed with an empty snapshot.
+        self.statusBarHost = NSHostingView(rootView: StatusBarView(probe: { .empty }))
         super.init(frame: NSRect(x: 0, y: 0, width: 900, height: 560))
+
+        // Real probe — captures `self` weakly so the timer in StatusBarView
+        // can't keep us alive past window close. The closure runs on the
+        // main run loop, matching every other UI read in this view.
+        statusBarHost.rootView = StatusBarView(probe: { [weak self] in
+            MainActor.assumeIsolated {
+                self?.captureStatusSnapshot() ?? .empty
+            }
+        })
 
         // The container's dark fill shows between panes as a divider.
         surfaceContainer.wantsLayer = true
@@ -62,12 +80,14 @@ final class WorkspaceView: NSView {
         dashboardHost.isHidden = true
         sshPanelHost.isHidden = true
         notesHost.isHidden = true
+        statusBarHost.isHidden = !Preferences.showStatusBar
 
         addSubview(surfaceContainer)
         addSubview(tabHost)
         addSubview(dashboardHost)
         addSubview(sshPanelHost)
         addSubview(notesHost)
+        addSubview(statusBarHost)
         addTab()
         startAgentPolling()
         // M12-P1: live-update path. Settings flips post the notification;
@@ -114,6 +134,7 @@ final class WorkspaceView: NSView {
     override func layout() {
         super.layout()
         let barHeight = TabBarView.barHeight
+        let statusHeight: CGFloat = Preferences.showStatusBar ? StatusBarView.height : 0
         let leftWidth: CGFloat = {
             switch leftSidebar {
             case .none: return 0
@@ -131,12 +152,19 @@ final class WorkspaceView: NSView {
             sshPanelHost.isHidden = leftSidebar != .ssh
             notesHost.isHidden = !isNotesVisible
         }
+        statusBarHost.isHidden = !Preferences.showStatusBar
 
-        let dashboardTarget = CGRect(x: 0, y: 0, width: leftWidth, height: bounds.height)
-        let sshTarget = CGRect(x: 0, y: 0, width: leftWidth, height: bounds.height)
+        // Sidebars + status bar share the full window height — sidebars
+        // sit ABOVE the status strip so the strip spans the full width
+        // (uniform across content + sidebars, like Xcode's bottom bar).
+        let sidebarTop = bounds.height
+        let sidebarBottom: CGFloat = statusHeight
+        let sidebarHeight = max(sidebarTop - sidebarBottom, 0)
+        let dashboardTarget = CGRect(x: 0, y: sidebarBottom, width: leftWidth, height: sidebarHeight)
+        let sshTarget = CGRect(x: 0, y: sidebarBottom, width: leftWidth, height: sidebarHeight)
         let notesTarget = CGRect(
-            x: bounds.width - rightSidebar, y: 0,
-            width: rightSidebar, height: bounds.height
+            x: bounds.width - rightSidebar, y: sidebarBottom,
+            width: rightSidebar, height: sidebarHeight
         )
 
         if isAnimatingLayout {
@@ -155,9 +183,13 @@ final class WorkspaceView: NSView {
             x: contentX, y: bounds.height - barHeight,
             width: contentWidth, height: barHeight
         )
+        let surfaceHeight = max(bounds.height - barHeight - statusHeight, 0)
         surfaceContainer.frame = CGRect(
-            x: contentX, y: 0,
-            width: contentWidth, height: max(bounds.height - barHeight, 0)
+            x: contentX, y: statusHeight,
+            width: contentWidth, height: surfaceHeight
+        )
+        statusBarHost.frame = CGRect(
+            x: 0, y: 0, width: bounds.width, height: statusHeight
         )
         layoutPanes()
     }
@@ -279,8 +311,14 @@ final class WorkspaceView: NSView {
     }
 
     private func refreshAgents() {
-        guard leftSidebar == .agents else { return }
+        // Always refresh the cached count so the status bar (M12-P2) sees
+        // the latest agent total even when the dashboard sidebar is closed.
+        // The full annotation pipeline only runs when the sidebar is open
+        // because it does materially more work (status tracker + pane
+        // mapper + bell promotion).
         let raw = AgentDetector.detectAgents()
+        latestAgentCount = raw.count
+        guard leftSidebar == .agents else { return }
         let annotated = agentStatusTracker.annotate(raw)
         // M8/A2: if ANY surface rang its bell in the last 10s, promote
         // every running/idle agent to .needsInput. Per-surface attribution
@@ -318,6 +356,33 @@ final class WorkspaceView: NSView {
     private var surfaceAddresses: [Int] {
         tabs.flatMap { tab in
             tab.panes.compactMap { $0.surfaceView.surfaceAddress }
+        }
+    }
+
+    // MARK: - Status bar snapshot (M12-P2)
+
+    /// Builds the snapshot StatusBarView consumes once a second. All four
+    /// reads are cheap (one O(n log n) sort over ≤600 doubles, one Int,
+    /// one stat(2), one enum read) so we don't need to cache anything.
+    private func captureStatusSnapshot() -> StatusSnapshot {
+        StatusSnapshot(
+            agentCount: latestAgentCount,
+            latencyP95: LatencyProbe.shared.snapshotP95Milliseconds(),
+            diaryBytes: Diary.shared.fileSizeBytes(),
+            themeText: Self.themeDisplayName()
+        )
+    }
+
+    /// Resolves the user-facing theme label, including the "(system)" tag
+    /// when the persisted preference is .system so the owner can see what
+    /// the appearance is following without opening Settings.
+    private static func themeDisplayName() -> String {
+        switch Preferences.theme {
+        case .dark: return "dark"
+        case .light: return "light"
+        case .system:
+            let isDark = NSApp.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+            return "\(isDark ? "dark" : "light") (system)"
         }
     }
 
@@ -535,6 +600,16 @@ final class WorkspaceView: NSView {
         if leftSidebar == .agents { refreshAgents() }
         if leftSidebar == .ssh { refreshSSHPanel() }
         if isNotesVisible { updateNotesPanel() }
+        // Rebuild the status bar so its background/text re-resolve against
+        // the new theme tokens and so the visibility flag picks up the
+        // latest showStatusBar preference. The probe closure is identical
+        // so the timer keeps ticking.
+        statusBarHost.rootView = StatusBarView(probe: { [weak self] in
+            MainActor.assumeIsolated {
+                self?.captureStatusSnapshot() ?? .empty
+            }
+        })
+        statusBarHost.isHidden = !Preferences.showStatusBar
         needsLayout = true
     }
 
