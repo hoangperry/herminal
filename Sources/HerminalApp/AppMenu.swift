@@ -47,6 +47,12 @@ enum AppMenu {
             action: #selector(WorkspaceView.importNote(_:)),
             keyEquivalent: ""
         ))
+        fileMenu.addItem(.separator())
+        fileMenu.addItem(NSMenuItem(
+            title: "Import ~/.ssh/config",
+            action: #selector(WorkspaceView.importSSHConfig(_:)),
+            keyEquivalent: ""
+        ))
 
         // Window menu — tab navigation
         let windowItem = NSMenuItem()

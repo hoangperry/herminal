@@ -351,6 +351,35 @@ final class WorkspaceView: NSView {
         refreshSSHPanel()
     }
 
+    /// M9/B: pull every concrete Host block from `~/.ssh/config` and
+    /// upsert them as SSHHost rows. Conflicts with existing rows are
+    /// resolved by generating fresh UUIDs (additive merge — no row
+    /// is silently rewritten). Errors land in the diary; success
+    /// updates the count and refreshes the panel.
+    @objc func importSSHConfig(_ sender: Any?) {
+        do {
+            let imported = try SSHConfigImporter.parseHosts()
+            for host in imported {
+                try sshHostsStore.upsert(host)
+            }
+            Diary.shared.log("imported \(imported.count) ssh hosts from ~/.ssh/config",
+                             category: "ssh")
+            // Pop the panel open so the user sees the result immediately.
+            if leftSidebar != .ssh {
+                leftSidebar = .ssh
+                animateSidebarChange()
+            } else {
+                refreshSSHPanel()
+            }
+        } catch SSHConfigImporter.ImportError.fileMissing(let path) {
+            Diary.shared.log("ssh config not found at \(path)", category: "ssh")
+            Self.sshLog.info("ssh config not found at \(path, privacy: .public)")
+        } catch {
+            Diary.shared.log("ssh config import failed: \(error)", category: "ssh")
+            Self.sshLog.error("ssh config import failed: \(error, privacy: .public)")
+        }
+    }
+
     /// Opens a new tab that spawns `ssh` into the saved host, stamps the
     /// last-connected time, and refreshes the panel so the recency badge
     /// updates immediately.
