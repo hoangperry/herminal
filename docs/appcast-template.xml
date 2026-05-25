@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  herminal appcast — Sparkle update feed.
+
+  Generated per release by Scripts/release.sh once Sparkle is wired
+  in. Until then this file is the template + spec.
+
+  How releases populate the fields:
+  - <title> + <sparkle:version> + <enclosure version> all = X.Y.Z
+    from CHANGELOG.md's most recent ## [X.Y.Z] block.
+  - <enclosure url> points at the GitHub release asset for the tag.
+  - <enclosure sparkle:edSignature> is the EdDSA signature produced
+    by `Scripts/release.sh` after signing the zip — Sparkle verifies
+    it against the public key embedded in the .app bundle.
+  - <pubDate> is the release commit's author-date in RFC 822.
+  - <description> embeds the [X.Y.Z] changelog block as HTML.
+  - <sparkle:minimumSystemVersion> = macOS 14.0 (per PRD; bump only
+    when a new release genuinely depends on a newer SDK).
+
+  Hosting:
+  - Published as `appcast.xml` next to the release zip on the
+    GitHub release page. The URL in Sources/HerminalApp/Updater.swift
+    (`releases/latest/download/appcast.xml`) auto-resolves to the
+    latest published release.
+
+  Roll-back / channel switching:
+  - To pull a release: delete the matching <item> from this feed and
+    re-publish. Sparkle's "latest" is whatever this file says, not
+    GitHub's release flag.
+-->
+<rss version="2.0"
+     xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle"
+     xmlns:dc="http://purl.org/dc/elements/1.1/">
+  <channel>
+    <title>herminal</title>
+    <link>https://github.com/hoangperry/herminal</link>
+    <description>AI-native macOS terminal for Vietnamese developers</description>
+    <language>en</language>
+
+    <item>
+      <title>Version 0.1.0</title>
+      <sparkle:version>0.1.0</sparkle:version>
+      <sparkle:shortVersionString>0.1.0</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <pubDate>Sun, 25 May 2026 00:00:00 +0000</pubDate>
+      <description><![CDATA[
+        <p>First public release. 7-month MVP complete.</p>
+        <p>See the full release notes at
+          <a href="https://github.com/hoangperry/herminal/blob/main/CHANGELOG.md">CHANGELOG.md</a>.
+        </p>
+      ]]></description>
+      <enclosure
+        url="https://github.com/hoangperry/herminal/releases/download/v0.1.0/herminal-v0.1.0.zip"
+        sparkle:version="0.1.0"
+        sparkle:shortVersionString="0.1.0"
+        length="5950000"
+        type="application/octet-stream"
+        sparkle:edSignature="PLACEHOLDER — fill from Scripts/release.sh after signing"
+      />
+    </item>
+
+    <!--
+      Add newer <item> entries ABOVE the existing one. Sparkle reads
+      the first item that's newer than the running version and ignores
+      older ones — keep history for roll-back but never reorder.
+    -->
+  </channel>
+</rss>
