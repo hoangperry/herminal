@@ -8,7 +8,64 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-*Tracking changes for the next release here.*
+
+**Agent dashboard depth (Theme A — fully closed in M8/M9)**
+- Node/Python-wrapped agent detection via `sysctl(KERN_PROCARGS2)`.
+  Catches `npx @anthropic-ai/claude-code`, `python3 -m aider`, etc. —
+  agents that previously showed as `node` or `Python`. Display name
+  becomes `aider (Python)` for transparency. Closes Q3-002 (M3 carry).
+- BEL / OSC 9 → `needs input` agent status. `BellRegistry` (singleton
+  in HerminalCore) records bell events from `GHOSTTY_ACTION_RING_BELL`;
+  dashboard promotes running/idle → `.needsInput` when any surface
+  rang its bell in the last 10s. Closes Q6-001 (M6 carry).
+- Agent ↔ pane attribution via `AgentPaneMapper`. Walks each agent's
+  PPID chain to its login ancestor, pairs nth-oldest login (by kernel
+  start time) with nth-oldest session (by creation time). Dashboard
+  shows `Tab N` chip next to each detected agent.
+
+**Workspace + chrome (Theme C slice 1)**
+- Light theme variant. Every Palette token branches on
+  `HerminalDesign.currentTheme`; `⌘⇧L` toggles between dark and
+  light. Auto-follow-system deferred to a later slice. Closes
+  Q5-002 (M5 carry).
+
+**SSH manager v1 slice 1 (Theme B)**
+- `~/.ssh/config` import. File menu → `Import ~/.ssh/config` parses
+  every concrete Host block (wildcard blocks + Match blocks skipped)
+  and upserts as `SSHHost` rows with fresh UUIDs (additive merge —
+  no silent overwrite).
+
+**Observability (Theme F slice 1)**
+- `Diary.exportRedacted()` rewrites user-home paths + libghostty
+  surface addresses for safe bug-report pasting. PIDs preserved as
+  useful + non-PII. No auto-upload — explicit user action only.
+
+**Documentation (Theme G slice 1)**
+- `docs/PATTERNS.md` capturing seven recurring codebase shapes
+  (MainActor.assumeIsolated, nonisolated(unsafe), sysctl over
+  libproc, mach-time conversion, HERMINAL_TEST_* env hooks,
+  single-isolation final-class stores, coarse-but-honest > fine-
+  but-misleading).
+- `README.vi.md` — Vietnamese mirror of `README.md` for the PRD
+  target audience.
+- `docs/QA/cjk-ime-checklist.md` — Korean / Japanese / Chinese
+  IME smoke matrices (20 phrases each) for owner-manual runs.
+
+**Tooling**
+- `HERMINAL_TEST_DELAY=12` in integration scripts. M6+M8 startup
+  work (Diary signal handler init, BellRegistry, agent CPU
+  sampling) pushed shell-prompt-ready past the previous 8s harness
+  window on heavy `.zshrc` setups. AppDelegate default unchanged.
+
+### Fixed
+
+- M8 — Singleton state race in `BellRegistryTests`. Added
+  `.serialized` suite trait so Swift Testing doesn't run cases in
+  parallel and let one's bells leak into another's counter.
+- M9 — `release.sh` dirty-tree check tripped on libghostty
+  submodule's untracked `zig-pkg/` build directory. Now uses
+  `git status --ignore-submodules=dirty` so the submodule SHA pin
+  is what matters, not its working tree.
 
 ---
 
