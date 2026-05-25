@@ -9,6 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+**Tab close confirmation (M12-P4)**
+- Closing a tab whose panes hold a non-empty note now shows an NSAlert
+  asking for confirmation. The check runs on both close paths: the
+  TabBar `×` click and the `⌘W` menu shortcut when it would collapse
+  the last pane. Multi-pane tabs only prompt when the final pane is
+  being closed, so routine pane management stays frictionless.
+- Honours the `confirmCloseWithNote` preference — owners who want the
+  old fire-and-forget behaviour can disable the check in Settings.
+- Note: notes are NOT deleted on tab close; they remain in SQLite
+  keyed by the (now-orphaned) session UUID. The prompt makes that
+  explicit so the owner can make an informed choice.
+
 **First-run welcome hint (M12-P3)**
 - One-shot overlay on first launch: dim backdrop + centred card listing
   the 7 most-used shortcuts (new tab, split right/down, agents, SSH,

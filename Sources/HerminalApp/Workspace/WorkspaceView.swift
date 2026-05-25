@@ -277,6 +277,15 @@ final class WorkspaceView: NSView {
 
     private func closeTab(id: UUID) {
         guard let index = tabs.firstIndex(where: { $0.id == id }) else { return }
+        let tab = tabs[index]
+        guard confirmCloseIfNoteExists(for: tab) else { return }
+        closeTabImmediately(at: index)
+    }
+
+    /// Removes the tab at `index` without prompting — internal helper for
+    /// callers that have already done the M12-P4 note-confirmation check
+    /// (e.g. `closeActivePane()` after it knows the tab will collapse).
+    private func closeTabImmediately(at index: Int) {
         tabs.remove(at: index)
         if tabs.isEmpty {
             window?.close()
@@ -284,6 +293,35 @@ final class WorkspaceView: NSView {
         }
         activeTabIndex = min(activeTabIndex, tabs.count - 1)
         refresh()
+    }
+
+    /// Returns true if it's safe to proceed with closing `tab`. Shows a
+    /// blocking NSAlert when (a) the user has the confirmation
+    /// preference enabled AND (b) at least one pane in `tab` has a
+    /// non-empty note body. Returns false when the user picks Cancel.
+    /// (M12-P4)
+    ///
+    /// Why NSAlert (not a SwiftUI sheet): the surface we'd attach the
+    /// sheet to is the focused libghostty NSView, which doesn't host a
+    /// SwiftUI environment. NSAlert(beginSheetModalFor:) gives us a
+    /// proper window-modal sheet with one line of AppKit code.
+    private func confirmCloseIfNoteExists(for tab: WorkspaceTab) -> Bool {
+        guard Preferences.confirmCloseWithNote else { return true }
+        let sessionIDs = tab.panes.map { $0.id }
+        let hasNote = sessionIDs.contains { sessionID in
+            guard let body = loadNote(sessionID)?.body else { return false }
+            return !body.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        }
+        guard hasNote else { return true }
+
+        let alert = NSAlert()
+        alert.alertStyle = .warning
+        alert.messageText = "Close tab with notes?"
+        alert.informativeText = "This tab has notes attached. Closing the tab does not delete them from disk, but you won't see them in the UI again — the session ID is single-use."
+        alert.addButton(withTitle: "Close Tab")
+        alert.addButton(withTitle: "Cancel")
+        let response = alert.runModal()
+        return response == .alertFirstButtonReturn
     }
 
     // MARK: - Split / pane management
@@ -299,9 +337,17 @@ final class WorkspaceView: NSView {
     /// Closes the focused pane — or the whole tab if it was the last pane.
     func closeActivePane() {
         guard let tab = activeTab else { return }
+        // If this close would collapse the entire tab, gate on the note
+        // confirmation BEFORE we mutate. Otherwise closeFocusedPane()
+        // already removed the pane and the post-hoc check would see an
+        // empty panes list and skip the prompt. (M12-P4)
+        if tab.panes.count == 1 {
+            guard confirmCloseIfNoteExists(for: tab) else { return }
+        }
         if tab.closeFocusedPane() {
             Diary.shared.log("closeActivePane → tab \(tab.id) empty, closing tab", category: "panes")
-            closeTab(id: tab.id)
+            guard let index = tabs.firstIndex(where: { $0.id == tab.id }) else { return }
+            closeTabImmediately(at: index)
         } else {
             Diary.shared.log("closeActivePane remaining=\(tab.panes.count)", category: "panes")
             refresh()
