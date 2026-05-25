@@ -38,6 +38,10 @@ final class WorkspaceView: NSView {
     private let sshPanelHost: NSHostingView<AnyView>
     private let notesHost: NSHostingView<AnyView>
     private let statusBarHost: NSHostingView<StatusBarView>
+    /// Created lazily on first launch when `firstRunCompleted` is false,
+    /// removed (and nil'd) after the user dismisses. Stays nil forever
+    /// after that on every subsequent launch. (M12-P3)
+    private var welcomeOverlay: NSHostingView<WelcomeOverlayView>?
     private var leftSidebar: LeftSidebar = .none
     private var isNotesVisible = false
     // nonisolated(unsafe): invalidated in the nonisolated deinit.
@@ -121,7 +125,10 @@ final class WorkspaceView: NSView {
 
     override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()
-        if window != nil { focusActivePane() }
+        if window != nil {
+            focusActivePane()
+            showWelcomeOverlayIfNeeded()
+        }
     }
 
     // MARK: - Layout
@@ -191,6 +198,7 @@ final class WorkspaceView: NSView {
         statusBarHost.frame = CGRect(
             x: 0, y: 0, width: bounds.width, height: statusHeight
         )
+        welcomeOverlay?.frame = bounds
         layoutPanes()
     }
 
@@ -371,6 +379,32 @@ final class WorkspaceView: NSView {
             diaryBytes: Diary.shared.fileSizeBytes(),
             themeText: Self.themeDisplayName()
         )
+    }
+
+    // MARK: - First-run welcome overlay (M12-P3)
+
+    private func showWelcomeOverlayIfNeeded() {
+        guard !Preferences.firstRunCompleted, welcomeOverlay == nil else { return }
+        let overlay = NSHostingView(
+            rootView: WelcomeOverlayView(onDismiss: { [weak self] in
+                MainActor.assumeIsolated {
+                    self?.dismissWelcomeOverlay()
+                }
+            })
+        )
+        overlay.frame = bounds
+        // Drawn last so it sits above sidebars / status bar / surfaces.
+        addSubview(overlay)
+        welcomeOverlay = overlay
+        Diary.shared.log("welcome overlay shown", category: "ui")
+    }
+
+    private func dismissWelcomeOverlay() {
+        guard let overlay = welcomeOverlay else { return }
+        overlay.removeFromSuperview()
+        welcomeOverlay = nil
+        Preferences.markFirstRunCompleted()
+        Diary.shared.log("welcome overlay dismissed", category: "ui")
     }
 
     /// Resolves the user-facing theme label, including the "(system)" tag

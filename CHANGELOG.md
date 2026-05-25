@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+**First-run welcome hint (M12-P3)**
+- One-shot overlay on first launch: dim backdrop + centred card listing
+  the 7 most-used shortcuts (new tab, split right/down, agents, SSH,
+  notes, Settings). Dismiss via `Got it`, Enter/Return, or by clicking
+  the backdrop. Marks `Preferences.firstRunCompleted = true` and never
+  shows again. Stays out of the way for every other launch.
+
 **Status bar (M12-P2)**
 - New 22pt strip at the window bottom showing live tick-latency p95
   (from `LatencyProbe.snapshotP95Milliseconds()`), detected agent count
