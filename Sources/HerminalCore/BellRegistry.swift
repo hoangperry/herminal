@@ -70,4 +70,19 @@ public final class BellRegistry: @unchecked Sendable {
         _totalBells = 0
         lastByAddress.removeAll()
     }
+
+    /// Drop the bell record for a specific surface.
+    ///
+    /// M11-A2 fix (HIGH from code-reviewer): without this, a surface
+    /// that's freed and re-allocated at the same memory address (slab
+    /// allocator reuse is common in libghostty) inherits the OLD
+    /// surface's bell history. The new pane immediately appears to have
+    /// rung a bell it never rang, incorrectly promoting its agent to
+    /// `.needsInput`. `HerminalSurfaceView.deinit` calls this so the
+    /// registry stays consistent with the live surface set.
+    public func clearBell(forSurfaceAddress address: Int) {
+        lock.lock()
+        defer { lock.unlock() }
+        lastByAddress.removeValue(forKey: address)
+    }
 }

@@ -167,10 +167,22 @@ public final class Diary: @unchecked Sendable {
         }
     }
 
+    /// ISO8601DateFormatter allocates a Calendar + locale + ICU structures
+    /// on init — about 100 µs each time. log() runs on every state change,
+    /// so we cache the formatter for the process lifetime. (M11-A2 fix,
+    /// MEDIUM M-1 from code-reviewer.)
+    /// `nonisolated(unsafe)`: ISO8601DateFormatter isn't Sendable, but its
+    /// `string(from:)` method is documented as thread-safe since macOS 10.10.
+    /// We only call that one method, never mutate the formatOptions after
+    /// the initializer ran, so the unsafe annotation is sound.
+    private nonisolated(unsafe) static let isoFormatter: ISO8601DateFormatter = {
+        let f = ISO8601DateFormatter()
+        f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return f
+    }()
+
     private static func format(_ message: String, category: String) -> String {
-        let formatter = ISO8601DateFormatter()
-        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        let stamp = formatter.string(from: Date())
+        let stamp = isoFormatter.string(from: Date())
         return "\(stamp) [\(category)] \(message)"
     }
 
@@ -195,17 +207,24 @@ public final class Diary: @unchecked Sendable {
 
     // MARK: - Signal handlers (async-signal-safe ONLY)
 
-    /// FD opened to the diary file at process start; the signal handler
-    /// writes raw bytes through this without touching Swift state.
-    private nonisolated(unsafe) static var crashFD: Int32 = -1
-
     private func installCrashHandlers() {
-        Diary.crashFD = open(fileURL.path, O_WRONLY | O_APPEND | O_CREAT, 0o644)
-        guard Diary.crashFD >= 0 else { return }
+        // M11-A2 fix (CRITICAL from code-reviewer): the FD + the handler
+        // closure used to be `static let` on Diary. Both went through
+        // `swift_once` lazy initialisation. A signal that fires from a
+        // thread holding the swift_once lock — or before any normal-path
+        // code touched the statics — would deadlock the runtime, which
+        // is the opposite of async-signal-safe. Moved both to file-scope
+        // module-level vars (declared below) so reads from signal context
+        // hit raw memory with no runtime path.
+        //
+        // File mode tightened from 0o644 to 0o600 per security-reviewer M-3
+        // — the diary now stores nothing world-readable.
+        _diaryCrashFD = open(fileURL.path, O_WRONLY | O_APPEND | O_CREAT, 0o600)
+        guard _diaryCrashFD >= 0 else { return }
         for sig in [SIGSEGV, SIGBUS, SIGABRT, SIGILL, SIGFPE] {
             var action = sigaction()
             action.__sigaction_u = unsafeBitCast(
-                Diary.crashHandler as (@convention(c) (Int32) -> Void),
+                _diaryCrashHandler,
                 to: __sigaction_u.self
             )
             action.sa_flags = 0
@@ -213,39 +232,47 @@ public final class Diary: @unchecked Sendable {
             sigaction(sig, &action, nil)
         }
     }
+}
 
-    /// Async-signal-safe crash recorder. Stays inside `write(2)` + integer
-    /// formatting so it can't deadlock on a Swift runtime lock or allocate.
-    /// `nonisolated(unsafe)`: a C function pointer can't carry actor
-    /// isolation, and the body touches only `crashFD` (assigned once at
-    /// init) plus stack-local integer state.
-    private nonisolated(unsafe) static let crashHandler: @convention(c) (Int32) -> Void = { signal in
-        let prefix = "\n=== CRASHED signal=".utf8CString
-        let suffix = " ===\n".utf8CString
-        var sigBuf = [CChar](repeating: 0, count: 16)
-        var n = Int32(signal)
-        var idx = sigBuf.count - 1
-        // Itoa, base-10, no allocations.
-        if n == 0 { sigBuf[idx] = 48; idx -= 1 }
-        while n > 0 && idx >= 0 {
-            sigBuf[idx] = CChar(48 + (n % 10))
-            n /= 10
-            idx -= 1
-        }
-        let fd = Diary.crashFD
-        prefix.withUnsafeBufferPointer { ptr in
-            _ = write(fd, ptr.baseAddress, prefix.count - 1)
-        }
-        sigBuf.withUnsafeBufferPointer { ptr in
-            _ = write(fd, ptr.baseAddress! + idx + 1,
-                      sigBuf.count - idx - 2)
-        }
-        suffix.withUnsafeBufferPointer { ptr in
-            _ = write(fd, ptr.baseAddress, suffix.count - 1)
-        }
-        // Re-raise so the OS still produces the crash report.
-        signalRaiseDefault(signal)
+// MARK: - Signal-handler globals
+//
+// File-scope so the signal handler can touch them without traversing
+// any swift_once or actor-isolation path. Both are written exactly once
+// — `_diaryCrashFD` in `Diary.installCrashHandlers` before sigaction
+// registers the handler, `_diaryCrashHandler` at module-load via the
+// fact that it has no captures (a @convention(c) closure with no
+// captures is materialised eagerly, no swift_once).
+
+nonisolated(unsafe) var _diaryCrashFD: Int32 = -1
+
+/// Async-signal-safe crash recorder. Stays inside `write(2)` + integer
+/// formatting so it can't deadlock on a Swift runtime lock or allocate.
+let _diaryCrashHandler: @convention(c) (Int32) -> Void = { signal in
+    let prefix = "\n=== CRASHED signal=".utf8CString
+    let suffix = " ===\n".utf8CString
+    var sigBuf = [CChar](repeating: 0, count: 16)
+    var n = Int32(signal)
+    var idx = sigBuf.count - 1
+    // Itoa, base-10, no allocations.
+    if n == 0 { sigBuf[idx] = 48; idx -= 1 }
+    while n > 0 && idx >= 0 {
+        sigBuf[idx] = CChar(48 + (n % 10))
+        n /= 10
+        idx -= 1
     }
+    let fd = _diaryCrashFD
+    prefix.withUnsafeBufferPointer { ptr in
+        _ = write(fd, ptr.baseAddress, prefix.count - 1)
+    }
+    sigBuf.withUnsafeBufferPointer { ptr in
+        _ = write(fd, ptr.baseAddress! + idx + 1,
+                  sigBuf.count - idx - 2)
+    }
+    suffix.withUnsafeBufferPointer { ptr in
+        _ = write(fd, ptr.baseAddress, suffix.count - 1)
+    }
+    // Re-raise so the OS still produces the crash report.
+    signalRaiseDefault(signal)
 }
 
 /// Reset the signal to default and re-raise so macOS's crash reporter

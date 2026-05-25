@@ -49,40 +49,66 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         NSApp.activate(ignoringOtherApps: true)
 
-        // GUI test harness: when HERMINAL_TEST_TEXT is set, inject the text
-        // into the active surface and exit. Lets CI / a script drive herminal
-        // without osascript / system IME interference.
+        // GUI test harness — debug builds only. M11-A2 fix
+        // (HIGH H-1 + H-2 from security-reviewer): these env hooks let an
+        // attacker who can set environment variables before launch (a
+        // child shell that re-exports env, a parent process with control
+        // over our env) trigger arbitrary command execution or write to
+        // arbitrary user-writable paths. Compiling them out of release
+        // binaries closes that vector entirely while keeping the harness
+        // intact for `swift test`, CI, and local owner runs (which build
+        // debug by default).
+        #if DEBUG
+        installTestHarnessHooks(workspace: workspace)
+        #endif
+    }
+
+    #if DEBUG
+    /// All HERMINAL_TEST_* env hook wiring lives here so release builds
+    /// genuinely don't carry the code. Keep production AppDelegate
+    /// methods free of any reference into this function.
+    private func installTestHarnessHooks(workspace: WorkspaceView) {
         let env = ProcessInfo.processInfo.environment
-        NSLog("herminal: HERMINAL_TEST_TEXT=\(env["HERMINAL_TEST_TEXT"]?.debugDescription ?? "<unset>")")
+        // Log the harness text only when actually set — production paths
+        // shouldn't emit env-var noise into Apple's unified log even in
+        // debug builds (M11-A2 fix, MEDIUM M-5).
         if let testText = env["HERMINAL_TEST_TEXT"] {
+            NSLog("herminal: HERMINAL_TEST_TEXT set (%d chars)", testText.count)
             scheduleTestInjection(text: testText, into: workspace)
         }
-        // M4-4 verification hook: when HERMINAL_TEST_SPAWN_COMMAND is set,
-        // open a tab that runs the command via libghostty's `config.command`
-        // path instead of the default shell. Used by
-        // `Scripts/verify-ssh-spawn.sh` to prove the SSH-connect mechanism
-        // wires through to a real PTY exec.
         if let spawnCommand = env["HERMINAL_TEST_SPAWN_COMMAND"] {
-            NSLog("herminal: spawning test tab with command=\(spawnCommand)")
+            NSLog("herminal: spawning test tab")
             Task { @MainActor in
-                // Wait until the first tab settles before adding ours —
-                // libghostty serializes surface creation on the IO thread.
                 try? await Task.sleep(nanoseconds: 2_000_000_000)
                 workspace.addTab(command: spawnCommand, title: "spawn-test")
             }
         }
-
-        // M5 smoke-test hook: when HERMINAL_TEST_SMOKE_PLAN is set, walk
-        // through a hardcoded sequence of interactive actions and dump the
-        // resulting state to HERMINAL_TEST_STATE_DUMP. Used by
-        // `Scripts/verify-smoke-m1-m3.sh` to assert tabs/splits/sidebars
-        // all wire through without crashing or silently desyncing.
         if env["HERMINAL_TEST_SMOKE_PLAN"] != nil {
-            let dumpPath = env["HERMINAL_TEST_STATE_DUMP"]
+            let dumpPath = Self.validatedDumpPath(env["HERMINAL_TEST_STATE_DUMP"])
             scheduleSmokePlan(into: workspace, dumpPath: dumpPath)
         }
     }
 
+    /// M11-A2 fix (HIGH H-1 from security-reviewer): refuse dump paths
+    /// outside the temp directory. Even in debug builds we want the
+    /// harness to fail loudly rather than silently overwriting a user
+    /// file at `~/.zshrc` or `~/.ssh/authorized_keys`.
+    private static func validatedDumpPath(_ raw: String?) -> String? {
+        guard let raw, !raw.isEmpty else { return nil }
+        let tmpRoot = NSTemporaryDirectory()
+        // `/tmp/...` resolves to `/private/tmp/...` on macOS; accept both
+        // shapes since callers commonly write the short form in scripts.
+        let allowedPrefixes = [tmpRoot, "/tmp/", "/private/tmp/", "/var/folders/"]
+        let absolute = (raw as NSString).standardizingPath
+        if allowedPrefixes.contains(where: { absolute.hasPrefix($0) }) {
+            return absolute
+        }
+        NSLog("herminal: HERMINAL_TEST_STATE_DUMP rejected (must live under a temp dir): %@", raw)
+        return nil
+    }
+    #endif
+
+    #if DEBUG
     /// Walks the workspace through every interactive code path once so the
     /// harness can prove menus + toggles + splits + tabs all work. Spaced
     /// 0.5s apart to give libghostty time to react between actions.
@@ -133,7 +159,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let preInjectDelaySeconds = ProcessInfo.processInfo.environment["HERMINAL_TEST_DELAY"]
             .flatMap { UInt64($0) } ?? 8
         NSLog("herminal: test harness scheduled (will inject in \(preInjectDelaySeconds)s)")
-        let agentDumpPath = ProcessInfo.processInfo.environment["HERMINAL_TEST_AGENT_DUMP"]
+        // Sandbox the dump path the same way the smoke plan does
+        // (M11-A2 fix, HIGH H-1 from security-reviewer).
+        let agentDumpPath = Self.validatedDumpPath(
+            ProcessInfo.processInfo.environment["HERMINAL_TEST_AGENT_DUMP"]
+        )
         Task { @MainActor in
             // Default 8s lets a normal interactive shell finish init and
             // render its first prompt. Heavy .zshrc setups (oh-my-zsh +
@@ -164,6 +194,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             // shell before its output had a chance to flush.
         }
     }
+    #endif
 
     /// Builds the herminal window with premium chrome styled from design tokens.
     private static func makeWindow(contentView: NSView) -> NSWindow {

@@ -5,6 +5,7 @@
 
 import AppKit
 import GhosttyKit
+import HerminalCore
 
 final class HerminalSurfaceView: NSView {
     private let app: ghostty_app_t
@@ -285,6 +286,14 @@ final class HerminalSurfaceView: NSView {
 
     deinit {
         if let surface {
+            // M11-A2 fix (HIGH from code-reviewer): clear the registry
+            // entry BEFORE the surface is freed. Without this, libghostty
+            // can re-allocate the same address on the next surface and
+            // the new pane inherits the old bell history → false
+            // `needs input` badge on a fresh agent.
+            BellRegistry.shared.clearBell(
+                forSurfaceAddress: Int(bitPattern: surface)
+            )
             ghostty_surface_free(surface)
         }
         if let commandBuffer {

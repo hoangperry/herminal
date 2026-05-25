@@ -58,7 +58,7 @@ struct SSHConfigImporterTests {
         #expect(hosts.first?.nickname == "real-host")
     }
 
-    @Test("multi-target Host lines emit one row per concrete target")
+    @Test("multi-target Host applies block directives to every target (M11-A2 fix)")
     func multiTargetHost() {
         let config = """
         Host a b c
@@ -68,16 +68,18 @@ struct SSHConfigImporterTests {
         """
         let hosts = SSHConfigImporter.parse(content: config)
         #expect(hosts.count == 3)
-        // The first target gets the block's directives; the rest get
-        // defaults — faithful to OpenSSH's "every match applies the
-        // same rules at connect time" semantics without per-target
-        // overrides we'd otherwise need to invent.
-        let first = try? #require(hosts.first { $0.nickname == "a" })
-        #expect(first?.hostname == "shared.example.com")
-        #expect(first?.user == "shared")
-        #expect(first?.port == 2200)
-        let bare = try? #require(hosts.first { $0.nickname == "b" })
-        #expect(bare?.hostname == "b")
+        // M11-A2 bug fix: the previous importer emitted `b` and `c` with
+        // defaults (hostname == nickname, user == NSUserName(), port 22)
+        // and only applied the block to `a`. Per OpenSSH semantics every
+        // name in the Host line gets the same directives at connect
+        // time, so the import should match.
+        for nickname in ["a", "b", "c"] {
+            let host = hosts.first { $0.nickname == nickname }
+            #expect(host?.hostname == "shared.example.com",
+                    "\(nickname) must resolve to the block's HostName")
+            #expect(host?.user == "shared")
+            #expect(host?.port == 2200)
+        }
     }
 
     @Test("defaults hostname to the nickname when HostName is missing")

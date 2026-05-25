@@ -36,12 +36,11 @@ public final class GhosttyApp {
         }
 
         // Configuration — default files only for the Month-1 spike.
-        guard let config = ghostty_config_new() else {
+        guard let configHandle = ghostty_config_new() else {
             throw .configFailed
         }
-        ghostty_config_load_default_files(config)
-        ghostty_config_finalize(config)
-        self.config = config
+        ghostty_config_load_default_files(configHandle)
+        ghostty_config_finalize(configHandle)
 
         // Runtime config wires libghostty back into the host environment.
         // Built in a `nonisolated` helper: libghostty invokes these C callbacks
@@ -49,12 +48,22 @@ public final class GhosttyApp {
         // no actor isolation — otherwise Swift's executor check traps.
         var runtime = GhosttyApp.makeRuntimeConfig()
 
-        guard let app = ghostty_app_new(&runtime, config) else {
-            ghostty_config_free(config)
+        // M11-A2 fix (HIGH from code-reviewer): the previous version
+        // assigned `self.config = config` BEFORE attempting `ghostty_app_new`.
+        // On app_new failure the failure branch freed `config` AND deinit
+        // would also free it (Swift considers the struct partially-init in
+        // a way that can run cleanup on the stored property) — double-free.
+        // Fix: keep both handles local until BOTH calls succeed, assign the
+        // stored properties only at the bottom. A throw on any earlier line
+        // leaves deinit nothing to free because neither stored property was
+        // ever written.
+        guard let appHandle = ghostty_app_new(&runtime, configHandle) else {
+            ghostty_config_free(configHandle)
             GhosttyApp.logger.critical("ghostty_app_new failed")
             throw .appCreationFailed
         }
-        self.app = app
+        self.config = configHandle
+        self.app = appHandle
         GhosttyApp.logger.info("libghostty app created — version \(Ghostty.info.version)")
     }
 

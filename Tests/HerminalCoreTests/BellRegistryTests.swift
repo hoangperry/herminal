@@ -67,4 +67,26 @@ struct BellRegistryTests {
         #expect(registry.lastBell(forSurfaceAddress: 0x1000) == nil)
         #expect(registry.lastBell(forSurfaceAddress: 0x2000) == nil)
     }
+
+    /// M11-A2 regression guard: surface dealloc must clear the registry
+    /// entry so a freshly-allocated surface at the same memory address
+    /// doesn't inherit the prior surface's bell history.
+    @Test("clearBell removes the entry for one surface without touching others")
+    func clearBellScopedToOneAddress() {
+        let registry = freshRegistry()
+        registry.recordBell(surfaceAddress: 0x1000)
+        registry.recordBell(surfaceAddress: 0x2000)
+        registry.clearBell(forSurfaceAddress: 0x1000)
+        #expect(registry.lastBell(forSurfaceAddress: 0x1000) == nil)
+        #expect(registry.lastBell(forSurfaceAddress: 0x2000) != nil)
+    }
+
+    @Test("hasRecentBell returns false right after clearBell for that address")
+    func clearBellMakesRecentFalse() {
+        let registry = freshRegistry()
+        registry.recordBell(surfaceAddress: 0x1000)
+        #expect(registry.hasRecentBell(forSurfaceAddress: 0x1000))
+        registry.clearBell(forSurfaceAddress: 0x1000)
+        #expect(!registry.hasRecentBell(forSurfaceAddress: 0x1000))
+    }
 }

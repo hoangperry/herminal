@@ -43,33 +43,40 @@ public enum SSHConfigImporter {
     /// each one's directives to an `SSHHost`.
     public static func parse(content: String) -> [SSHHost] {
         var hosts: [SSHHost] = []
-        var currentName: String?
+        // M11-A2 fix (HIGH H-5 from code-reviewer): buffer EVERY name in
+        // the current Host block, then emit one row per name when the
+        // block closes (next Host, Match, or EOF). The previous version
+        // emitted secondary names IMMEDIATELY with defaults — so
+        // `Host a b` followed by `HostName real.example.com` produced
+        // `b → b` (wrong: should be `b → real.example.com`). OpenSSH
+        // applies every directive in the block to every name in the
+        // Host line, and this version does too.
+        var currentNames: [String] = []
         var currentHostname: String?
         var currentUser: String?
         var currentPort: Int = 22
 
         func flush() {
             defer {
-                currentName = nil
+                currentNames.removeAll()
                 currentHostname = nil
                 currentUser = nil
                 currentPort = 22
             }
-            guard let name = currentName,
-                  !name.isEmpty,
-                  !name.contains("*"),
-                  !name.contains("?")
-            else { return }
-            let host = currentHostname ?? name
-            let user = currentUser ?? NSUserName()
-            // Use the imported metadata directly — validated() would also
-            // run trimming + defaulting but we already have clean values.
-            hosts.append(SSHHost(
-                nickname: name,
-                hostname: host,
-                user: user,
-                port: currentPort
-            ))
+            for name in currentNames {
+                guard !name.isEmpty,
+                      !name.contains("*"),
+                      !name.contains("?")
+                else { continue }
+                let host = currentHostname ?? name
+                let user = currentUser ?? NSUserName()
+                hosts.append(SSHHost(
+                    nickname: name,
+                    hostname: host,
+                    user: user,
+                    port: currentPort
+                ))
+            }
         }
 
         for rawLine in content.split(separator: "\n", omittingEmptySubsequences: false) {
@@ -87,34 +94,12 @@ public enum SSHConfigImporter {
             switch key {
             case "host":
                 flush()
-                // OpenSSH allows multiple targets per Host line —
-                // `Host a b c` makes a single block apply to all three.
-                // Importing each as its own row is the most useful
-                // mapping for the UI, so we split on whitespace and
-                // emit one row per concrete target.
-                let names = value.split(separator: " ", omittingEmptySubsequences: true)
-                                  .map(String.init)
-                                  .filter { !$0.contains("*") && !$0.contains("?") }
-                // First target opens the active block; remaining targets
-                // get duplicated below when we flush at the next Host
-                // line or end-of-file. To keep this simple, emit a row
-                // for each immediately with the defaults — directives
-                // inside the block then update the FIRST entry (currentName).
-                for (idx, name) in names.enumerated() {
-                    if idx == 0 {
-                        currentName = name
-                    } else {
-                        // Each extra target gets a bare row with no
-                        // user-overrides — that's faithful to OpenSSH's
-                        // "every match applies the same rules" semantics.
-                        hosts.append(SSHHost(
-                            nickname: name,
-                            hostname: name,
-                            user: NSUserName(),
-                            port: 22
-                        ))
-                    }
-                }
+                // Split on whitespace; wildcard / pattern targets are
+                // dropped via the filter inside `flush()` (so a `Host * test`
+                // line still emits the `test` row).
+                currentNames = value
+                    .split(separator: " ", omittingEmptySubsequences: true)
+                    .map(String.init)
             case "hostname":
                 currentHostname = value
             case "user":
