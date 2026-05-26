@@ -39,5 +39,19 @@ public enum PreferencesWindow {
         panel.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
         window = panel
+
+        // Drop the static reference when the user closes the window so a
+        // re-open builds a fresh NSHostingView. Without this, `show()`
+        // returns the cached instance forever, and any @AppStorage
+        // binding that was seeded BEFORE registerDefaults() ran would
+        // remain stuck on the unseeded value for the whole process.
+        // (M12 review HIGH — code-reviewer finding 3.)
+        NotificationCenter.default.addObserver(
+            forName: NSWindow.willCloseNotification,
+            object: panel,
+            queue: .main
+        ) { _ in
+            MainActor.assumeIsolated { PreferencesWindow.window = nil }
+        }
     }
 }

@@ -39,6 +39,7 @@ private struct GeneralTab: View {
                 Toggle("Show status bar at the bottom of the window", isOn: $showStatusBar)
                     .onChange(of: showStatusBar) { _, _ in Preferences.broadcastChange() }
                 Toggle("Confirm before closing a tab with notes", isOn: $confirmCloseWithNote)
+                    .onChange(of: confirmCloseWithNote) { _, _ in Preferences.broadcastChange() }
             }
             Section("Onboarding") {
                 Button("Show the welcome hint on next launch") {

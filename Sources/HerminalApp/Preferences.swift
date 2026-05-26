@@ -104,6 +104,26 @@ public enum Preferences {
         UserDefaults.standard.string(forKey: Key.defaultShellPath) ?? ""
     }
 
+    /// Validates a shell path before passing it to libghostty as
+    /// `config.command`. Returns nil for paths that should be rejected.
+    /// Callers that hand the raw `defaultShellPath` to libghostty MUST
+    /// route through this helper — a UserDefaults plist is non-sandboxed
+    /// and an attacker who can write the user's defaults can otherwise
+    /// pre-stage `/tmp/evil-shell` (or a symlink to one). Empty input is
+    /// treated as "inherit from $SHELL" and returns nil so the caller
+    /// falls back to the default behaviour. (M12 review MEDIUM —
+    /// security-reviewer finding 3; full consumption gated to M13+.)
+    public static func validatedDefaultShellPath() -> String? {
+        let raw = defaultShellPath
+        guard !raw.isEmpty else { return nil }
+        let absolute = (raw as NSString).standardizingPath
+        guard absolute.hasPrefix("/"),
+              !absolute.hasPrefix("/tmp"),
+              !absolute.hasPrefix("/private/tmp"),
+              FileManager.default.isExecutableFile(atPath: absolute) else { return nil }
+        return absolute
+    }
+
     public static var showStatusBar: Bool {
         UserDefaults.standard.bool(forKey: Key.showStatusBar)
     }
@@ -132,6 +152,14 @@ public enum Preferences {
     /// Convenience for SwiftUI views to call after a setting flip — the
     /// AppStorage write itself is observable, but AppKit views need the
     /// post() to know to re-read.
+    ///
+    /// CONTRACT — every `@AppStorage`-backed control in `PreferencesView`
+    /// must follow its write with an `.onChange { Preferences.broadcastChange() }`
+    /// (or `.onSubmit` for text fields). The relationship is enforced by
+    /// convention, not the type system, so adding a new toggle without
+    /// the broadcast call silently fails to ripple to AppKit listeners.
+    /// If this list ever crosses ~10 settings, consider an `@AppStorage`
+    /// wrapper that auto-posts. (M12 review LOW — code-reviewer finding 7.)
     public static func broadcastChange() {
         NotificationCenter.default.post(name: didChangeNotification, object: nil)
     }

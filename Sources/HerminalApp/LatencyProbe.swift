@@ -45,17 +45,28 @@ final class LatencyProbe {
     private func flush() {
         guard !samples.isEmpty else { return }
         let sorted = samples.sorted()
-        func percentile(_ fraction: Double) -> Double {
-            let index = min(Int(Double(sorted.count) * fraction), sorted.count - 1)
-            return sorted[index]
-        }
         NSLog(String(
             format: "herminal tick latency (n=%d): p50=%.3fms p95=%.3fms p99=%.3fms max=%.3fms",
             sorted.count,
-            percentile(0.50), percentile(0.95), percentile(0.99),
+            Self.percentile(sorted, fraction: 0.50),
+            Self.percentile(sorted, fraction: 0.95),
+            Self.percentile(sorted, fraction: 0.99),
             sorted.last ?? 0
         ))
         samples.removeAll(keepingCapacity: true)
+    }
+
+    /// Nearest-rank percentile: for `n` samples and fraction `f` the
+    /// result is the `ceil(n*f)`-th sample (1-indexed) — i.e. the
+    /// smallest sample that has at least `f` of the data at or below it.
+    /// The earlier `Int(n*f)` truncation occasionally crossed the
+    /// boundary by one element (n=100, f=0.95 → index 95 = the 96th
+    /// element, slightly above strict p95). (M12 review LOW —
+    /// code-reviewer finding 8.)
+    private static func percentile(_ sorted: [Double], fraction: Double) -> Double {
+        guard !sorted.isEmpty else { return 0 }
+        let rank = max(1, Int((Double(sorted.count) * fraction).rounded(.up)))
+        return sorted[min(rank, sorted.count) - 1]
     }
 }
 

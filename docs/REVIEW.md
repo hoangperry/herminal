@@ -1,9 +1,79 @@
-# Review report — M11-A (2026-05-25)
+# Review report — M11-A (2026-05-25) + M13 follow-up (2026-05-26)
 
 Parallel code-reviewer + security-reviewer agents audited the v0.1.0
-codebase before publish. This document captures what they found, what
+codebase before publish (M11-A), and again after the M12 polish slices
+landed (M13 follow-up). This document captures what they found, what
 shipped fixed, and what stays deferred — so future reviews start
 from the right baseline.
+
+---
+
+## M13 follow-up summary (2026-05-26, scope: M12 hunks only)
+
+| Severity | Found | Fixed | Deferred |
+|---|---|---|---|
+| CRITICAL | 0 | — | — |
+| HIGH | 4 | 4 | 0 |
+| MEDIUM | 4 | 3 | 1 |
+| LOW | 3 | 1 | 2 |
+
+**Verdict:** All HIGH findings closed before the M13 review pass
+returned. The deferred MEDIUM (shell-path consumption, no caller yet)
+is gated to whenever `defaultShellPath` first flows into a libghostty
+spawn — `Preferences.validatedDefaultShellPath()` is in place ahead of
+that work.
+
+### M13 — Fixed
+
+- **HIGH** `StatusBarView.probe` closure type-annotated `@MainActor` so
+  Swift 6 compiler enforces the contract — a future `Task {}` capture
+  fails to compile instead of trapping in `MainActor.assumeIsolated`.
+- **HIGH** `closeActivePane` now gates on the FOCUSED pane's note
+  (`confirmCloseIfNoteExists(forSessionIDs:)`), not the whole tab.
+  Previous shape silently discarded notes on panes 2..N inside
+  multi-pane tabs because `closeFocusedPane()` returns false when other
+  panes remain — the post-hoc check at `closeTab()` never fired.
+- **HIGH** `PreferencesWindow` adds a `NSWindow.willCloseNotification`
+  observer that nils the static reference on close, so re-opening
+  builds a fresh `NSHostingView`. Closes an invisible ordering hazard
+  for `@AppStorage` bindings seeded before `registerDefaults()`.
+- **HIGH** `closeTab(id:)` re-derives the live tab index by UUID after
+  `NSAlert.runModal()` returns. The modal re-enters the main run loop;
+  the old shape captured a stale index that could close the wrong tab
+  if `tabs` mutated underneath (e.g. ⌘W while the alert is up).
+- **MEDIUM** `confirmCloseWithNote` toggle now calls
+  `Preferences.broadcastChange()` on flip, matching every other
+  `@AppStorage` toggle in `PreferencesView`.
+- **MEDIUM** `WindowState.isFrameOnAnyScreen` gains explicit `isFinite`
+  guards on width/height/origin so `+infinity` can't slip through the
+  `>= 200` floor.
+- **LOW** `LatencyProbe.percentile` uses nearest-rank `ceil` instead of
+  `Int(n*f)` truncation. Single-line fix shared between live snapshot
+  + 10s log flush.
+
+### M13 — Deferred
+
+- **MEDIUM** `Preferences.defaultShellPath` value isn't yet consumed —
+  the ShellTab persists it but no spawn path reads it back. Adding
+  `Preferences.validatedDefaultShellPath()` now so the consumer in M13+
+  has a vetted helper to call (executable-bit + path-prefix check,
+  /tmp + /private/tmp rejected). Gate item: wiring up consumption MUST
+  route through this helper.
+- **MEDIUM** `preferencesDidChange` observer registered without an
+  object filter. The originally suggested `object: Preferences.self`
+  fix doesn't apply — `Preferences` is a caseless enum with no
+  reference identity to filter on. Acceptable: only
+  `Preferences.broadcastChange()` posts the notification today, and a
+  sentinel object just to enable filtering is overengineering. Revisit
+  if anyone introduces a second poster.
+- **LOW** `windowDidResize` writes 4 UserDefaults keys per frame during
+  a drag-resize. UserDefaults coalesces to disk, but the 4 KVO
+  notifications per frame are real micro-overhead. Debounce with a
+  0.3 s timer if it ever surfaces in a perf trace.
+- **LOW** `WindowState.isFrameOnAnyScreen` accepts a 200x200 window
+  whose centre is on-screen but visible area is mostly off (e.g.
+  centred at a screen edge). Document-only — matches the explicit
+  multi-monitor-straddle intent in the inline comment.
 
 ---
 

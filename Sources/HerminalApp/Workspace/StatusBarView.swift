@@ -16,8 +16,12 @@ import SwiftUI
 struct StatusBarView: View {
     /// Read these on every tick. They're computed properties on the
     /// caller's side so the view stays decoupled from the concrete
-    /// LatencyProbe / AgentDetector / Diary types.
-    let probe: () -> StatusSnapshot
+    /// LatencyProbe / AgentDetector / Diary types. Annotated `@MainActor`
+    /// so the compiler enforces the main-thread call site — a future
+    /// refactor that calls `probe` from a background `Task {}` won't
+    /// silently trap inside `MainActor.assumeIsolated`. (M12 review HIGH
+    /// — code-reviewer finding 1.)
+    let probe: @MainActor () -> StatusSnapshot
 
     @State private var snapshot: StatusSnapshot = .empty
 

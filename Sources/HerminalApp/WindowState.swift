@@ -89,7 +89,16 @@ enum WindowState {
     /// strictly (full rect inside one screen) would discard valid
     /// multi-monitor straddle layouts.
     private static func isFrameOnAnyScreen(_ frame: NSRect) -> Bool {
-        guard frame.width >= 200, frame.height >= 200 else { return false }
+        // Reject NaN / infinity explicitly. `>=` on NaN evaluates false
+        // (NaN-safe by accident), but +infinity passes a `>= 200` check
+        // and then breaks downstream geometry — guard at the entry.
+        // (M12 review MEDIUM — security-reviewer finding 2.)
+        guard frame.width.isFinite,
+              frame.height.isFinite,
+              frame.origin.x.isFinite,
+              frame.origin.y.isFinite,
+              frame.width >= 200,
+              frame.height >= 200 else { return false }
         let centre = NSPoint(x: frame.midX, y: frame.midY)
         for screen in NSScreen.screens where screen.visibleFrame.contains(centre) {
             return true

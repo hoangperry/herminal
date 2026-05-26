@@ -277,9 +277,15 @@ final class WorkspaceView: NSView {
 
     private func closeTab(id: UUID) {
         guard let index = tabs.firstIndex(where: { $0.id == id }) else { return }
-        let tab = tabs[index]
-        guard confirmCloseIfNoteExists(for: tab) else { return }
-        closeTabImmediately(at: index)
+        let sessionIDs = tabs[index].panes.map { $0.id }
+        // Confirmation can re-enter the run loop (NSAlert.runModal blocks
+        // on the main thread but services menu items + key events).
+        // Re-derive the live index by UUID AFTER the modal returns so we
+        // don't close the wrong tab if `tabs` mutated underneath us.
+        // (M12 review HIGH — security-reviewer finding 1.)
+        guard confirmCloseIfNoteExists(forSessionIDs: sessionIDs) else { return }
+        guard let liveIndex = tabs.firstIndex(where: { $0.id == id }) else { return }
+        closeTabImmediately(at: liveIndex)
     }
 
     /// Removes the tab at `index` without prompting — internal helper for
@@ -295,19 +301,21 @@ final class WorkspaceView: NSView {
         refresh()
     }
 
-    /// Returns true if it's safe to proceed with closing `tab`. Shows a
-    /// blocking NSAlert when (a) the user has the confirmation
-    /// preference enabled AND (b) at least one pane in `tab` has a
-    /// non-empty note body. Returns false when the user picks Cancel.
-    /// (M12-P4)
+    /// Returns true if it's safe to proceed with closing the panes
+    /// identified by `sessionIDs`. Shows a blocking NSAlert when (a) the
+    /// user has the confirmation preference enabled AND (b) at least
+    /// one of those sessions has a non-empty note body. (M12-P4 +
+    /// M12-review HIGH fix — signature now takes IDs instead of a whole
+    /// `WorkspaceTab` so single-pane closes inside a multi-pane tab
+    /// also benefit from the safety check.)
     ///
     /// Why NSAlert (not a SwiftUI sheet): the surface we'd attach the
     /// sheet to is the focused libghostty NSView, which doesn't host a
-    /// SwiftUI environment. NSAlert(beginSheetModalFor:) gives us a
-    /// proper window-modal sheet with one line of AppKit code.
-    private func confirmCloseIfNoteExists(for tab: WorkspaceTab) -> Bool {
+    /// SwiftUI environment. `NSAlert.runModal()` re-enters the main run
+    /// loop while it's up — callers MUST re-derive any positional state
+    /// (tab indices) after this method returns true.
+    private func confirmCloseIfNoteExists(forSessionIDs sessionIDs: [UUID]) -> Bool {
         guard Preferences.confirmCloseWithNote else { return true }
-        let sessionIDs = tab.panes.map { $0.id }
         let hasNote = sessionIDs.contains { sessionID in
             guard let body = loadNote(sessionID)?.body else { return false }
             return !body.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
@@ -316,9 +324,9 @@ final class WorkspaceView: NSView {
 
         let alert = NSAlert()
         alert.alertStyle = .warning
-        alert.messageText = "Close tab with notes?"
-        alert.informativeText = "This tab has notes attached. Closing the tab does not delete them from disk, but you won't see them in the UI again — the session ID is single-use."
-        alert.addButton(withTitle: "Close Tab")
+        alert.messageText = "Close pane with notes?"
+        alert.informativeText = "This pane has notes attached. Closing it does not delete them from disk, but you won't see them in the UI again — the session ID is single-use."
+        alert.addButton(withTitle: "Close")
         alert.addButton(withTitle: "Cancel")
         let response = alert.runModal()
         return response == .alertFirstButtonReturn
@@ -337,13 +345,14 @@ final class WorkspaceView: NSView {
     /// Closes the focused pane — or the whole tab if it was the last pane.
     func closeActivePane() {
         guard let tab = activeTab else { return }
-        // If this close would collapse the entire tab, gate on the note
-        // confirmation BEFORE we mutate. Otherwise closeFocusedPane()
-        // already removed the pane and the post-hoc check would see an
-        // empty panes list and skip the prompt. (M12-P4)
-        if tab.panes.count == 1 {
-            guard confirmCloseIfNoteExists(for: tab) else { return }
-        }
+        // Always gate on the FOCUSED pane's note, not the whole tab. The
+        // earlier shape (gate only when panes.count == 1) silently
+        // discarded notes on panes 2..N in multi-pane tabs because
+        // closeFocusedPane() returns false when other panes remain, so
+        // the post-hoc check at closeTab() never fires for non-final
+        // panes. (M12 review HIGH — code-reviewer finding 2.)
+        let focusedID = tab.focusedPane.id
+        guard confirmCloseIfNoteExists(forSessionIDs: [focusedID]) else { return }
         if tab.closeFocusedPane() {
             Diary.shared.log("closeActivePane → tab \(tab.id) empty, closing tab", category: "panes")
             guard let index = tabs.firstIndex(where: { $0.id == tab.id }) else { return }
