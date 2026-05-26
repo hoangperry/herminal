@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.2] - 2026-05-27
+
+### Fixed
+
+- **Text selection by mouse drag now works.** v0.2.1 wired the
+  clipboard callbacks but `HerminalSurfaceView` had no mouseDown /
+  mouseDragged / mouseUp handlers, so libghostty never received the
+  events that build a selection — `ghostty_surface_has_selection`
+  always returned false and Copy stayed grey. Forwarded the full
+  mouse-event suite (left/right/middle button, drag, move, scroll
+  wheel) to `ghostty_surface_mouse_pos` / `_button` / `_scroll`.
+- Right-click and middle-click also forwarded; trackpad scroll uses
+  a 2× multiplier to feel right in a terminal (matches the Ghostty
+  reference impl).
+
 ## [0.2.1] - 2026-05-26
 
 ### Fixed

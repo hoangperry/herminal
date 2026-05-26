@@ -301,6 +301,102 @@ final class HerminalSurfaceView: NSView, ClipboardOwner, NSUserInterfaceValidati
     /// The terminal encodes every key itself via `keyDown`.
     override func doCommand(by selector: Selector) {}
 
+    // MARK: - Mouse input (selection + click + scroll)
+    //
+    // Without these the user cannot select text by drag — and with no
+    // selection, ⌘C / Edit > Copy stay disabled. Reference: Ghostty mac
+    // `SurfaceView_AppKit.swift` mouseDown / mouseDragged / scrollWheel.
+
+    /// AppKit's NSView coordinate origin is bottom-left; libghostty
+    /// expects top-left. We flip y once here so every mouse handler can
+    /// just pass through.
+    private func surfacePos(for event: NSEvent) -> (x: Double, y: Double) {
+        let p = convert(event.locationInWindow, from: nil)
+        return (Double(p.x), Double(frame.height - p.y))
+    }
+
+    override func mouseDown(with event: NSEvent) {
+        guard let surface else { return }
+        let mods = Self.ghosttyMods(event.modifierFlags)
+        let (x, y) = surfacePos(for: event)
+        ghostty_surface_mouse_pos(surface, x, y, mods)
+        _ = ghostty_surface_mouse_button(surface, GHOSTTY_MOUSE_PRESS, GHOSTTY_MOUSE_LEFT, mods)
+    }
+
+    override func mouseUp(with event: NSEvent) {
+        guard let surface else { return }
+        let mods = Self.ghosttyMods(event.modifierFlags)
+        let (x, y) = surfacePos(for: event)
+        ghostty_surface_mouse_pos(surface, x, y, mods)
+        _ = ghostty_surface_mouse_button(surface, GHOSTTY_MOUSE_RELEASE, GHOSTTY_MOUSE_LEFT, mods)
+    }
+
+    override func mouseDragged(with event: NSEvent) {
+        guard let surface else { return }
+        let mods = Self.ghosttyMods(event.modifierFlags)
+        let (x, y) = surfacePos(for: event)
+        ghostty_surface_mouse_pos(surface, x, y, mods)
+    }
+
+    override func mouseMoved(with event: NSEvent) {
+        guard let surface else { return }
+        let mods = Self.ghosttyMods(event.modifierFlags)
+        let (x, y) = surfacePos(for: event)
+        ghostty_surface_mouse_pos(surface, x, y, mods)
+    }
+
+    override func rightMouseDown(with event: NSEvent) {
+        guard let surface else { return super.rightMouseDown(with: event) }
+        let mods = Self.ghosttyMods(event.modifierFlags)
+        let (x, y) = surfacePos(for: event)
+        ghostty_surface_mouse_pos(surface, x, y, mods)
+        let handled = ghostty_surface_mouse_button(surface, GHOSTTY_MOUSE_PRESS, GHOSTTY_MOUSE_RIGHT, mods)
+        if !handled { super.rightMouseDown(with: event) }
+    }
+
+    override func rightMouseUp(with event: NSEvent) {
+        guard let surface else { return super.rightMouseUp(with: event) }
+        let mods = Self.ghosttyMods(event.modifierFlags)
+        let (x, y) = surfacePos(for: event)
+        ghostty_surface_mouse_pos(surface, x, y, mods)
+        _ = ghostty_surface_mouse_button(surface, GHOSTTY_MOUSE_RELEASE, GHOSTTY_MOUSE_RIGHT, mods)
+    }
+
+    override func otherMouseDown(with event: NSEvent) {
+        guard let surface else { return }
+        let mods = Self.ghosttyMods(event.modifierFlags)
+        let (x, y) = surfacePos(for: event)
+        ghostty_surface_mouse_pos(surface, x, y, mods)
+        _ = ghostty_surface_mouse_button(surface, GHOSTTY_MOUSE_PRESS, GHOSTTY_MOUSE_MIDDLE, mods)
+    }
+
+    override func otherMouseUp(with event: NSEvent) {
+        guard let surface else { return }
+        let mods = Self.ghosttyMods(event.modifierFlags)
+        let (x, y) = surfacePos(for: event)
+        ghostty_surface_mouse_pos(surface, x, y, mods)
+        _ = ghostty_surface_mouse_button(surface, GHOSTTY_MOUSE_RELEASE, GHOSTTY_MOUSE_MIDDLE, mods)
+    }
+
+    override func scrollWheel(with event: NSEvent) {
+        guard let surface else { return }
+        var x = event.scrollingDeltaX
+        var y = event.scrollingDeltaY
+        // hasPreciseScrollingDeltas == trackpad/Magic-Mouse pixel
+        // deltas; the wheel mouse pre-converted (one notch = N lines)
+        // already lands in a useful range. Match the Ghostty reference:
+        // double trackpad deltas because the pixel value feels too slow
+        // for terminals.
+        if event.hasPreciseScrollingDeltas {
+            x *= 2
+            y *= 2
+        }
+        // libghostty's scroll_mods packed int: low bits hold momentum
+        // phase + precision flag. For the first cut we pass 0 — the
+        // most common path. Refine when we wire kinetic scroll.
+        ghostty_surface_mouse_scroll(surface, x, y, 0)
+    }
+
     /// Pushes the current IME composition text to libghostty as preedit.
     private func syncPreedit() {
         guard let surface else { return }
