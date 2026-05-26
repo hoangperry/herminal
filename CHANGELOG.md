@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-05-26
+
+First feature release after v0.1.0 beta — bundles M8-M13 work. All
+v0.1.0 work shipped except notarization (which v0.2.0 includes for
+the first time). Highlights:
+
+- Preferences foundation + Settings scene with Follow System theme.
+- Status bar at window bottom (live tick p95, agents, diary size,
+  theme).
+- First-run welcome hint, tab close confirmation when notes exist,
+  window state restoration.
+- ~/.ssh/config import. Light theme variant. Agent dashboard depth
+  (node/python wrappers, OSC 9 / BEL needs-input promotion, agent ↔
+  pane mapping).
+- Diary.exportRedacted() for safe bug-report sharing.
+- Vietnamese README. PATTERNS.md, ARCHITECTURE.md, REVIEW.md,
+  FAQ.md, TROUBLESHOOTING.md, KEYBOARD-SHORTCUTS.md, ROADMAP.md.
+- Marketing kit (landing page, Product Hunt, Show HN, Reddit, demo
+  script, 3 kernel-gotcha blog drafts).
+- Developer-ID signed + notarized + stapled bundle. Gatekeeper-clean
+  for end users.
+
+See detail sections under "Added" / "Fixed" below — each bullet
+preserves its M8 / M9 / M10 / M11 / M12 / M13 tag for traceability.
+
 ### Added
 
 **Window state restoration (M12-P5)**
