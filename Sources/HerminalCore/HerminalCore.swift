@@ -9,6 +9,20 @@ public enum HerminalCore {
     public static let version = "0.0.1-pre-alpha"
 }
 
+/// Bridge that lets `GhosttyApp`'s clipboard callbacks find the live
+/// `ghostty_surface_t` for whichever surface libghostty is asking about.
+///
+/// libghostty hands us back the per-surface userdata pointer we set in
+/// `config.userdata` (an opaque view reference). We need the actual C
+/// surface handle to call `ghostty_surface_complete_clipboard_request`.
+/// The view layer (HerminalApp) conforms its surface NSView to this
+/// protocol; `GhosttyApp` only sees the protocol so the module
+/// boundary stays clean. Public + AnyObject so we can round-trip
+/// through `Unmanaged`.
+public protocol ClipboardOwner: AnyObject {
+    var surface: ghostty_surface_t? { get }
+}
+
 // MARK: - libghostty bridge
 
 /// Thin Swift wrapper over the embedded libghostty C ABI.

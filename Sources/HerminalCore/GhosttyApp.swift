@@ -2,6 +2,7 @@
 // This is the app-level handle: configuration + runtime callbacks + event-loop tick.
 // Surfaces (terminal views) are created against the app handle exposed here.
 
+import AppKit
 import Foundation
 import GhosttyKit
 import os
@@ -78,19 +79,75 @@ public final class GhosttyApp {
     }
 
     /// Builds the runtime config. `nonisolated` so the C callbacks carry no
-    /// actor isolation — libghostty calls them from arbitrary threads.
-    /// For the Month-1 spike a steady timer drives ticks, so `wakeup_cb` is a no-op.
+    /// actor isolation — libghostty calls them from arbitrary threads
+    /// (in practice always the main thread for us, because `tick()` runs
+    /// on main, but the contract is "no isolation guarantees").
     private nonisolated static func makeRuntimeConfig() -> ghostty_runtime_config_s {
         ghostty_runtime_config_s(
             userdata: nil,
+            // macOS has no X11-style PRIMARY selection — keep this false so
+            // libghostty doesn't ask us to write it on every selection drag.
             supports_selection_clipboard: false,
             wakeup_cb: { _ in },
             action_cb: Self.handleAction,
-            read_clipboard_cb: { _, _, _ in false },
+            read_clipboard_cb: Self.readClipboard,
             confirm_read_clipboard_cb: { _, _, _, _ in },
-            write_clipboard_cb: { _, _, _, _, _ in },
+            write_clipboard_cb: Self.writeClipboard,
             close_surface_cb: { _, _ in }
         )
+    }
+
+    // MARK: - Clipboard callbacks (Cmd+C / Cmd+V wiring)
+    //
+    // libghostty's default macOS keybindings include ⌘C → copy_to_clipboard
+    // and ⌘V → paste_from_clipboard. Those actions call these two C
+    // callbacks. Before this commit both were no-ops, so the keybindings
+    // fired but never moved any bytes — what the user saw as "Cmd+C
+    // doesn't copy".
+
+    /// libghostty asks us to fill the clipboard with `content`. We write
+    /// the first text/plain entry to NSPasteboard.general (or skip if no
+    /// text entry — non-text MIME types aren't useful for a terminal).
+    /// `confirm == true` would normally prompt the user (OSC 52 from a
+    /// remote shell can be hostile); for now we treat both the same and
+    /// just write. Wrapping that in an NSAlert is a follow-up.
+    ///
+    /// NSPasteboard is documented thread-safe; libghostty calls this
+    /// from whichever thread is processing the ⌘C keybinding (in our
+    /// runtime that's main, because `tick()` runs on main), so no extra
+    /// hop is needed.
+    private nonisolated static let writeClipboard: ghostty_runtime_write_clipboard_cb = { _, location, contentPtr, len, _ in
+        guard location == GHOSTTY_CLIPBOARD_STANDARD else { return }
+        guard let contentPtr, len > 0 else { return }
+        // Walk the contents looking for the first text/plain entry.
+        for i in 0..<len {
+            let entry = contentPtr[i]
+            guard let mimePtr = entry.mime, let dataPtr = entry.data else { continue }
+            let mime = String(cString: mimePtr)
+            guard mime == "text/plain" else { continue }
+            let text = String(cString: dataPtr)
+            let pb = NSPasteboard.general
+            pb.clearContents()
+            pb.setString(text, forType: .string)
+            return
+        }
+    }
+
+    /// libghostty wants to paste — fetch the string clipboard and feed
+    /// it back via `ghostty_surface_complete_clipboard_request`. Return
+    /// true to signal "we delivered synchronously"; false would tell
+    /// libghostty to fall through (the keybinding becomes a no-op).
+    private nonisolated static let readClipboard: ghostty_runtime_read_clipboard_cb = { userdata, location, state in
+        guard location == GHOSTTY_CLIPBOARD_STANDARD else { return false }
+        guard let userdata else { return false }
+        let owner = Unmanaged<AnyObject>.fromOpaque(userdata).takeUnretainedValue()
+        guard let clipboardOwner = owner as? ClipboardOwner,
+              let surface = clipboardOwner.surface else { return false }
+        guard let text = NSPasteboard.general.string(forType: .string) else { return false }
+        return text.withCString { ptr in
+            ghostty_surface_complete_clipboard_request(surface, ptr, state, true)
+            return true
+        }
     }
 
     /// Dispatches libghostty's action callbacks. Currently routes

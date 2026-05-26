@@ -7,7 +7,7 @@ import AppKit
 import GhosttyKit
 import HerminalCore
 
-final class HerminalSurfaceView: NSView {
+final class HerminalSurfaceView: NSView, ClipboardOwner, NSUserInterfaceValidations {
     private let app: ghostty_app_t
     /// Optional spawn command (overrides the user's default shell). The bytes
     /// are kept in a heap-owned C buffer so the pointer stays valid for the
@@ -15,7 +15,11 @@ final class HerminalSurfaceView: NSView {
     /// `nonisolated(unsafe)`: freed once in the nonisolated NSView deinit.
     private nonisolated(unsafe) let commandBuffer: UnsafeMutablePointer<CChar>?
     // nonisolated(unsafe): a C handle freed once in deinit (NSView deinit is nonisolated).
-    private nonisolated(unsafe) var surface: ghostty_surface_t?
+    // Internal visibility (was `private`) so we can satisfy the public
+    // `ClipboardOwner.surface` requirement from HerminalCore — the
+    // clipboard callbacks in GhosttyApp need to round-trip the userdata
+    // pointer back to a live surface handle.
+    nonisolated(unsafe) var surface: ghostty_surface_t?
 
     /// IME composition (preedit) text — underlined text shown while composing,
     /// e.g. Vietnamese Telex "tieesng" before it commits to "tiếng".
@@ -110,6 +114,61 @@ final class HerminalSurfaceView: NSView {
     override func resignFirstResponder() -> Bool {
         if let surface { ghostty_surface_set_focus(surface, false) }
         return super.resignFirstResponder()
+    }
+
+    // MARK: - Edit menu (Cut / Copy / Paste / Select All)
+    //
+    // AppKit routes the standard Edit menu items through the responder
+    // chain. The selectors below trigger libghostty's matching binding
+    // action, which uses the runtime clipboard callbacks wired in
+    // GhosttyApp.swift to read/write NSPasteboard. Without these
+    // overrides the menu items grey out (no responder claims the
+    // selector) and ⌘C / ⌘V eat the key event without doing anything.
+
+    @objc func copy(_ sender: Any?) {
+        runBindingAction("copy_to_clipboard")
+    }
+
+    @objc func paste(_ sender: Any?) {
+        runBindingAction("paste_from_clipboard")
+    }
+
+    /// Terminals don't really cut from a read-only PTY output buffer —
+    /// fall back to copy so the menu item isn't dead.
+    @objc func cut(_ sender: Any?) {
+        runBindingAction("copy_to_clipboard")
+    }
+
+    /// `selectAll(_:)` exists on NSResponder; we override to delegate
+    /// into libghostty's selection model rather than the default
+    /// no-op for raw NSViews.
+    override func selectAll(_ sender: Any?) {
+        runBindingAction("select_all")
+    }
+
+    /// Validate the Edit menu items: Copy/Cut should be live only when
+    /// there's a selection, Paste only when the pasteboard has a
+    /// string, Select All is always available while a surface exists.
+    func validateUserInterfaceItem(_ item: any NSValidatedUserInterfaceItem) -> Bool {
+        guard let surface else { return false }
+        switch item.action {
+        case #selector(copy(_:)), #selector(cut(_:)):
+            return ghostty_surface_has_selection(surface)
+        case #selector(paste(_:)):
+            return NSPasteboard.general.string(forType: .string) != nil
+        case #selector(selectAll(_:)):
+            return true
+        default:
+            return true
+        }
+    }
+
+    private func runBindingAction(_ action: String) {
+        guard let surface else { return }
+        let len = action.lengthOfBytes(using: .utf8)
+        if !ghostty_surface_binding_action(surface, action, UInt(len)) {
+            NSLog("herminal: binding_action failed action=\(action)")
+        }
     }
 
     /// Injects raw text into the surface — bypasses key events / IME entirely.

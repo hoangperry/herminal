@@ -29,6 +29,40 @@ enum AppMenu {
             keyEquivalent: "q"
         )
 
+        // Edit menu — standard Cut/Copy/Paste/Select All. Actions target
+        // `nil` so they travel the responder chain to the focused
+        // HerminalSurfaceView, which forwards into libghostty's matching
+        // keybinding action (copy_to_clipboard, paste_from_clipboard,
+        // select_all). Without this menu the keyboard shortcuts still
+        // work (libghostty's macOS default keybindings catch ⌘C / ⌘V
+        // at the keyDown level), but adding the menu makes the actions
+        // discoverable and shows the shortcut hints to first-time users.
+        let editItem = NSMenuItem()
+        mainMenu.addItem(editItem)
+        let editMenu = NSMenu(title: "Edit")
+        editItem.submenu = editMenu
+        editMenu.addItem(NSMenuItem(
+            title: "Cut",
+            action: #selector(NSText.cut(_:)),
+            keyEquivalent: "x"
+        ))
+        editMenu.addItem(NSMenuItem(
+            title: "Copy",
+            action: #selector(NSText.copy(_:)),
+            keyEquivalent: "c"
+        ))
+        editMenu.addItem(NSMenuItem(
+            title: "Paste",
+            action: #selector(NSText.paste(_:)),
+            keyEquivalent: "v"
+        ))
+        editMenu.addItem(.separator())
+        editMenu.addItem(NSMenuItem(
+            title: "Select All",
+            action: #selector(NSText.selectAll(_:)),
+            keyEquivalent: "a"
+        ))
+
         // File menu — tab lifecycle
         let fileItem = NSMenuItem()
         mainMenu.addItem(fileItem)

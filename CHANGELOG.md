@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-05-26
+
+### Fixed
+
+- **Clipboard now works.** ⌘C / ⌘V were no-ops in v0.2.0 because the
+  libghostty `read_clipboard_cb` and `write_clipboard_cb` runtime
+  callbacks were stubs. Both are now wired to `NSPasteboard.general`,
+  and the Edit menu surfaces the standard Cut / Copy / Paste / Select
+  All items routed through `ghostty_surface_binding_action`.
+- New `ClipboardOwner` protocol in `HerminalCore` lets the C clipboard
+  callback round-trip the per-surface userdata pointer back to a live
+  `ghostty_surface_t` without dragging `HerminalApp` types across the
+  module boundary.
+
 ## [0.2.0] - 2026-05-26
 
 First feature release after v0.1.0 beta — bundles M8-M13 work. All
