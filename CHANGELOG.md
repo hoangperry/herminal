@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.4] - 2026-05-27
+
+### Fixed
+
+- **Tab title updates from shell.** Fourth stub in the audit window:
+  `GhosttyApp.handleAction` was a one-case switch (RING_BELL).
+  SET_TITLE / SET_TAB_TITLE returned false (= unhandled), so OSC 0/2
+  escapes from the shell or libghostty's `set_tab_title` keybinding
+  silently disappeared. Now the action is routed via a new
+  `surfaceTitleDidChangeNotification` → WorkspaceView rebuilds the
+  tab strip with the new title. Restores the default label when the
+  shell sets an empty title.
+
+### Added
+
+- `Scripts/verify-title.sh` — programmable round-trip test that
+  injects `printf '\033]0;MARKER\007'` and asserts `active_title`
+  changes. Runs as part of `dogfood-daily.sh`.
+
 ## [0.2.3] - 2026-05-27
 
 ### Fixed

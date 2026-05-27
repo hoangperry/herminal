@@ -63,6 +63,12 @@ runtime callbacks / surface events — not the application layer.
   tab, if it was the last pane) closes automatically. v0.2.3 lesson
   — `close_surface_cb` was a no-op until then, so `exit` left the
   pane locked on "Process exited" until ⌘W.
+- [ ] **Tab title updates from shell.** Run
+  `printf '\033]0;mytab\007'` in a pane — the tab strip label
+  switches to `mytab`. vim / htop / starship-style prompts that set
+  OSC 0/2 will keep the tab strip in sync. v0.2.4 lesson — title
+  actions were dropped because `handleAction` only routed
+  `RING_BELL`. Programmable check lives in `verify-title.sh`.
 
 The programmable check for the first three lives in
 `Scripts/verify-clipboard.sh` and runs daily as part of

@@ -109,6 +109,48 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             let dumpPath = Self.validatedDumpPath(env["HERMINAL_TEST_CLIPBOARD_DUMP"])
             scheduleClipboardSmoke(into: workspace, dumpPath: dumpPath)
         }
+        if env["HERMINAL_TEST_TITLE"] != nil {
+            let dumpPath = Self.validatedDumpPath(env["HERMINAL_TEST_TITLE_DUMP"])
+            scheduleTitleSmoke(into: workspace, dumpPath: dumpPath)
+        }
+    }
+
+    /// OSC 0/2 title-set smoke (v0.2.4 regression-guard). Injects an
+    /// `\033]0;...\007` escape into the shell, waits for libghostty to
+    /// dispatch GHOSTTY_ACTION_SET_TITLE, then dumps the active tab's
+    /// title from WorkspaceView's state snapshot. The shell-side
+    /// script asserts the title matches the marker.
+    private func scheduleTitleSmoke(into workspace: WorkspaceView, dumpPath: String?) {
+        let marker = "TITLE_REGRESSION_MARKER_42"
+        NSLog("herminal: title smoke armed (dump=\(dumpPath ?? "<unset>"))")
+        Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 8_000_000_000)
+            NSLog("herminal: title smoke — injecting OSC 0 with marker")
+            // OSC 0 sets both window and icon title; BEL terminates.
+            // Using printf so the escape literal isn't mangled by zsh.
+            workspace.injectTextIntoActivePane(
+                "printf '\\033]0;\(marker)\\007'\n"
+            )
+            // Let libghostty parse the OSC + post the notification +
+            // WorkspaceView rebuild the tab strip.
+            try? await Task.sleep(nanoseconds: 2_000_000_000)
+            let state = workspace.dumpState()
+            let titleLine = state
+                .split(separator: "\n")
+                .first(where: { $0.hasPrefix("active_title=") })
+                .map { String($0) } ?? "<no-title-line>"
+            let title = titleLine.replacingOccurrences(of: "active_title=", with: "")
+            let containsMarker = title.contains(marker)
+            let result = """
+                marker=\(marker)
+                active_title=\(title)
+                title_contains_marker=\(containsMarker)
+                """
+            NSLog("herminal: title smoke result:\n\(result)")
+            if let dumpPath {
+                try? result.write(toFile: dumpPath, atomically: true, encoding: .utf8)
+            }
+        }
     }
 
     /// Clipboard round-trip smoke (v0.2.2 regression-guard). Injects a

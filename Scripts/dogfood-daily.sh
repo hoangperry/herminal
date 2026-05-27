@@ -23,6 +23,10 @@ CHECKS=(
     # v0.2.2 lesson: clipboard / mouse-selection bug hid 12 months
     # because no programmable check verified the round-trip. Bake it in.
     "v0.2.2 copy    |verify-clipboard.sh"
+    # v0.2.4: GhosttyApp.handleAction was a one-case switch (RING_BELL).
+    # SET_TITLE / SET_TAB_TITLE silently returned false. Bake the
+    # round-trip so future audits catch any other unhandled action.
+    "v0.2.4 title   |verify-title.sh"
 )
 
 # Special baseline call needs args (text + check-file).

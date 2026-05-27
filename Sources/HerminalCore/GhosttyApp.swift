@@ -172,11 +172,20 @@ public final class GhosttyApp {
         }
     }
 
-    /// Dispatches libghostty's action callbacks. Currently routes
-    /// `GHOSTTY_ACTION_RING_BELL` to `BellRegistry` for the agent-needs-input
-    /// detection (M8/A2 / Q6-001) and returns false (= unhandled) for
-    /// everything else. `nonisolated` because libghostty calls this from
-    /// renderer / IO threads.
+    /// libghostty fired SET_TITLE / SET_TAB_TITLE (OSC 0/2 escape from
+    /// the shell, or an explicit `set_tab_title` keybinding). Payload
+    /// is a C string. Posted to AppKit so WorkspaceView can re-resolve
+    /// the surface → session → tab and rebuild the tab strip.
+    public nonisolated static let surfaceTitleDidChangeNotification = Notification.Name("herminal.surfaceTitleDidChange")
+    public nonisolated static let surfaceTitleKey = "title"
+
+    /// Dispatches libghostty's action callbacks. Routes:
+    /// - `GHOSTTY_ACTION_RING_BELL` → `BellRegistry` (M8/A2)
+    /// - `GHOSTTY_ACTION_SET_TITLE` / `SET_TAB_TITLE` → AppKit
+    ///   notification so tab strip can repaint (v0.2.4 audit pass)
+    ///
+    /// Returns false for everything else. `nonisolated` because
+    /// libghostty calls this from renderer / IO threads.
     private nonisolated static let handleAction: ghostty_runtime_action_cb = { _, target, action in
         switch action.tag {
         case GHOSTTY_ACTION_RING_BELL:
@@ -189,6 +198,27 @@ public final class GhosttyApp {
                 )
             }
             return true
+
+        case GHOSTTY_ACTION_SET_TITLE, GHOSTTY_ACTION_SET_TAB_TITLE:
+            // Both actions carry the same payload shape; the only
+            // difference is intent (SET_TITLE = OSC 0/2 from shell,
+            // SET_TAB_TITLE = explicit keybinding). For our single-pane
+            // tab strip we treat them identically.
+            guard target.tag == GHOSTTY_TARGET_SURFACE,
+                  let surface = target.target.surface,
+                  let userdata = ghostty_surface_userdata(surface),
+                  let titlePtr = action.action.set_title.title
+            else { return false }
+            let owner = Unmanaged<AnyObject>.fromOpaque(userdata).takeUnretainedValue()
+            guard let surfaceOwner = owner as? ClipboardOwner else { return false }
+            let title = String(cString: titlePtr)
+            NotificationCenter.default.post(
+                name: surfaceTitleDidChangeNotification,
+                object: surfaceOwner,
+                userInfo: [surfaceTitleKey: title]
+            )
+            return true
+
         default:
             return false
         }

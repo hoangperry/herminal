@@ -114,6 +114,16 @@ final class WorkspaceView: NSView {
             name: GhosttyApp.surfaceDidCloseNotification,
             object: nil
         )
+        // Shell-driven title updates (OSC 0/2 from vim/htop/zsh prompt
+        // hooks, or libghostty's `set_tab_title` keybinding). Without
+        // this the tab strip stays on the default "herminal" until the
+        // app restart — v0.2.4 stub-from-spike fix.
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(surfaceTitleDidChange(_:)),
+            name: GhosttyApp.surfaceTitleDidChangeNotification,
+            object: nil
+        )
     }
 
     required init?(coder: NSCoder) {
@@ -130,6 +140,11 @@ final class WorkspaceView: NSView {
         NotificationCenter.default.removeObserver(
             self,
             name: GhosttyApp.surfaceDidCloseNotification,
+            object: nil
+        )
+        NotificationCenter.default.removeObserver(
+            self,
+            name: GhosttyApp.surfaceTitleDidChangeNotification,
             object: nil
         )
     }
@@ -720,6 +735,25 @@ final class WorkspaceView: NSView {
     /// `GhosttyApp.closeSurface` on the main thread (libghostty's
     /// callback runs during our 60 Hz `ghostty_app_tick`).
     /// (v0.2.3 stub-from-spike fix.)
+    /// Shell wrote OSC 0/2 (or libghostty fired `set_tab_title`).
+    /// Find the session whose surfaceView matches the notification
+    /// sender and update its title, then rebuild the tab strip.
+    /// (v0.2.4 stub-from-spike fix.)
+    @objc func surfaceTitleDidChange(_ note: Notification) {
+        guard let view = note.object as? HerminalSurfaceView,
+              let title = note.userInfo?[GhosttyApp.surfaceTitleKey] as? String else { return }
+        for tab in tabs {
+            guard let pane = tab.panes.first(where: { $0.surfaceView === view }) else { continue }
+            // Empty strings from the wire mean "restore default" —
+            // libghostty's OSC 0 with empty payload follows that
+            // convention. Fall back to a stable label rather than
+            // letting the tab title go blank.
+            pane.title = title.isEmpty ? "herminal" : title
+            tabHost.rootView = makeTabBar()
+            return
+        }
+    }
+
     @objc func surfaceDidClose(_ note: Notification) {
         guard let view = note.object as? HerminalSurfaceView else { return }
         // Locate the pane by identity.
