@@ -46,6 +46,15 @@ final class WorkspaceTab: Identifiable {
         return false
     }
 
+    /// Remove the pane at a specific index. Used by the
+    /// `surfaceDidClose` listener when libghostty tells us a PTY child
+    /// died — the pane to remove may not be the focused one.
+    func removePane(at index: Int) {
+        guard panes.indices.contains(index) else { return }
+        panes.remove(at: index)
+        focusedPaneIndex = panes.isEmpty ? 0 : min(focusedPaneIndex, panes.count - 1)
+    }
+
     func focusPane(at index: Int) {
         guard panes.indices.contains(index) else { return }
         focusedPaneIndex = index

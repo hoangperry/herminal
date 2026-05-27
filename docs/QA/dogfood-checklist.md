@@ -59,6 +59,10 @@ runtime callbacks / surface events — not the application layer.
   binding action.)
 - [ ] **Cmd+A** selects the whole visible buffer (libghostty
   `select_all` binding).
+- [ ] **Type `exit` + Enter** in the default shell. The pane (and
+  tab, if it was the last pane) closes automatically. v0.2.3 lesson
+  — `close_surface_cb` was a no-op until then, so `exit` left the
+  pane locked on "Process exited" until ⌘W.
 
 The programmable check for the first three lives in
 `Scripts/verify-clipboard.sh` and runs daily as part of

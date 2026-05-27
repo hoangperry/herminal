@@ -104,6 +104,16 @@ final class WorkspaceView: NSView {
             name: Preferences.didChangeNotification,
             object: nil
         )
+        // libghostty close_surface_cb wakes up here when the shell
+        // exits or the PTY child dies. Without this the pane locks
+        // onto "Process exited — press Enter to close." (v0.2.3
+        // stub-from-spike fix.)
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(surfaceDidClose(_:)),
+            name: GhosttyApp.surfaceDidCloseNotification,
+            object: nil
+        )
     }
 
     required init?(coder: NSCoder) {
@@ -115,6 +125,11 @@ final class WorkspaceView: NSView {
         NotificationCenter.default.removeObserver(
             self,
             name: Preferences.didChangeNotification,
+            object: nil
+        )
+        NotificationCenter.default.removeObserver(
+            self,
+            name: GhosttyApp.surfaceDidCloseNotification,
             object: nil
         )
     }
@@ -699,6 +714,32 @@ final class WorkspaceView: NSView {
     /// persisted theme (handles both manual flips and the `.system`
     /// follow-the-appearance case) and repaints all SwiftUI hosts so
     /// design tokens re-evaluate. (M12-P1)
+    /// libghostty PTY child for some surface just exited. Walk every
+    /// tab / pane and remove the matching one. If that empties the
+    /// tab, close the tab too. Posted from
+    /// `GhosttyApp.closeSurface` on the main thread (libghostty's
+    /// callback runs during our 60 Hz `ghostty_app_tick`).
+    /// (v0.2.3 stub-from-spike fix.)
+    @objc func surfaceDidClose(_ note: Notification) {
+        guard let view = note.object as? HerminalSurfaceView else { return }
+        // Locate the pane by identity.
+        for (tabIndex, tab) in tabs.enumerated() {
+            guard let paneIndex = tab.panes.firstIndex(where: { $0.surfaceView === view }) else { continue }
+            // Drop the pane. If it was the last pane in the tab, the
+            // whole tab disappears. Skip the note-confirm prompt — the
+            // shell exited on its own, prompting the user "are you
+            // sure?" right after they typed `exit` would be silly.
+            tab.removePane(at: paneIndex)
+            Diary.shared.log("surfaceDidClose tab=\(tabIndex) pane=\(paneIndex)", category: "panes")
+            if tab.panes.isEmpty {
+                closeTabImmediately(at: tabIndex)
+            } else {
+                refresh()
+            }
+            return
+        }
+    }
+
     @objc func preferencesDidChange() {
         switch Preferences.theme {
         case .dark: HerminalDesign.currentTheme = .dark

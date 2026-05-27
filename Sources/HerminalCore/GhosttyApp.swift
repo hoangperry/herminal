@@ -93,7 +93,29 @@ public final class GhosttyApp {
             read_clipboard_cb: Self.readClipboard,
             confirm_read_clipboard_cb: { _, _, _, _ in },
             write_clipboard_cb: Self.writeClipboard,
-            close_surface_cb: { _, _ in }
+            close_surface_cb: Self.closeSurface
+        )
+    }
+
+    /// Fired by libghostty when the surface's PTY child exits (user
+    /// types `exit`, the shell crashes, etc.). Posts a notification so
+    /// the workspace can drop the pane — without this the pane locks
+    /// onto the "Process exited" message and the user has to ⌘W out
+    /// manually. Same module-boundary trick as the clipboard cbs:
+    /// resolve the per-surface userdata back to its owner via the
+    /// `ClipboardOwner` protocol and post the owner object so the
+    /// listener can identify which pane to close.
+    public nonisolated static let surfaceDidCloseNotification = Notification.Name("herminal.surfaceDidClose")
+    public nonisolated static let surfaceDidCloseProcessAliveKey = "processAlive"
+
+    private nonisolated static let closeSurface: ghostty_runtime_close_surface_cb = { userdata, processAlive in
+        guard let userdata else { return }
+        let owner = Unmanaged<AnyObject>.fromOpaque(userdata).takeUnretainedValue()
+        guard let surfaceOwner = owner as? ClipboardOwner else { return }
+        NotificationCenter.default.post(
+            name: surfaceDidCloseNotification,
+            object: surfaceOwner,
+            userInfo: [surfaceDidCloseProcessAliveKey: processAlive]
         )
     }
 

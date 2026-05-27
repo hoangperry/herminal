@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.3] - 2026-05-27
+
+### Fixed
+
+- **`exit` now actually closes the pane.** Third stub-from-spike in
+  the same audit pass: `close_surface_cb` was a no-op, so when the
+  shell exited the pane locked onto the "Process exited" placeholder
+  until the user manually ⌘W'd out. Wired to a NotificationCenter
+  post → WorkspaceView removes the matching pane (closing the tab
+  if it was the last pane in that tab). Used by `exit`, shell crash,
+  PTY disconnect.
+- New `WorkspaceTab.removePane(at:)` so libghostty can remove a
+  non-focused pane (the existing `closeFocusedPane()` assumed the
+  user was driving the close).
+
 ## [0.2.2] - 2026-05-27
 
 ### Fixed
