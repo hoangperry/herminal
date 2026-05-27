@@ -171,6 +171,24 @@ final class HerminalSurfaceView: NSView, ClipboardOwner, NSUserInterfaceValidati
         }
     }
 
+    // MARK: - Test-harness shims
+    //
+    // Public hooks that mirror the menu actions. Used by the v0.2.2
+    // regression-guard so verify-clipboard.sh can drive a select-all +
+    // copy round-trip without synthesizing mouse drags at exact pixel
+    // coordinates. Kept outside `#if DEBUG` so the GUI smoke harness
+    // can also reach them in release builds (the AppDelegate gating
+    // already strips the *trigger* paths from release binaries).
+
+    func runBindingActionForHarness(_ action: String) {
+        runBindingAction(action)
+    }
+
+    func hasSelectionForHarness() -> Bool {
+        guard let surface else { return false }
+        return ghostty_surface_has_selection(surface)
+    }
+
     /// Injects raw text into the surface — bypasses key events / IME entirely.
     /// Used by the GUI test harness so input does not depend on the system
     /// keyboard or input source (osascript / Telex composition would corrupt it).

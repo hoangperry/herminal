@@ -844,6 +844,23 @@ final class WorkspaceView: NSView {
         activeTab?.focusedPane.surfaceView.injectText(text)
     }
 
+    /// Test-harness entry point: trigger a libghostty binding action
+    /// (e.g. `copy_to_clipboard`, `select_all`, `paste_from_clipboard`)
+    /// on the active pane's surface. Used by the regression-guard
+    /// clipboard smoke so we can verify the round-trip without
+    /// synthesizing mouse events at exact pixel coordinates.
+    /// (v0.2.2 follow-up — bake the lesson.)
+    func triggerBindingActionOnActivePane(_ action: String) {
+        activeTab?.focusedPane.surfaceView.runBindingActionForHarness(action)
+    }
+
+    /// True iff the active pane's surface currently has a selection
+    /// libghostty would copy. Harness-only — production code reads
+    /// this via NSUserInterfaceValidations.
+    func activePaneHasSelection() -> Bool {
+        activeTab?.focusedPane.surfaceView.hasSelectionForHarness() ?? false
+    }
+
     /// Test-harness diagnostic: snapshots the workspace's interactive state
     /// as plain text — used by `Scripts/verify-smoke-m1-m3.sh` to assert
     /// menu actions and sidebar toggles actually take effect.

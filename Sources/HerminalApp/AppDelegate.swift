@@ -105,6 +105,53 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             let dumpPath = Self.validatedDumpPath(env["HERMINAL_TEST_STATE_DUMP"])
             scheduleSmokePlan(into: workspace, dumpPath: dumpPath)
         }
+        if env["HERMINAL_TEST_CLIPBOARD"] != nil {
+            let dumpPath = Self.validatedDumpPath(env["HERMINAL_TEST_CLIPBOARD_DUMP"])
+            scheduleClipboardSmoke(into: workspace, dumpPath: dumpPath)
+        }
+    }
+
+    /// Clipboard round-trip smoke (v0.2.2 regression-guard). Injects a
+    /// known marker via `echo`, triggers libghostty's `select_all` and
+    /// `copy_to_clipboard` binding actions, then reads the standard
+    /// pasteboard and writes a structured result to `dumpPath`. The
+    /// shell-side script asserts the pasteboard contains the marker —
+    /// proving the read_clipboard_cb / write_clipboard_cb wiring plus
+    /// the binding-action plumbing land bytes where they should.
+    private func scheduleClipboardSmoke(into workspace: WorkspaceView, dumpPath: String?) {
+        let marker = "CLIPBOARD_REGRESSION_MARKER_42"
+        NSLog("herminal: clipboard smoke armed (dump=\(dumpPath ?? "<unset>"))")
+        Task { @MainActor in
+            // 8 s gives the shell + .zshrc time to render its first prompt.
+            try? await Task.sleep(nanoseconds: 8_000_000_000)
+            NSLog("herminal: clipboard smoke — injecting marker")
+            workspace.injectTextIntoActivePane("echo \(marker)\n")
+            // Give the echo time to actually print + the renderer time to
+            // commit the row before we select_all.
+            try? await Task.sleep(nanoseconds: 2_000_000_000)
+            NSLog("herminal: clipboard smoke — select_all")
+            workspace.triggerBindingActionOnActivePane("select_all")
+            try? await Task.sleep(nanoseconds: 500_000_000)
+            let hadSelection = workspace.activePaneHasSelection()
+            NSLog("herminal: clipboard smoke — has_selection=\(hadSelection)")
+            workspace.triggerBindingActionOnActivePane("copy_to_clipboard")
+            // write_clipboard_cb is synchronous on our main loop, but
+            // give a beat for any state-machine settling.
+            try? await Task.sleep(nanoseconds: 300_000_000)
+            let pb = NSPasteboard.general.string(forType: .string) ?? ""
+            let containsMarker = pb.contains(marker)
+            let result = """
+                marker=\(marker)
+                has_selection=\(hadSelection)
+                pasteboard_contains_marker=\(containsMarker)
+                pasteboard_len=\(pb.count)
+                """
+            NSLog("herminal: clipboard smoke result:\n\(result)")
+            if let dumpPath {
+                try? result.write(toFile: dumpPath, atomically: true, encoding: .utf8)
+                NSLog("herminal: clipboard smoke result written to \(dumpPath)")
+            }
+        }
     }
 
     /// M11-A2 fix (HIGH H-1 from security-reviewer): refuse dump paths

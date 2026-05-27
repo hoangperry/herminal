@@ -20,6 +20,9 @@ CHECKS=(
     "M4-1 codex     |verify-codex-detection.sh"
     "M4-4 ssh spawn |verify-ssh-spawn.sh"
     "M5-1 compat    |verify-compat-matrix.sh"
+    # v0.2.2 lesson: clipboard / mouse-selection bug hid 12 months
+    # because no programmable check verified the round-trip. Bake it in.
+    "v0.2.2 copy    |verify-clipboard.sh"
 )
 
 # Special baseline call needs args (text + check-file).

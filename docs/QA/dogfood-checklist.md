@@ -37,6 +37,33 @@ each day.
 - Hover states fire on every interactive surface.
 - Cmd+T / Cmd+W / Cmd+D shortcuts all work from any window state.
 
+### Core terminal verbs (v0.2.2 lesson — these have a regression history)
+
+Each of these is the kind of UX path that "looks fine" in casual
+testing but can silently break with a stub-from-spike. The clipboard
+no-op survived 12 months because nobody verified the round-trip
+end-to-end. If any of these regress, look first at libghostty's
+runtime callbacks / surface events — not the application layer.
+
+- [ ] **Drag-select text** with the mouse. Highlight visible while
+  dragging, persists after release.
+- [ ] **Cmd+C** with a selection → paste in TextEdit shows the text.
+- [ ] **Cmd+V** in a shell prompt → clipboard contents arrive.
+- [ ] **Edit menu** shows Cut / Copy / Paste / Select All. Copy
+  greyed out when nothing is selected.
+- [ ] **Right-click** routes to libghostty (no NSBeep, no missing
+  events). Future: hook up a context menu here.
+- [ ] **Trackpad scroll** through `cat`-style long output — smooth,
+  no kinetic-phase stutter.
+- [ ] **Cmd++ / Cmd+-** adjusts font size. (Wired via libghostty
+  binding action.)
+- [ ] **Cmd+A** selects the whole visible buffer (libghostty
+  `select_all` binding).
+
+The programmable check for the first three lives in
+`Scripts/verify-clipboard.sh` and runs daily as part of
+`dogfood-daily.sh`. The others are owner-eye checks.
+
 ### Vietnamese IME
 
 - Telex composition produces correct diacritics.
