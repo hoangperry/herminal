@@ -1,0 +1,344 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <title>herminal — macOS terminal for developers living in Claude Code</title>
+  <meta name="description" content="Native macOS terminal embedding libghostty. Vietnamese Telex IME, agent dashboard, per-session notes. Local-first, no telemetry. MIT licensed, Apple Silicon." />
+
+  <!-- Open Graph -->
+  <meta property="og:title" content="herminal — macOS terminal for AI-era developers" />
+  <meta property="og:description" content="libghostty engine + Swift/AppKit shell. Vietnamese IME. Agent dashboard. Local-first. No telemetry." />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://hoangperry.github.io/herminal/" />
+  <meta name="twitter:card" content="summary_large_image" />
+
+  <link rel="icon" type="image/svg+xml" href="favicon.svg" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header class="top">
+    <div class="grid top-grid">
+      <a class="brand" href="#top" aria-label="herminal home">
+        <span class="brand-cursor" aria-hidden="true"></span>
+        <span class="brand-word">herminal</span>
+      </a>
+      <nav aria-label="primary">
+        <a href="#agents">agents</a>
+        <a href="#ime">vn ime</a>
+        <a href="#ssh">ssh</a>
+        <a href="#promises">promises</a>
+        <a href="#install">install</a>
+        <a class="ext" href="https://github.com/hoangperry/herminal" rel="noopener">github</a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="top">
+    <!-- HERO -->
+    <section class="hero">
+      <div class="grid">
+        <p class="kicker">macOS · Apple Silicon · MIT</p>
+        <h1>
+          <span class="line">A native terminal for</span>
+          <span class="line accent">developers living in</span>
+          <span class="line">Claude Code.</span>
+        </h1>
+        <p class="lede">
+          herminal pairs <a href="https://github.com/ghostty-org/ghostty">libghostty</a>
+          — Zig core, native Metal renderer, sub-5&thinsp;ms keystroke latency — with a
+          Swift/AppKit shell that owns the Vietnamese IME, the agent dashboard, and the
+          per-session notes you'd otherwise paste into Notes.app.
+        </p>
+        <div class="cta-row">
+          <a class="cta primary" href="https://github.com/hoangperry/herminal/releases/latest">
+            Download v0.2.5
+            <span class="cta-meta">macOS 14 · arm64 · 6 MB</span>
+          </a>
+          <a class="cta ghost" href="https://github.com/hoangperry/herminal">
+            View source
+          </a>
+        </div>
+        <ul class="hero-badges">
+          <li>Notarized</li>
+          <li>No telemetry</li>
+          <li>No account</li>
+          <li>Local-first</li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- COMPARISON -->
+    <section class="band">
+      <div class="grid">
+        <h2 class="section-title">The two daily realities nothing else covers</h2>
+        <div class="cmp">
+          <table class="cmp-table">
+            <thead>
+              <tr>
+                <th></th>
+                <th>Native&nbsp;speed</th>
+                <th>VN&nbsp;IME</th>
+                <th>tmux&nbsp;compat</th>
+                <th>Agent&nbsp;dashboard</th>
+                <th>Local&nbsp;notes</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td>iTerm2</td><td>✓</td><td>✓</td><td>✓</td><td>✗</td><td>✗</td></tr>
+              <tr><td>Warp</td><td>~</td><td>✗</td><td>~</td><td>~</td><td>✗</td></tr>
+              <tr><td>Wave</td><td>~</td><td>✗</td><td>✗</td><td>✗</td><td>✗</td></tr>
+              <tr><td>Ghostty</td><td>✓</td><td>✓</td><td>✓</td><td>✗</td><td>✗</td></tr>
+              <tr class="self"><td>herminal</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="note">
+          Every macOS terminal in 2026 misses part of the picture. herminal is everything
+          iTerm2 gets right, plus the two things 2025-era terminals decided to skip.
+        </p>
+      </div>
+    </section>
+
+    <!-- AGENT DASHBOARD -->
+    <section id="agents" class="feature">
+      <div class="grid two-col">
+        <div class="col-text">
+          <p class="kicker">Agent dashboard</p>
+          <h2>See your agents at a glance.</h2>
+          <p>
+            When <code>claude</code>, <code>codex</code>, or <code>aider</code> runs in any
+            tab, the dashboard catches it within 2&thinsp;seconds — including
+            npm-installed (<code>npx @anthropic-ai/claude-code</code>) and Python-wrapped
+            (<code>python3 -m aider</code>) processes that hide behind a generic
+            <code>node</code> / <code>Python</code> name.
+          </p>
+          <ul class="checks">
+            <li>Argv inspection via <code>sysctl(KERN_PROCARGS2)</code>, not just process name</li>
+            <li>Status badge from per-PID CPU sampling + BEL / OSC&nbsp;9 detection</li>
+            <li>Tab attribution from process-tree walking (PPID → login ancestor)</li>
+          </ul>
+        </div>
+        <pre class="ascii" aria-label="Agent dashboard preview">
+┌──────────────────────────┐
+│  AGENTS                3 │
+├──────────────────────────┤
+│  <span class="ok">●</span> Claude Code   Tab 1   │
+│    pid 53241 · running   │
+│                          │
+│  <span class="warn">●</span> Codex         Tab 2   │
+│    pid 53244 · needs in… │
+│                          │
+│  <span class="muted">○</span> Aider         Tab 3   │
+│    pid 53289 · idle      │
+└──────────────────────────┘</pre>
+      </div>
+    </section>
+
+    <!-- VIETNAMESE IME -->
+    <section id="ime" class="feature alt">
+      <div class="grid two-col reverse">
+        <div class="col-text">
+          <p class="kicker">Vietnamese Telex</p>
+          <h2>
+            <code class="hl">tieesng vieejt</code> &rarr; <code class="hl accent">tiếng việt</code>
+          </h2>
+          <p>
+            First try, in vim, in tmux, in a fast-typing burst. <code>NSTextInputClient</code>
+            bridge verified against a 20-phrase smoke checklist before every release.
+            KR / JP / CN smoke matrices ready for the next audience expansion.
+          </p>
+          <p class="note small">
+            The Vietnamese IME ladder is the kind of thing macOS handles correctly out of
+            the box and that Electron terminals reliably break.
+          </p>
+        </div>
+        <div class="col-visual ime-typer" aria-hidden="true">
+          <div class="ime-row"><span class="raw">tieesng</span><span class="arrow">→</span><span class="cooked">tiếng</span></div>
+          <div class="ime-row"><span class="raw">vieejt</span><span class="arrow">→</span><span class="cooked">việt</span></div>
+          <div class="ime-row"><span class="raw">chasof</span><span class="arrow">→</span><span class="cooked">chào</span></div>
+          <div class="ime-row"><span class="raw">phuwowng</span><span class="arrow">→</span><span class="cooked">phương</span></div>
+          <div class="ime-row last"><span class="raw">ddungs</span><span class="arrow">→</span><span class="cooked">đúng</span></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SSH MANAGER -->
+    <section id="ssh" class="feature">
+      <div class="grid">
+        <p class="kicker">SSH manager</p>
+        <h2>Built around <code>~/.ssh/config</code>.</h2>
+        <div class="cards">
+          <div class="card">
+            <h3>One-click import</h3>
+            <p>Reads your existing config. Wildcard + Match blocks skipped, concrete Host blocks upserted as rows.</p>
+          </div>
+          <div class="card">
+            <h3>One-click connect</h3>
+            <p>Spawns <code>ssh user@host</code> in a new tab, inheriting your shell + Telex IME.</p>
+          </div>
+          <div class="card">
+            <h3>Zero stored secrets</h3>
+            <p>Keys + passwords stay where you put them today. We add a UI layer, not a security boundary.</p>
+          </div>
+        </div>
+        <p class="note">You're not migrating; you're skinning what already works.</p>
+      </div>
+    </section>
+
+    <!-- NOTES -->
+    <section class="feature alt">
+      <div class="grid two-col">
+        <div class="col-text">
+          <p class="kicker">Per-session notes</p>
+          <h2>Notes that never leave your machine.</h2>
+          <p>
+            Each tab has its own SQLite-backed note. Autosaved. Markdown round-trip via
+            File&nbsp;→&nbsp;Export&nbsp;/&nbsp;Import. The notes don't get shipped to a
+            cloud, don't get scraped for training data, don't sync to a marketing CRM.
+          </p>
+          <p class="path">
+            <span class="hint">Lives at</span>
+            <code>~/Library/Application Support/herminal/notes.db</code>
+          </p>
+        </div>
+        <pre class="ascii small" aria-label="Notes panel">
+┌─────── Notes ────────────┐
+│ ▌ scratch.md             │
+│                          │
+│ # debug session #4       │
+│ - reproduced w/ M2 max   │
+│ - libghostty surface ok  │
+│ - check tick at 60Hz     │
+│                          │
+│   [⌘⇧N to toggle]        │
+└──────────────────────────┘</pre>
+      </div>
+    </section>
+
+    <!-- PROMISES -->
+    <section id="promises" class="band band-dark">
+      <div class="grid">
+        <h2 class="section-title">What we promise we won't do.</h2>
+        <ul class="anti">
+          <li><strong>No telemetry.</strong> No HTTP client. No analytics SDK. No crash reporter that phones home. Network activity = whatever you run in a terminal pane.</li>
+          <li><strong>No cloud sync.</strong> Your notes are yours.</li>
+          <li><strong>No account.</strong> Don't email us; we don't have a mailing list.</li>
+          <li><strong>No plugin marketplace.</strong> v1 scope is intentional.</li>
+          <li><strong>No AI chat assistant inside the terminal.</strong> The dashboard is the AI surface; the terminal is the workspace.</li>
+          <li><strong>No App Store distribution.</strong> The sandbox kills how libghostty spawns shells.</li>
+          <li><strong>No Linux/Windows builds.</strong> macOS-only by design.</li>
+        </ul>
+        <p class="note small">These are load-bearing. PRs to add them get politely declined.</p>
+      </div>
+    </section>
+
+    <!-- STATS -->
+    <section class="feature">
+      <div class="grid">
+        <p class="kicker">Built with discipline</p>
+        <h2>The audit trail is the value proposition.</h2>
+        <dl class="stats">
+          <div><dt>MVP</dt><dd>7 months, solo dev + Claude Opus pair</dd></div>
+          <div><dt>Tests</dt><dd>79 unit + 5 integration scripts · all green</dd></div>
+          <div><dt>Crashes</dt><dd>0 in dogfood, 0 in stress</dd></div>
+          <div><dt>Kernel bugs</dt><dd>3 documented Sequoia gotchas</dd></div>
+          <div><dt>Swift LOC</dt><dd>~6,000 — readable in an evening</dd></div>
+          <div><dt>External deps</dt><dd>2 — SQLite.swift, libghostty</dd></div>
+        </dl>
+        <p class="note small">
+          Full retrospective for each month at
+          <a href="https://github.com/hoangperry/herminal/tree/main/docs/backlog">docs/backlog/</a>.
+        </p>
+      </div>
+    </section>
+
+    <!-- INSTALL -->
+    <section id="install" class="feature alt">
+      <div class="grid">
+        <h2 class="section-title">Install</h2>
+        <div class="install-tabs">
+          <article class="install-card">
+            <h3>Download · recommended</h3>
+            <pre><code>curl -LO https://github.com/hoangperry/herminal/releases/download/v0.2.5/herminal-v0.2.5.dmg
+open herminal-v0.2.5.dmg</code></pre>
+            <p class="note small">Signed + notarized + stapled. First launch is silent.</p>
+          </article>
+
+          <article class="install-card">
+            <h3>Homebrew · post-cask</h3>
+            <pre><code>brew tap hoangperry/herminal
+brew install --cask herminal</code></pre>
+            <p class="note small">Cask formula at <code>docs/launch/homebrew/</code>.</p>
+          </article>
+
+          <article class="install-card">
+            <h3>From source</h3>
+            <pre><code>git clone --recurse-submodules https://github.com/hoangperry/herminal
+cd herminal
+Scripts/bootstrap.sh
+Scripts/make-app-bundle.sh
+open .build/herminal.app</code></pre>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- STATUS -->
+    <section class="band">
+      <div class="grid">
+        <p class="kicker">Status + next</p>
+        <h2 class="section-title">Where v0.2.5 lands.</h2>
+        <ol class="roadmap">
+          <li>
+            <span class="rm-tag now">now · v0.2.5</span>
+            All PRD MVP plus 5-slice audit pass (clipboard, mouse selection, exit-close,
+            OSC title, MOUSE_SHAPE + OPEN_URL). Notarized.
+          </li>
+          <li>
+            <span class="rm-tag soon">soon · v0.3.x</span>
+            Notes search, Sparkle auto-update, font picker, ⌘+/⌘&minus; binding for size.
+            Beta-feedback-driven.
+          </li>
+          <li>
+            <span class="rm-tag later">later · v1.0</span>
+            Recursive split trees. Drag-resize. Opt-in diary upload. More agent kinds.
+          </li>
+        </ol>
+        <p class="note">
+          <a href="https://github.com/hoangperry/herminal/blob/main/docs/ROADMAP.md">Full roadmap →</a>
+        </p>
+      </div>
+    </section>
+
+    <!-- FINAL CTA -->
+    <section class="final">
+      <div class="grid">
+        <h2>Open a bug. Tell us what you want next.</h2>
+        <div class="cta-row centered">
+          <a class="cta primary" href="https://github.com/hoangperry/herminal/releases/latest">Download v0.2.5</a>
+          <a class="cta ghost" href="https://github.com/hoangperry/herminal/issues/new/choose">File an issue</a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="bottom">
+    <div class="grid foot-grid">
+      <p>
+        <span class="brand-cursor small" aria-hidden="true"></span>
+        herminal · MIT · made in Saigon · powered by
+        <a href="https://github.com/ghostty-org/ghostty">libghostty</a>
+      </p>
+      <p>
+        <a href="https://github.com/hoangperry/herminal">github</a>
+        <a href="https://github.com/hoangperry/herminal/blob/main/README.vi.md">tiếng việt</a>
+        <a href="https://github.com/hoangperry/herminal/blob/main/SECURITY.md">security</a>
+        <a href="https://github.com/hoangperry/herminal/blob/main/CHANGELOG.md">changelog</a>
+      </p>
+    </div>
+  </footer>
+
+  <script src="script.js" defer></script>
+</body>
+</html>
