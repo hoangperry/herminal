@@ -1,7 +1,7 @@
 # docs/site — herminal landing page
 
 Static site served by GitHub Pages at
-<https://hoangperry.github.io/herminal/>.
+<https://hoang.tech/herminal/>.
 
 No build step. The source IS the deployable: `index.html`,
 `style.css`, `script.js`, `favicon.svg`. The static-site
@@ -23,7 +23,7 @@ mode once:
 
 The next push that touches `docs/site/**` (or a manual
 `workflow_dispatch`) deploys to
-`https://hoangperry.github.io/herminal/` in ~30 seconds.
+`https://hoang.tech/herminal/` in ~30 seconds.
 
 The `.nojekyll` file in this directory tells GitHub Pages to
 skip Jekyll's underscore-file filtering — important so

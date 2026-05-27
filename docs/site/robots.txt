@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://hoangperry.github.io/herminal/sitemap.xml
+Sitemap: https://hoang.tech/herminal/sitemap.xml

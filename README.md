@@ -3,7 +3,7 @@
 > AI-native macOS terminal cho Vietnamese developers chạy Claude Code và
 > agent CLIs hằng ngày.
 
-**Website:** <https://hoangperry.github.io/herminal/> · **Download:** [latest release](https://github.com/hoangperry/herminal/releases/latest) · **Source:** this repo
+**Website:** <https://hoang.tech/herminal/> · **Download:** [latest release](https://github.com/hoangperry/herminal/releases/latest) · **Source:** this repo
 
 [![CI](https://github.com/hoangperry/herminal/actions/workflows/ci.yml/badge.svg)](https://github.com/hoangperry/herminal/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
