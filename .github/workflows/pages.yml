@@ -1,0 +1,50 @@
+name: Deploy GitHub Pages
+
+# Deploys the static site at docs/site/ to GitHub Pages whenever it
+# changes. We use Actions (not the "deploy from /docs branch" option)
+# because Pages' built-in source picker only allows `/` or `/docs` —
+# our site lives at `/docs/site/` so the markdown sources under
+# `docs/launch/`, `docs/backlog/`, etc. don't pollute the published
+# tree.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "docs/site/**"
+      - ".github/workflows/pages.yml"
+  workflow_dispatch:
+
+# Only one deployment runs at a time. A second push during a deploy
+# queues, so we don't race against ourselves and publish a stale
+# revision after a newer one.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs/site
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

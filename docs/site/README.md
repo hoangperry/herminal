@@ -11,11 +11,19 @@ when one changes, update the other in the same commit.
 
 ## Enable GitHub Pages (one-time, owner action)
 
+GitHub Pages' built-in branch picker only allows `/` or `/docs`
+as a source — not nested subdirectories. We use GitHub Actions
+to deploy from `docs/site/` instead (`.github/workflows/pages.yml`),
+which means the owner needs to flip Pages to "GitHub Actions"
+mode once:
+
 1. Repository → Settings → Pages
-2. Source: **Deploy from a branch**
-3. Branch: `main` · folder: `/docs/site`
-4. Save. Pages will publish to
-   `https://hoangperry.github.io/herminal/` within ~1 minute.
+2. Source: **GitHub Actions**
+3. Save.
+
+The next push that touches `docs/site/**` (or a manual
+`workflow_dispatch`) deploys to
+`https://hoangperry.github.io/herminal/` in ~30 seconds.
 
 The `.nojekyll` file in this directory tells GitHub Pages to
 skip Jekyll's underscore-file filtering — important so
