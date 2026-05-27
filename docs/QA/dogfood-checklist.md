@@ -69,6 +69,15 @@ runtime callbacks / surface events — not the application layer.
   OSC 0/2 will keep the tab strip in sync. v0.2.4 lesson — title
   actions were dropped because `handleAction` only routed
   `RING_BELL`. Programmable check lives in `verify-title.sh`.
+- [ ] **Cursor is an I-beam** when hovering the terminal (not the
+  default arrow). v0.2.5 lesson — `GHOSTTY_ACTION_MOUSE_SHAPE` was
+  unhandled; the terminal surface now defaults to `.iBeam` and
+  swaps based on the action (vim mouse mode, URL hover, etc).
+- [ ] **Cmd+click a URL** rendered in terminal output (paste a link
+  into a `cat` first if your shell doesn't expose any) → default
+  browser opens. v0.2.5 lesson — `GHOSTTY_ACTION_OPEN_URL` was
+  unhandled. Only `http`, `https`, `mailto` allowed; `file://`
+  rejected.
 
 The programmable check for the first three lives in
 `Scripts/verify-clipboard.sh` and runs daily as part of

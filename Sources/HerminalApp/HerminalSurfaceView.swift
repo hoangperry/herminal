@@ -29,6 +29,12 @@ final class HerminalSurfaceView: NSView, ClipboardOwner, NSUserInterfaceValidati
     /// IME's committed text instead of sending it straight to the PTY.
     private var keyTextAccumulator: [String]?
 
+    /// NSCursor shown when the mouse is inside this view's bounds.
+    /// Defaults to I-beam — that's what a terminal IS. libghostty's
+    /// MOUSE_SHAPE action overrides it (vim mouse mode, URL hover,
+    /// resize handles, etc.). (v0.2.5 audit pass.)
+    private var currentCursor: NSCursor = .iBeam
+
     init(app: ghostty_app_t, command: String? = nil) {
         self.app = app
         self.commandBuffer = command.flatMap { $0.isEmpty ? nil : strdup($0) }
@@ -394,6 +400,59 @@ final class HerminalSurfaceView: NSView, ClipboardOwner, NSUserInterfaceValidati
         let (x, y) = surfacePos(for: event)
         ghostty_surface_mouse_pos(surface, x, y, mods)
         _ = ghostty_surface_mouse_button(surface, GHOSTTY_MOUSE_RELEASE, GHOSTTY_MOUSE_MIDDLE, mods)
+    }
+
+    // MARK: - Cursor shape (MOUSE_SHAPE action, v0.2.5)
+
+    override func resetCursorRects() {
+        super.resetCursorRects()
+        addCursorRect(bounds, cursor: currentCursor)
+    }
+
+    /// Called by WorkspaceView when libghostty fires MOUSE_SHAPE. The
+    /// raw int is `ghostty_mouse_shape_e`; we map known shapes onto
+    /// NSCursor's pre-baked set + fall back to .arrow for the
+    /// long tail (24 shapes, 12 useful ones on macOS).
+    func applyMouseShape(_ rawShape: Int) {
+        let shape = Self.cursorForShape(rawShape)
+        guard shape !== currentCursor else { return }
+        currentCursor = shape
+        window?.invalidateCursorRects(for: self)
+    }
+
+    private static func cursorForShape(_ raw: Int) -> NSCursor {
+        switch UInt32(raw) {
+        case GHOSTTY_MOUSE_SHAPE_TEXT.rawValue,
+             GHOSTTY_MOUSE_SHAPE_CELL.rawValue:
+            return .iBeam
+        case GHOSTTY_MOUSE_SHAPE_VERTICAL_TEXT.rawValue:
+            return .iBeamCursorForVerticalLayout
+        case GHOSTTY_MOUSE_SHAPE_POINTER.rawValue:
+            return .pointingHand
+        case GHOSTTY_MOUSE_SHAPE_CROSSHAIR.rawValue:
+            return .crosshair
+        case GHOSTTY_MOUSE_SHAPE_NOT_ALLOWED.rawValue,
+             GHOSTTY_MOUSE_SHAPE_NO_DROP.rawValue:
+            return .operationNotAllowed
+        case GHOSTTY_MOUSE_SHAPE_GRAB.rawValue:
+            return .openHand
+        case GHOSTTY_MOUSE_SHAPE_GRABBING.rawValue:
+            return .closedHand
+        case GHOSTTY_MOUSE_SHAPE_COPY.rawValue:
+            return .dragCopy
+        case GHOSTTY_MOUSE_SHAPE_ALIAS.rawValue:
+            return .dragLink
+        case GHOSTTY_MOUSE_SHAPE_COL_RESIZE.rawValue,
+             GHOSTTY_MOUSE_SHAPE_EW_RESIZE.rawValue:
+            return .resizeLeftRight
+        case GHOSTTY_MOUSE_SHAPE_ROW_RESIZE.rawValue,
+             GHOSTTY_MOUSE_SHAPE_NS_RESIZE.rawValue:
+            return .resizeUpDown
+        case GHOSTTY_MOUSE_SHAPE_DEFAULT.rawValue:
+            return .arrow
+        default:
+            return .arrow
+        }
     }
 
     override func scrollWheel(with event: NSEvent) {

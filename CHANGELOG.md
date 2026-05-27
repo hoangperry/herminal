@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.5] - 2026-05-27
+
+### Fixed / Added
+
+- **I-beam cursor over the terminal** (instead of arrow). The default
+  `NSCursor` for `HerminalSurfaceView` is now `.iBeam` — a terminal
+  IS a text surface. `GHOSTTY_ACTION_MOUSE_SHAPE` is wired so vim
+  mouse mode, URL hover, and resize handles drive the correct cursor
+  (pointing-hand, crosshair, etc.). 12 shapes mapped; the long tail
+  falls back to `.arrow`.
+- **`GHOSTTY_ACTION_OPEN_URL`** — clicking a URL libghostty detected
+  in terminal output now opens the user's default browser via
+  `NSWorkspace.shared.open`. Scheme allow-list (`http`, `https`,
+  `mailto`) — `file://` and arbitrary schemes are rejected so a
+  hostile shell can't paste a `file:///etc/passwd` payload that
+  pops Finder.
+
 ## [0.2.4] - 2026-05-27
 
 ### Fixed

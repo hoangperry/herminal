@@ -124,6 +124,15 @@ final class WorkspaceView: NSView {
             name: GhosttyApp.surfaceTitleDidChangeNotification,
             object: nil
         )
+        // libghostty's MOUSE_SHAPE action: vim mouse mode wants
+        // pointing-hand, URL hover wants pointing-hand, default text
+        // pane wants I-beam, etc. (v0.2.5 audit pass.)
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(surfaceMouseShapeDidChange(_:)),
+            name: GhosttyApp.surfaceMouseShapeDidChangeNotification,
+            object: nil
+        )
     }
 
     required init?(coder: NSCoder) {
@@ -145,6 +154,11 @@ final class WorkspaceView: NSView {
         NotificationCenter.default.removeObserver(
             self,
             name: GhosttyApp.surfaceTitleDidChangeNotification,
+            object: nil
+        )
+        NotificationCenter.default.removeObserver(
+            self,
+            name: GhosttyApp.surfaceMouseShapeDidChangeNotification,
             object: nil
         )
     }
@@ -752,6 +766,16 @@ final class WorkspaceView: NSView {
             tabHost.rootView = makeTabBar()
             return
         }
+    }
+
+    /// libghostty asked for a specific cursor shape over this
+    /// surface. Forward to the matching HerminalSurfaceView; the view
+    /// invalidates its cursor rect so AppKit re-resolves on next
+    /// hover. (v0.2.5.)
+    @objc func surfaceMouseShapeDidChange(_ note: Notification) {
+        guard let view = note.object as? HerminalSurfaceView,
+              let raw = note.userInfo?[GhosttyApp.surfaceMouseShapeKey] as? Int else { return }
+        view.applyMouseShape(raw)
     }
 
     @objc func surfaceDidClose(_ note: Notification) {

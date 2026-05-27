@@ -179,6 +179,13 @@ public final class GhosttyApp {
     public nonisolated static let surfaceTitleDidChangeNotification = Notification.Name("herminal.surfaceTitleDidChange")
     public nonisolated static let surfaceTitleKey = "title"
 
+    /// MOUSE_SHAPE action — terminal wants a specific cursor shape over
+    /// the surface (I-beam for text, pointing-hand for URL hover, etc).
+    /// Payload is the raw `ghostty_mouse_shape_e` integer; HerminalApp
+    /// maps it to an NSCursor. (v0.2.5 audit pass.)
+    public nonisolated static let surfaceMouseShapeDidChangeNotification = Notification.Name("herminal.surfaceMouseShapeDidChange")
+    public nonisolated static let surfaceMouseShapeKey = "mouseShape"
+
     /// Dispatches libghostty's action callbacks. Routes:
     /// - `GHOSTTY_ACTION_RING_BELL` → `BellRegistry` (M8/A2)
     /// - `GHOSTTY_ACTION_SET_TITLE` / `SET_TAB_TITLE` → AppKit
@@ -197,6 +204,41 @@ public final class GhosttyApp {
                     surfaceAddress: Int(bitPattern: surface)
                 )
             }
+            return true
+
+        case GHOSTTY_ACTION_OPEN_URL:
+            // libghostty detected a URL and the user clicked it. We
+            // delegate to NSWorkspace which honours the user's default
+            // browser + URL handler associations. Length is exposed
+            // explicitly because libghostty may emit non-null-terminated
+            // buffers — read exactly `len` bytes.
+            guard let urlPtr = action.action.open_url.url else { return false }
+            let urlLen = Int(action.action.open_url.len)
+            let buffer = UnsafeBufferPointer(start: urlPtr, count: urlLen)
+            let urlString = String(decoding: buffer.map { UInt8(bitPattern: $0) }, as: UTF8.self)
+            guard let url = URL(string: urlString),
+                  let scheme = url.scheme?.lowercased(),
+                  // Defend against `file://` / arbitrary schemes — a
+                  // hostile shell could otherwise paste a payload
+                  // that triggers `Open With…` on a /etc/passwd path.
+                  ["http", "https", "mailto"].contains(scheme) else { return false }
+            DispatchQueue.main.async {
+                NSWorkspace.shared.open(url)
+            }
+            return true
+
+        case GHOSTTY_ACTION_MOUSE_SHAPE:
+            guard target.tag == GHOSTTY_TARGET_SURFACE,
+                  let surface = target.target.surface,
+                  let userdata = ghostty_surface_userdata(surface)
+            else { return false }
+            let owner = Unmanaged<AnyObject>.fromOpaque(userdata).takeUnretainedValue()
+            guard let surfaceOwner = owner as? ClipboardOwner else { return false }
+            NotificationCenter.default.post(
+                name: surfaceMouseShapeDidChangeNotification,
+                object: surfaceOwner,
+                userInfo: [surfaceMouseShapeKey: Int(action.action.mouse_shape.rawValue)]
+            )
             return true
 
         case GHOSTTY_ACTION_SET_TITLE, GHOSTTY_ACTION_SET_TAB_TITLE:
