@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-05-28
+
+Polish-wave slice 2 — two "magic feature" items.
+
+### Added
+
+- **Command palette (⌘⇧P)** — fuzzy launcher over the workspace.
+  Indexes 15 actions (tabs, splits, sidebars, theme, Settings,
+  hotkey). NSPanel + SwiftUI, dispatches via the responder chain so
+  the palette doesn't reimplement any handler — adding a new menu
+  item only needs an entry in `CommandPaletteAction.all`.
+- **Global hotkey ⌥Space** (Carbon `RegisterEventHotKey`) brings
+  herminal forward from anywhere on macOS, or hides it if already
+  key. iTerm2's "gateway-drug" pattern. No accessibility permission
+  required (Carbon API doesn't need it; NSEvent monitors would).
+  Menu fallback (`Window → Show Hotkey Window`) covers the case
+  where the combo is already grabbed by another app.
+
+### Notes
+
+Slice 3 of the wave (scrollback search ⌘F + drag-resize splits +
+caret blink reset) deferred — needs a libghostty integration spike
+first (open questions in `docs/research/09-polish-audit.md` §7).
+
 ## [0.3.0] - 2026-05-28
 
 First slice of the v0.3 polish wave — addresses the owner's "xài

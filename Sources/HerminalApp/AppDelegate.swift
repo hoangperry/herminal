@@ -67,6 +67,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
         NSApp.activate(ignoringOtherApps: true)
 
+        // v0.3.1 — register the global ⌥Space hotkey. Safe to call
+        // even if the combo is already grabbed; HotkeyManager logs
+        // the conflict and the menu-bar binding still works.
+        HotkeyManager.shared.install()
+
         // GUI test harness — debug builds only. M11-A2 fix
         // (HIGH H-1 + H-2 from security-reviewer): these env hooks let an
         // attacker who can set environment variables before launch (a
@@ -398,6 +403,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     /// PreferencesWindow into view; opens it lazily on first use.
     @objc func openPreferences(_ sender: Any?) {
         PreferencesWindow.show()
+    }
+
+    // MARK: - Polish wave slice 2 — palette + hotkey (v0.3.1)
+
+    /// ⌘⇧P — toggle the floating command palette. Indexed actions
+    /// dispatch via the standard responder chain so the palette
+    /// doesn't need to know what currently has focus.
+    @objc func toggleCommandPalette(_ sender: Any?) {
+        CommandPalette.toggle()
+    }
+
+    /// ⌥Space — bring herminal forward from anywhere on macOS, or
+    /// hide it if it's already key. The Carbon hotkey installed in
+    /// `applicationDidFinishLaunching` fires the same path so the
+    /// behaviour is identical whether the user is inside or outside
+    /// herminal.
+    @objc func toggleHotkeyWindow(_ sender: Any?) {
+        HotkeyManager.shared.handleFired()
     }
 
     // MARK: - NSWindowDelegate (M12-P5)

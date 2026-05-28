@@ -164,6 +164,27 @@ enum AppMenu {
         toggleTheme.keyEquivalentModifierMask = [.command, .shift]
         windowMenu.addItem(toggleTheme)
 
+        windowMenu.addItem(.separator())
+        // v0.3.1 — command palette + hotkey window.
+        let palette = NSMenuItem(
+            title: "Command Palette…",
+            action: #selector(AppDelegate.toggleCommandPalette(_:)),
+            keyEquivalent: "p"
+        )
+        palette.keyEquivalentModifierMask = [.command, .shift]
+        windowMenu.addItem(palette)
+
+        let hotkey = NSMenuItem(
+            title: "Show Hotkey Window",
+            action: #selector(AppDelegate.toggleHotkeyWindow(_:)),
+            keyEquivalent: " "
+        )
+        // ⌥Space is also registered globally by HotkeyManager; the
+        // menu binding is the in-app fallback for users who can't
+        // grant the global hotkey (combo taken by another app).
+        hotkey.keyEquivalentModifierMask = [.option]
+        windowMenu.addItem(hotkey)
+
         return mainMenu
     }
 }
