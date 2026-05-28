@@ -3,6 +3,7 @@
 // panel (right), and lays out the active tab's panes (manual split, Q2-002).
 
 import AppKit
+import Combine
 import SwiftUI
 import GhosttyKit
 import HerminalCore
@@ -42,6 +43,18 @@ final class WorkspaceView: NSView {
     /// removed (and nil'd) after the user dismisses. Stays nil forever
     /// after that on every subsequent launch. (M12-P3)
     private var welcomeOverlay: NSHostingView<WelcomeOverlayView>?
+    /// Per-pane ⌘F search overlay state. Lives across show/hide so a
+    /// re-open restores the last needle (matches Safari + Chrome
+    /// muscle memory). The host is nil'd when search ends. (v0.3.2.)
+    private var searchOverlayState: SearchOverlayState?
+    private var searchOverlayHost: NSHostingView<SearchOverlayView>?
+    /// View whose `searchState` the overlay is bound to — used by the
+    /// notification observers to ignore stale events from sibling panes.
+    private weak var searchOverlayTarget: HerminalSurfaceView?
+    /// Combine subscription propagating SwiftUI text-field updates
+    /// into libghostty's `search:<needle>` binding action. Lives only
+    /// while the overlay is shown.
+    private var searchNeedleSubscription: AnyCancellable?
     private var leftSidebar: LeftSidebar = .none
     private var isNotesVisible = false
     // nonisolated(unsafe): invalidated in the nonisolated deinit.
@@ -133,6 +146,22 @@ final class WorkspaceView: NSView {
             name: GhosttyApp.surfaceMouseShapeDidChangeNotification,
             object: nil
         )
+        // v0.3.2 — search overlay lifecycle. libghostty fires these
+        // four actions; we mirror them into AppKit so the overlay's
+        // SwiftUI state stays in sync.
+        for name: Notification.Name in [
+            GhosttyApp.surfaceSearchStartNotification,
+            GhosttyApp.surfaceSearchEndNotification,
+            GhosttyApp.surfaceSearchTotalNotification,
+            GhosttyApp.surfaceSearchSelectedNotification,
+        ] {
+            NotificationCenter.default.addObserver(
+                self,
+                selector: #selector(surfaceSearchEvent(_:)),
+                name: name,
+                object: nil
+            )
+        }
     }
 
     required init?(coder: NSCoder) {
@@ -161,6 +190,14 @@ final class WorkspaceView: NSView {
             name: GhosttyApp.surfaceMouseShapeDidChangeNotification,
             object: nil
         )
+        for name: Notification.Name in [
+            GhosttyApp.surfaceSearchStartNotification,
+            GhosttyApp.surfaceSearchEndNotification,
+            GhosttyApp.surfaceSearchTotalNotification,
+            GhosttyApp.surfaceSearchSelectedNotification,
+        ] {
+            NotificationCenter.default.removeObserver(self, name: name, object: nil)
+        }
     }
 
     private var activeTab: WorkspaceTab? {
@@ -252,6 +289,20 @@ final class WorkspaceView: NSView {
             x: 0, y: 0, width: bounds.width, height: statusHeight
         )
         welcomeOverlay?.frame = bounds
+        // v0.3.2 — search bar floats at the top-right of the active
+        // surface area so it doesn't cover the prompt at the bottom of
+        // most shells. 14 px margin from edge + intrinsic-content sized.
+        if let overlay = searchOverlayHost {
+            let intrinsic = overlay.fittingSize
+            let width = max(intrinsic.width, 320)
+            let height = max(intrinsic.height, 34)
+            let margin: CGFloat = 14
+            overlay.frame = CGRect(
+                x: surfaceContainer.frame.maxX - width - margin,
+                y: surfaceContainer.frame.maxY - height - margin,
+                width: width, height: height
+            )
+        }
         layoutPanes()
     }
 
@@ -775,6 +826,110 @@ final class WorkspaceView: NSView {
             tabHost.rootView = makeTabBar()
             return
         }
+    }
+
+    // MARK: - Scrollback search overlay (v0.3.2)
+
+    /// AppMenu's File menu (⌘F) hits this entry point. libghostty
+    /// owns the actual scanning; we just trigger `start_search` and
+    /// then react to the START_SEARCH action that libghostty posts back
+    /// (which is what actually opens the overlay).
+    @objc func findInScrollback(_ sender: Any?) {
+        activeTab?.focusedPane.surfaceView.runBindingActionForHarness("start_search")
+    }
+
+    /// ⌘G / ⌘⇧G next/prev match navigation. The bindings are routed
+    /// here from AppMenu items. Only fires when an overlay is up.
+    @objc func findNext(_ sender: Any?) {
+        guard searchOverlayHost != nil else { return }
+        activeTab?.focusedPane.surfaceView.runBindingActionForHarness("navigate_search:next")
+    }
+
+    @objc func findPrevious(_ sender: Any?) {
+        guard searchOverlayHost != nil else { return }
+        activeTab?.focusedPane.surfaceView.runBindingActionForHarness("navigate_search:previous")
+    }
+
+    @objc func surfaceSearchEvent(_ note: Notification) {
+        guard let view = note.object as? HerminalSurfaceView else { return }
+        switch note.name {
+        case GhosttyApp.surfaceSearchStartNotification:
+            let initialNeedle = note.userInfo?[GhosttyApp.surfaceSearchValueKey] as? String ?? ""
+            presentSearchOverlay(targeting: view, initialNeedle: initialNeedle)
+        case GhosttyApp.surfaceSearchEndNotification:
+            // Only dismiss if the END event refers to the pane we're
+            // currently displaying — guards against stale events from a
+            // sibling pane that was closed in the background.
+            if view === searchOverlayTarget {
+                dismissSearchOverlay(sendEnd: false)
+            }
+        case GhosttyApp.surfaceSearchTotalNotification:
+            guard view === searchOverlayTarget else { return }
+            let raw = note.userInfo?[GhosttyApp.surfaceSearchValueKey] as? Int ?? -1
+            searchOverlayState?.total = raw >= 0 ? raw : nil
+        case GhosttyApp.surfaceSearchSelectedNotification:
+            guard view === searchOverlayTarget else { return }
+            let raw = note.userInfo?[GhosttyApp.surfaceSearchValueKey] as? Int ?? -1
+            searchOverlayState?.selected = raw >= 0 ? raw : nil
+        default:
+            break
+        }
+    }
+
+    private func presentSearchOverlay(targeting view: HerminalSurfaceView,
+                                      initialNeedle: String) {
+        // If the same overlay is already up, just refocus its text
+        // field — match Safari's ⌘F-when-already-open behaviour.
+        if let existing = searchOverlayHost, searchOverlayTarget === view {
+            existing.window?.makeFirstResponder(existing)
+            return
+        }
+        // Different pane → tear down the old overlay first so the
+        // listener bookkeeping stays clean.
+        if searchOverlayHost != nil { dismissSearchOverlay(sendEnd: true) }
+
+        let state = SearchOverlayState()
+        state.needle = initialNeedle
+        searchOverlayState = state
+        searchOverlayTarget = view
+
+        // Whenever the needle text changes, fire the
+        // `search:<needle>` binding action. libghostty re-runs the
+        // scan + posts SEARCH_TOTAL back. The cancellable is stored
+        // on the view (not on the state) so the GC ties the
+        // subscription's lifetime to the overlay's.
+        let cancellable = state.$needle.sink { [weak self, weak view] needle in
+            guard let view, let _ = self else { return }
+            let action = "search:\(needle)"
+            view.runBindingActionForHarness(action)
+        }
+        searchNeedleSubscription = cancellable
+
+        let overlay = NSHostingView(
+            rootView: SearchOverlayView(
+                state: state,
+                onNext: { [weak self] in self?.findNext(nil) },
+                onPrevious: { [weak self] in self?.findPrevious(nil) },
+                onDismiss: { [weak self] in self?.dismissSearchOverlay(sendEnd: true) }
+            )
+        )
+        overlay.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(overlay)
+        searchOverlayHost = overlay
+        needsLayout = true
+    }
+
+    private func dismissSearchOverlay(sendEnd: Bool) {
+        if sendEnd, let view = searchOverlayTarget {
+            view.runBindingActionForHarness("end_search")
+        }
+        searchNeedleSubscription?.cancel()
+        searchNeedleSubscription = nil
+        searchOverlayHost?.removeFromSuperview()
+        searchOverlayHost = nil
+        searchOverlayState = nil
+        searchOverlayTarget = nil
+        focusActivePane()
     }
 
     /// libghostty asked for a specific cursor shape over this

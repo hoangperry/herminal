@@ -186,6 +186,18 @@ public final class GhosttyApp {
     public nonisolated static let surfaceMouseShapeDidChangeNotification = Notification.Name("herminal.surfaceMouseShapeDidChange")
     public nonisolated static let surfaceMouseShapeKey = "mouseShape"
 
+    /// Search lifecycle — v0.3.2 polish slice 3. libghostty owns the
+    /// match-finding machinery; HerminalApp owns the overlay UI and the
+    /// needle text field. The four notifications match the four
+    /// libghostty action callbacks (START_SEARCH, END_SEARCH,
+    /// SEARCH_TOTAL, SEARCH_SELECTED).
+    public nonisolated static let surfaceSearchStartNotification = Notification.Name("herminal.surfaceSearchStart")
+    public nonisolated static let surfaceSearchEndNotification = Notification.Name("herminal.surfaceSearchEnd")
+    public nonisolated static let surfaceSearchTotalNotification = Notification.Name("herminal.surfaceSearchTotal")
+    public nonisolated static let surfaceSearchSelectedNotification = Notification.Name("herminal.surfaceSearchSelected")
+    /// Count value (`ssize_t total` or `selected`). negative → unknown.
+    public nonisolated static let surfaceSearchValueKey = "value"
+
     /// Dispatches libghostty's action callbacks. Routes:
     /// - `GHOSTTY_ACTION_RING_BELL` → `BellRegistry` (M8/A2)
     /// - `GHOSTTY_ACTION_SET_TITLE` / `SET_TAB_TITLE` → AppKit
@@ -204,6 +216,70 @@ public final class GhosttyApp {
                     surfaceAddress: Int(bitPattern: surface)
                 )
             }
+            return true
+
+        case GHOSTTY_ACTION_START_SEARCH:
+            // libghostty asks the host to open the search overlay.
+            // Payload contains an initial needle (often empty); the
+            // overlay binds its text field to it via a notification.
+            guard target.tag == GHOSTTY_TARGET_SURFACE,
+                  let surface = target.target.surface,
+                  let userdata = ghostty_surface_userdata(surface)
+            else { return false }
+            let owner = Unmanaged<AnyObject>.fromOpaque(userdata).takeUnretainedValue()
+            guard let surfaceOwner = owner as? ClipboardOwner else { return false }
+            let needle: String
+            if let ptr = action.action.start_search.needle {
+                needle = String(cString: ptr)
+            } else {
+                needle = ""
+            }
+            NotificationCenter.default.post(
+                name: surfaceSearchStartNotification,
+                object: surfaceOwner,
+                userInfo: [surfaceSearchValueKey: needle]
+            )
+            return true
+
+        case GHOSTTY_ACTION_END_SEARCH:
+            guard target.tag == GHOSTTY_TARGET_SURFACE,
+                  let surface = target.target.surface,
+                  let userdata = ghostty_surface_userdata(surface)
+            else { return false }
+            let owner = Unmanaged<AnyObject>.fromOpaque(userdata).takeUnretainedValue()
+            guard let surfaceOwner = owner as? ClipboardOwner else { return false }
+            NotificationCenter.default.post(
+                name: surfaceSearchEndNotification,
+                object: surfaceOwner
+            )
+            return true
+
+        case GHOSTTY_ACTION_SEARCH_TOTAL:
+            guard target.tag == GHOSTTY_TARGET_SURFACE,
+                  let surface = target.target.surface,
+                  let userdata = ghostty_surface_userdata(surface)
+            else { return false }
+            let owner = Unmanaged<AnyObject>.fromOpaque(userdata).takeUnretainedValue()
+            guard let surfaceOwner = owner as? ClipboardOwner else { return false }
+            NotificationCenter.default.post(
+                name: surfaceSearchTotalNotification,
+                object: surfaceOwner,
+                userInfo: [surfaceSearchValueKey: Int(action.action.search_total.total)]
+            )
+            return true
+
+        case GHOSTTY_ACTION_SEARCH_SELECTED:
+            guard target.tag == GHOSTTY_TARGET_SURFACE,
+                  let surface = target.target.surface,
+                  let userdata = ghostty_surface_userdata(surface)
+            else { return false }
+            let owner = Unmanaged<AnyObject>.fromOpaque(userdata).takeUnretainedValue()
+            guard let surfaceOwner = owner as? ClipboardOwner else { return false }
+            NotificationCenter.default.post(
+                name: surfaceSearchSelectedNotification,
+                object: surfaceOwner,
+                userInfo: [surfaceSearchValueKey: Int(action.action.search_selected.selected)]
+            )
             return true
 
         case GHOSTTY_ACTION_OPEN_URL:

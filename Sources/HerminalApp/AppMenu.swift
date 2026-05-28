@@ -96,6 +96,28 @@ enum AppMenu {
             keyEquivalent: ""
         ))
 
+        // Edit menu gains find — separator already exists. (v0.3.2.)
+        editMenu.addItem(.separator())
+        let find = NSMenuItem(
+            title: "Find in Terminal…",
+            action: #selector(WorkspaceView.findInScrollback(_:)),
+            keyEquivalent: "f"
+        )
+        editMenu.addItem(find)
+        let findNext = NSMenuItem(
+            title: "Find Next",
+            action: #selector(WorkspaceView.findNext(_:)),
+            keyEquivalent: "g"
+        )
+        editMenu.addItem(findNext)
+        let findPrev = NSMenuItem(
+            title: "Find Previous",
+            action: #selector(WorkspaceView.findPrevious(_:)),
+            keyEquivalent: "g"
+        )
+        findPrev.keyEquivalentModifierMask = [.command, .shift]
+        editMenu.addItem(findPrev)
+
         // Window menu — tab navigation
         let windowItem = NSMenuItem()
         mainMenu.addItem(windowItem)

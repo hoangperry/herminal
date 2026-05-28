@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.2] - 2026-05-28
+
+Polish-wave slice 3 — the headline feature.
+
+### Added
+
+- **Scrollback search (⌘F)** — a floating bar appears top-right of
+  the active pane. Type to filter, ⌘G / Enter for next match,
+  ⌘⇧G for previous, Esc to dismiss. libghostty owns the match
+  machinery via `start_search` / `search:<needle>` /
+  `navigate_search:next|previous` / `end_search` binding actions;
+  HerminalApp owns only the AppKit overlay UI.
+- Four new `GhosttyApp.handleAction` cases (START_SEARCH,
+  END_SEARCH, SEARCH_TOTAL, SEARCH_SELECTED) bridged to
+  AppKit notifications. WorkspaceView's `searchNeedleSubscription`
+  (Combine) propagates text-field edits back into the
+  `search:<needle>` binding action so libghostty re-scans live as
+  the user types.
+- Command palette gains a "Find in Terminal…" entry that mirrors
+  the ⌘F shortcut so discovery via ⌘⇧P still works.
+
+This closes the audit's top-3 finding — "Terminal mà không search
+được output để debug là đồ chơi, không phải công cụ" (docs/research/
+09-polish-audit.md §2 row 1).
+
 ## [0.3.1] - 2026-05-28
 
 Polish-wave slice 2 — two "magic feature" items.
