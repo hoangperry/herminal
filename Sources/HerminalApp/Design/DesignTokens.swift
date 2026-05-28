@@ -166,8 +166,32 @@ enum HerminalDesign {
     // MARK: - Motion
     //
     // Durations in seconds. Keep motion quick — a terminal must feel instant.
+    // (v0.3 polish: linear `.easeOut` curves replaced with springs at the
+    // call sites where AppKit accepts spring parameters; durations stay
+    // for the AppKit `NSAnimationContext` paths that don't.)
     enum Motion {
         static let fast: Double = 0.12
         static let normal: Double = 0.22
+
+        // Spring shape tuned to feel "responsive but not bouncy" —
+        // SwiftUI views use this directly; AppKit animations approximate
+        // by clamping to `normal` duration with `.easeOut`.
+        // Reference: Linear.app + Raycast — both publish similar
+        // response/damping ratios in their motion guidelines.
+        static let springResponse: Double = 0.32
+        static let springDamping: Double = 0.78
+    }
+
+    // MARK: - Content geometry (v0.3 polish)
+    //
+    // The audit at docs/research/09-polish-audit.md flagged "no padding
+    // between text and pane edge" as a top-2 root cause of the "không
+    // đã" feedback. Ghostty defaults to 4-8 px; we pick 6 px to match
+    // the workspace's 4-point grid (1.5 ticks).
+    enum Geometry {
+        static let surfaceInset: CGFloat = 6
+        // Tab bar inactive opacity — used by TabBarView so non-focused
+        // tabs read as background. (v0.3 polish.)
+        static let tabInactiveOpacity: CGFloat = 0.62
     }
 }

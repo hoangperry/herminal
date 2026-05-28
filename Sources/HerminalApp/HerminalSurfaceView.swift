@@ -374,8 +374,24 @@ final class HerminalSurfaceView: NSView, ClipboardOwner, NSUserInterfaceValidati
         let mods = Self.ghosttyMods(event.modifierFlags)
         let (x, y) = surfacePos(for: event)
         ghostty_surface_mouse_pos(surface, x, y, mods)
-        let handled = ghostty_surface_mouse_button(surface, GHOSTTY_MOUSE_PRESS, GHOSTTY_MOUSE_RIGHT, mods)
-        if !handled { super.rightMouseDown(with: event) }
+        // v0.3 polish: when libghostty isn't capturing the right click
+        // (no vim-style mouse mode active), pop our own context menu
+        // instead of falling through to a silent no-op. Items target
+        // `self` via the standard Cut/Copy/Paste/SelectAll responders.
+        let claimed = ghostty_surface_mouse_button(surface, GHOSTTY_MOUSE_PRESS, GHOSTTY_MOUSE_RIGHT, mods)
+        guard !claimed else { return }
+        let menu = NSMenu()
+        menu.addItem(makeMenuItem("Copy", #selector(copy(_:))))
+        menu.addItem(makeMenuItem("Paste", #selector(paste(_:))))
+        menu.addItem(.separator())
+        menu.addItem(makeMenuItem("Select All", #selector(selectAll(_:))))
+        NSMenu.popUpContextMenu(menu, with: event, for: self)
+    }
+
+    private func makeMenuItem(_ title: String, _ action: Selector) -> NSMenuItem {
+        let item = NSMenuItem(title: title, action: action, keyEquivalent: "")
+        item.target = self
+        return item
     }
 
     override func rightMouseUp(with event: NSEvent) {

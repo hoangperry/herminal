@@ -314,12 +314,33 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             defer: false
         )
         window.title = "herminal"
-        window.contentView = contentView
 
-        // Premium chrome: transparent title bar over a dark surface so the
-        // window reads as one intentional dark panel, not default AppKit grey.
+        // v0.3 polish — wrap the workspace inside an NSVisualEffectView so
+        // the dark surface picks up the macOS background-blur material.
+        // Without this the app reads as a flat hex-color box and the
+        // owner's "không đã" feedback maps directly here (research note
+        // docs/research/09-polish-audit.md, root-cause table row 1).
+        //
+        // .underWindowBackground material keeps the chrome dark in dark
+        // mode and light in light mode — matches the dynamic theme without
+        // us having to chase appearance changes manually.
+        let effect = NSVisualEffectView()
+        effect.material = .underWindowBackground
+        effect.blendingMode = .behindWindow
+        effect.state = .active
+        effect.autoresizingMask = [.width, .height]
+        effect.frame = contentView.bounds
+        contentView.autoresizingMask = [.width, .height]
+        effect.addSubview(contentView)
+        window.contentView = effect
+
+        // Premium chrome: transparent title bar over the vibrancy layer.
+        // Background colour is left clear so the visual-effect material
+        // shows through; setting backgroundColor would punch a flat
+        // rectangle on top of the blur.
         window.titlebarAppearsTransparent = true
-        window.backgroundColor = NSColor(HerminalDesign.Palette.surfaceBase)
+        window.backgroundColor = .clear
+        window.isOpaque = false
         window.isMovableByWindowBackground = false
         window.minSize = NSSize(width: 480, height: 320)
 

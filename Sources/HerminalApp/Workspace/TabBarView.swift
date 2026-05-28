@@ -93,7 +93,20 @@ private struct TabChip: View {
         .contentShape(Rectangle())
         .onTapGesture(perform: onSelect)
         .onHover { isHovered = $0 }
-        .animation(.easeOut(duration: HerminalDesign.Motion.fast), value: isHovered)
+        // v0.3 polish: inactive tabs fade to background so the active
+        // tab reads as the focus point, not "one of N equal chips".
+        // Hover restores full opacity so the click target is obvious.
+        .opacity(isActive || isHovered ? 1.0 : HerminalDesign.Geometry.tabInactiveOpacity)
+        // Spring-curve hover transition feels alive vs. the previous
+        // linear .easeOut. Both hover and opacity ride the same animation
+        // so they arrive together.
+        .animation(
+            .spring(
+                response: HerminalDesign.Motion.springResponse,
+                dampingFraction: HerminalDesign.Motion.springDamping
+            ),
+            value: isHovered
+        )
         .accessibilityElement(children: .combine)
         .accessibilityLabel("Tab \(tab.title)\(isActive ? ", active" : "")")
     }

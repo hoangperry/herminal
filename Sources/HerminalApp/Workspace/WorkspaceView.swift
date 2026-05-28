@@ -235,9 +235,18 @@ final class WorkspaceView: NSView {
             width: contentWidth, height: barHeight
         )
         let surfaceHeight = max(bounds.height - barHeight - statusHeight, 0)
+        // v0.3 polish: 6 px inset between the libghostty Metal surface
+        // and the pane chrome. Without it the text sits flush against
+        // the window edge and the app reads as cheap. Inset is applied
+        // here (not inside the surface itself) so the divider colour of
+        // `surfaceContainer.layer.backgroundColor` shows through and
+        // doubles as the visual frame.
+        let inset = HerminalDesign.Geometry.surfaceInset
         surfaceContainer.frame = CGRect(
-            x: contentX, y: statusHeight,
-            width: contentWidth, height: surfaceHeight
+            x: contentX + inset,
+            y: statusHeight + inset,
+            width: max(contentWidth - inset * 2, 0),
+            height: max(surfaceHeight - inset * 2, 0)
         )
         statusBarHost.frame = CGRect(
             x: 0, y: 0, width: bounds.width, height: statusHeight

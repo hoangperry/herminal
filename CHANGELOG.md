@@ -7,6 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-05-28
+
+First slice of the v0.3 polish wave — addresses the owner's "xài
+vẫn không đã" feedback diagnosed in `docs/research/09-polish-audit.md`.
+This release ships visible chrome polish only; scrollback search +
+command palette + hotkey window land in later slices of the wave.
+
+### Added
+
+- **Vibrancy.** `WorkspaceView` now lives inside an
+  `NSVisualEffectView(.underWindowBackground, .behindWindow)`. Window
+  background blends with whatever sits behind it (the macOS dock,
+  another window, a wallpaper) instead of reading as a flat hex
+  rectangle. Audit root-cause #1.
+- **Content padding.** 6 px inset between the libghostty Metal
+  surface and the pane chrome. The previous flush-against-edge
+  layout read as cheap. New `HerminalDesign.Geometry.surfaceInset`
+  token.
+- **Tab inactive opacity.** Non-active, non-hovered tabs render at
+  62 % opacity so the active tab reads as the focus point.
+- **Right-click context menu** on terminal surfaces — Copy / Paste /
+  Select All. Only fires when libghostty isn't capturing the right
+  click itself (vim mouse mode wins). Closes audit gap #6.
+
+### Changed
+
+- **Spring animations** for tab hover transition. New
+  `Motion.springResponse` / `springDamping` tokens (0.32 / 0.78 —
+  Linear.app's published ratio). Replaces `.easeOut` linear at this
+  call site; sidebar slide stays on AppKit `NSAnimationContext`.
+
 ## [0.2.5] - 2026-05-27
 
 ### Fixed / Added
