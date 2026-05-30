@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.3] - 2026-05-30
+
+Polish-wave slice 4 — drag-resize splits.
+
+### Added
+
+- **Drag-resize splits.** A draggable handle now sits on the gap
+  between split panes — grab it (the cursor turns into the resize
+  arrows) and drag to rebalance. Replaces the old fixed even-split.
+  `WorkspaceTab` gains a `paneRatios` array (fractions summing to 1.0,
+  kept in lock-step with `panes`); `split` halves the focused pane,
+  `close`/`removePane` redistribute, and `adjustDivider` moves a
+  divider clamped so neither neighbour drops below 8 % of the axis.
+- `PaneDividerView` — 8 px transparent hit target centred on the gap,
+  platform resize cursor on hover, faint accent line while dragging.
+
+### Notes
+
+- Caret blink phase-reset (audit §7 Open Q2) stays **deferred**:
+  libghostty exposes no cursor/blink API to the host — the blink is
+  render-side only, so a reset-on-keypress would need an upstream
+  libghostty patch. Documented, not attempted.
+- This is the final slice of the v0.3 polish wave. Remaining audit
+  items (image rendering, semantic double-click, font picker UI) are
+  feature work, not polish — they belong in a later milestone.
+
 ## [0.3.2] - 2026-05-28
 
 Polish-wave slice 3 — the headline feature.

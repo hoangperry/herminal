@@ -78,6 +78,12 @@ runtime callbacks / surface events — not the application layer.
   browser opens. v0.2.5 lesson — `GHOSTTY_ACTION_OPEN_URL` was
   unhandled. Only `http`, `https`, `mailto` allowed; `file://`
   rejected.
+- [ ] **⌘F search** opens the find bar top-right of the active pane;
+  typing highlights matches, ⌘G / ⌘⇧G navigates, Esc closes.
+- [ ] **Drag-resize splits** (v0.3.3) — split a pane (⌘D), hover the
+  gap (cursor → resize arrows), drag to rebalance. Closing a pane
+  redistributes the freed space; the survivors never shrink below a
+  grabbable sliver.
 
 The programmable check for the first three lives in
 `Scripts/verify-clipboard.sh` and runs daily as part of

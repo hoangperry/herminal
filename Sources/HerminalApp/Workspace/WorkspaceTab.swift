@@ -15,11 +15,22 @@ final class WorkspaceTab: Identifiable {
     /// true → panes sit side-by-side (vertical divider); false → stacked.
     private(set) var isVerticalSplit: Bool
     private(set) var focusedPaneIndex: Int
+    /// Fractional extent of each pane along the split axis. Sums to 1.0
+    /// and stays in lock-step with `panes`. Even-split is the default;
+    /// divider drag (v0.3.3) mutates this. Invariant: count ==
+    /// panes.count, every element ≥ `Self.minRatio`.
+    private(set) var paneRatios: [CGFloat]
+
+    /// A pane can't be dragged smaller than this fraction of the axis —
+    /// keeps a sliver always grabbable and avoids a 0-extent Metal
+    /// surface that libghostty would reject.
+    static let minRatio: CGFloat = 0.08
 
     init(app: ghostty_app_t, command: String? = nil, title: String = "herminal") {
         self.panes = [TerminalSession(app: app, title: title, command: command)]
         self.isVerticalSplit = true
         self.focusedPaneIndex = 0
+        self.paneRatios = [1.0]
     }
 
     var focusedPane: TerminalSession { panes[focusedPaneIndex] }
@@ -31,17 +42,25 @@ final class WorkspaceTab: Identifiable {
 
     /// Splits the focused pane, adding a new pane next to it.
     /// The first split sets the tab's axis; later splits reuse it.
+    /// The focused pane's ratio is halved and the new pane takes the
+    /// other half, so the split is visually 50/50 of whatever the
+    /// focused pane currently occupies.
     func split(app: ghostty_app_t, vertical: Bool) {
         if panes.count == 1 { isVerticalSplit = vertical }
         let session = TerminalSession(app: app)
         panes.insert(session, at: focusedPaneIndex + 1)
+        let half = paneRatios[focusedPaneIndex] / 2
+        paneRatios[focusedPaneIndex] = half
+        paneRatios.insert(half, at: focusedPaneIndex + 1)
         focusedPaneIndex += 1
     }
 
     /// Closes the focused pane. Returns true if the tab is now empty.
     func closeFocusedPane() -> Bool {
         panes.remove(at: focusedPaneIndex)
+        paneRatios.remove(at: focusedPaneIndex)
         if panes.isEmpty { return true }
+        normalizeRatios()
         focusedPaneIndex = min(focusedPaneIndex, panes.count - 1)
         return false
     }
@@ -52,11 +71,39 @@ final class WorkspaceTab: Identifiable {
     func removePane(at index: Int) {
         guard panes.indices.contains(index) else { return }
         panes.remove(at: index)
+        paneRatios.remove(at: index)
+        if !panes.isEmpty { normalizeRatios() }
         focusedPaneIndex = panes.isEmpty ? 0 : min(focusedPaneIndex, panes.count - 1)
     }
 
     func focusPane(at index: Int) {
         guard panes.indices.contains(index) else { return }
         focusedPaneIndex = index
+    }
+
+    /// Move the divider between pane `index` and `index + 1` by
+    /// `fraction` of the total axis extent. Positive grows the
+    /// lower-index pane. Clamped so neither neighbour shrinks below
+    /// `minRatio`. (v0.3.3 drag-resize.)
+    func adjustDivider(at index: Int, byFraction fraction: CGFloat) {
+        guard paneRatios.indices.contains(index),
+              paneRatios.indices.contains(index + 1) else { return }
+        let left = paneRatios[index] + fraction
+        let right = paneRatios[index + 1] - fraction
+        guard left >= Self.minRatio, right >= Self.minRatio else { return }
+        paneRatios[index] = left
+        paneRatios[index + 1] = right
+    }
+
+    /// Rescale `paneRatios` so they sum to 1.0 — called after a remove
+    /// redistributes the closed pane's share across the survivors.
+    private func normalizeRatios() {
+        let sum = paneRatios.reduce(0, +)
+        guard sum > 0 else {
+            let even = 1.0 / CGFloat(max(paneRatios.count, 1))
+            paneRatios = Array(repeating: even, count: paneRatios.count)
+            return
+        }
+        paneRatios = paneRatios.map { $0 / sum }
     }
 }

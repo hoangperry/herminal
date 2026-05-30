@@ -39,6 +39,11 @@ final class WorkspaceView: NSView {
     private let sshPanelHost: NSHostingView<AnyView>
     private let notesHost: NSHostingView<AnyView>
     private let statusBarHost: NSHostingView<StatusBarView>
+    /// Draggable handles between split panes — one per gap (count - 1).
+    /// Recycled across re-layouts; `refresh()` wipes surfaceContainer's
+    /// subviews so layoutPanes re-attaches these on top of the panes.
+    /// (v0.3.3 drag-resize.)
+    private var paneDividers: [PaneDividerView] = []
     /// Created lazily on first launch when `firstRunCompleted` is false,
     /// removed (and nil'd) after the user dismisses. Stays nil forever
     /// after that on every subsequent launch. (M12-P3)
@@ -306,41 +311,125 @@ final class WorkspaceView: NSView {
         layoutPanes()
     }
 
-    /// Lays out the active tab's pane surfaces inside the container — evenly
-    /// split along the tab's axis, separated by a hairline gap.
+    /// Lays out the active tab's pane surfaces inside the container,
+    /// sized by `tab.paneRatios` along the split axis and separated by a
+    /// hairline gap. Draggable divider handles overlay each gap.
     private func layoutPanes() {
-        guard let tab = activeTab else { return }
+        guard let tab = activeTab else {
+            syncDividers(needed: 0, isVertical: true)
+            return
+        }
         let bounds = surfaceContainer.bounds
         let panes = tab.panes
         let count = panes.count
-        guard count > 0 else { return }
+        guard count > 0 else {
+            syncDividers(needed: 0, isVertical: true)
+            return
+        }
 
         if count == 1 {
             panes[0].surfaceView.frame = bounds
+            syncDividers(needed: 0, isVertical: tab.isVerticalSplit)
             return
         }
 
         let gap = Self.paneGap
+        let ratios = tab.paneRatios
+        // Defensive: ratios should always match panes, but guard against
+        // a transient desync rather than crash on a bad index.
+        guard ratios.count == count else {
+            syncDividers(needed: 0, isVertical: tab.isVerticalSplit)
+            return
+        }
+
         if tab.isVerticalSplit {
-            // Side by side, left to right.
-            let paneWidth = (bounds.width - gap * CGFloat(count - 1)) / CGFloat(count)
+            let usable = max(bounds.width - gap * CGFloat(count - 1), 0)
+            var x: CGFloat = 0
             for (index, pane) in panes.enumerated() {
-                pane.surfaceView.frame = CGRect(
-                    x: CGFloat(index) * (paneWidth + gap), y: 0,
-                    width: paneWidth, height: bounds.height
-                )
+                let w = usable * ratios[index]
+                pane.surfaceView.frame = CGRect(x: x, y: 0, width: w, height: bounds.height)
+                x += w + gap
             }
         } else {
             // Stacked; pane 0 sits at the top (NSView origin is bottom-left).
-            let paneHeight = (bounds.height - gap * CGFloat(count - 1)) / CGFloat(count)
+            let usable = max(bounds.height - gap * CGFloat(count - 1), 0)
+            var topDistance: CGFloat = 0
             for (index, pane) in panes.enumerated() {
+                let h = usable * ratios[index]
                 pane.surfaceView.frame = CGRect(
                     x: 0,
-                    y: bounds.height - CGFloat(index + 1) * paneHeight - CGFloat(index) * gap,
-                    width: bounds.width, height: paneHeight
+                    y: bounds.height - topDistance - h,
+                    width: bounds.width, height: h
+                )
+                topDistance += h + gap
+            }
+        }
+
+        syncDividers(needed: count - 1, isVertical: tab.isVerticalSplit)
+        positionDividers(in: bounds, isVertical: tab.isVerticalSplit)
+    }
+
+    /// Ensures `paneDividers` holds exactly `needed` handles, each a
+    /// subview of `surfaceContainer` (re-attached after `refresh()`
+    /// wipes the container), with the current axis + drag callback.
+    private func syncDividers(needed: Int, isVertical: Bool) {
+        while paneDividers.count < needed {
+            let divider = PaneDividerView(frame: .zero)
+            paneDividers.append(divider)
+        }
+        while paneDividers.count > needed {
+            paneDividers.removeLast().removeFromSuperview()
+        }
+        for (index, divider) in paneDividers.enumerated() {
+            divider.isVertical = isVertical
+            // Capture the divider index so the closure resizes the right
+            // pair. `index` is the gap between pane `index` and `index+1`.
+            divider.onDrag = { [weak self] delta in
+                self?.resizeDivider(at: index, byPointDelta: delta, isVertical: isVertical)
+            }
+            if divider.superview !== surfaceContainer {
+                surfaceContainer.addSubview(divider)
+            }
+        }
+    }
+
+    /// Positions each divider centred on the gap to the right of (or
+    /// below) pane `index`, using the pane frames the layout just set.
+    private func positionDividers(in bounds: NSRect, isVertical: Bool) {
+        guard let tab = activeTab else { return }
+        let panes = tab.panes
+        let hit = PaneDividerView.hitThickness
+        for (index, divider) in paneDividers.enumerated() {
+            guard panes.indices.contains(index) else { continue }
+            let frame = panes[index].surfaceView.frame
+            if isVertical {
+                // Gap sits just past the right edge of pane `index`.
+                let centreX = frame.maxX + Self.paneGap / 2
+                divider.frame = CGRect(
+                    x: centreX - hit / 2, y: 0,
+                    width: hit, height: bounds.height
+                )
+            } else {
+                // Gap sits just below the bottom edge of pane `index`.
+                let centreY = frame.minY - Self.paneGap / 2
+                divider.frame = CGRect(
+                    x: 0, y: centreY - hit / 2,
+                    width: bounds.width, height: hit
                 )
             }
         }
+    }
+
+    /// Translate a divider drag (points along the axis) into a ratio
+    /// shift and re-layout. (v0.3.3.)
+    private func resizeDivider(at index: Int, byPointDelta delta: CGFloat, isVertical: Bool) {
+        let extent = isVertical ? surfaceContainer.bounds.width : surfaceContainer.bounds.height
+        guard extent > 0 else { return }
+        // Vertical: dragging right (+x) grows the left pane.
+        // Horizontal: dragging down (−y) grows the upper pane, so flip.
+        let fraction = (isVertical ? delta : -delta) / extent
+        activeTab?.adjustDivider(at: index, byFraction: fraction)
+        layoutPanes()
     }
 
     // MARK: - Tab management
