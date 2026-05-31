@@ -196,16 +196,40 @@ Site shipped at https://hoang.tech/herminal/ uses ASCII art for the agent dashbo
 
 ## 7. Open questions
 
-1. **libghostty search API surface.** Does `ghostty_surface_*` expose a public search/find API in the current XCFramework, or is the search overlay forced to walk the scrollback buffer manually? Needs a half-day spike against `Vendor/libghostty/macos/GhosttyKit.xcframework/macos-arm64/Headers/ghostty.h` (verb count: `grep "search\|find" ghostty.h`).
+1. ~~**libghostty search API surface.**~~ **RESOLVED (v0.3.2).** libghostty exposes the full search lifecycle via binding-action strings (`start_search`, `search:<needle>`, `navigate_search:next|previous`, `end_search`) plus four action callbacks (START_SEARCH / END_SEARCH / SEARCH_TOTAL / SEARCH_SELECTED). No scrollback walking, no upstream patch. Wired in `GhosttyApp.handleAction` + `SearchOverlayView`.
 
-2. **Caret blink phase reset.** Is the cursor blink phase exposed via libghostty action or runtime config, or is the blink purely render-side? If purely render-side, we lose the ability to reset on keypress without a libghostty patch upstream.
+2. ~~**Caret blink phase reset.**~~ **RESOLVED — NEGATIVE (v0.3.3 spike).** libghostty exposes no cursor/blink API to the host (`grep -i "cursor|blink|caret"` on the XCFramework header finds only `GHOSTTY_ACTION_COLOR_KIND_CURSOR`). The blink is purely render-side. Reset-on-keypress would require an upstream libghostty patch — deferred, not attempted.
 
-3. **`NSVisualEffectView` + Metal layer interaction.** libghostty attaches its own Metal layer to the surface NSView. Wrapping the *parent* WorkspaceView in `NSVisualEffectView` should be safe (vibrancy renders below the Metal-backed children), but needs a 30-minute spike to confirm no compositing artefacts.
+3. ~~**`NSVisualEffectView` + Metal layer interaction.**~~ **RESOLVED (v0.3.0).** Wrapping the parent `WorkspaceView` in `NSVisualEffectView(.underWindowBackground, .behindWindow)` with `window.isOpaque = false` + clear background works cleanly — vibrancy renders behind libghostty's Metal-backed children, no compositing artefacts observed in dogfood.
 
-4. **Video hero format.** WebM vs MP4 — Safari handles both but autoplay rules differ. `<video muted loop playsinline autoplay>` works for both; pick the smaller asset. Owner needs to record the actual interaction (Claude Code → BEL → dashboard pulse) — phù phù醬 can't synthesize this.
+4. **Video hero format.** _(STILL OPEN — owner action.)_ WebM vs MP4 — Safari handles both but autoplay rules differ. `<video muted loop playsinline autoplay>` works for both; pick the smaller asset. Owner needs to record the actual interaction (Claude Code → BEL → dashboard pulse) — phù phù醬 can't synthesize this. Site still ships the ASCII-art hero (landing-page upgrade #1 not yet done).
 
-5. **Bilingual content strategy.** Audit 2 recommended `?lang=vi` query param + localStorage. Owner has not signalled urgency — defer to v0.4 unless Vietnamese OSS press picks up the launch.
+5. **Bilingual content strategy.** _(STILL OPEN — deferred.)_ Audit 2 recommended `?lang=vi` query param + localStorage. Owner has not signalled urgency — defer to v0.4 unless Vietnamese OSS press picks up the launch.
 
 ---
 
-*Generated 2026-05-27. Updated as polish wave lands.*
+## 8. Polish wave outcome (2026-05-30)
+
+All four app-polish slices shipped, notarized, released:
+
+| Slice | Version | Items | Status |
+|---|---|---|---|
+| 1 | v0.3.0 | Vibrancy, content padding, spring animations, right-click menu | ✅ |
+| 2 | v0.3.1 | Command palette (⌘⇧P), global hotkey (⌥Space) | ✅ |
+| 3 | v0.3.2 | Scrollback search (⌘F) — the headline finding | ✅ |
+| 4 | v0.3.3 | Drag-resize splits | ✅ |
+
+**App-side audit findings: closed.** The two top-2 root causes (no
+vibrancy, no padding) and the headline finding (no search) are all
+shipped. Caret blink is the only app item that couldn't be done — and
+that's a libghostty limitation, not a herminal one.
+
+**Landing-page findings: still open.** The site upgrades (video hero
+replacing ASCII art, side-by-side IME demo, brew-install above the
+fold, manifesto replacing the comparison table) were NOT part of the
+app polish wave and remain owner-driven — they need a screen
+recording the owner has to capture.
+
+---
+
+*Generated 2026-05-27. Polish wave landed 2026-05-30.*
