@@ -27,7 +27,7 @@
         <a href="#agents">agents</a>
         <a href="#ime">vn ime</a>
         <a href="#ssh">ssh</a>
-        <a href="#promises">promises</a>
+        <a href="#polish">polish</a>
         <a href="#install">install</a>
         <a class="ext" href="https://github.com/hoangperry/herminal" rel="noopener">github</a>
       </nav>
@@ -52,7 +52,7 @@
         </p>
         <div class="cta-row">
           <a class="cta primary" href="https://github.com/hoangperry/herminal/releases/latest">
-            Download v0.2.5
+            Download v0.3.3
             <span class="cta-meta">macOS 14 · arm64 · 6 MB</span>
           </a>
           <a class="cta ghost" href="https://github.com/hoangperry/herminal">
@@ -216,6 +216,49 @@
       </div>
     </section>
 
+    <!-- POLISH WAVE (v0.3) -->
+    <section id="polish" class="feature">
+      <div class="grid">
+        <p class="kicker">v0.3 polish wave</p>
+        <h2>Native enough to forget it's there.</h2>
+        <p>
+          A terminal lives or dies on the surface you touch every second. v0.3 spent four
+          releases making that surface feel like macOS, not like a wrapper around a render
+          engine.
+        </p>
+        <div class="cards">
+          <div class="card">
+            <h3>⌘F scrollback search</h3>
+            <p>Live match highlighting, count chip, ⌘G / ⌘⇧G to walk hits. Powered by libghostty's own search engine — no buffer scraping.</p>
+          </div>
+          <div class="card">
+            <h3>⌘⇧P command palette</h3>
+            <p>Fuzzy launcher over every action — tabs, splits, sidebars, theme, settings. Raycast muscle memory, in a terminal.</p>
+          </div>
+          <div class="card">
+            <h3>⌥Space anywhere</h3>
+            <p>Global hotkey drops herminal in front of any app, then tucks it away. No accessibility prompt — Carbon-registered.</p>
+          </div>
+          <div class="card">
+            <h3>Drag-resize splits</h3>
+            <p>Grab the divider between panes and rebalance. Ultrawide-friendly; the old fixed 50/50 is gone.</p>
+          </div>
+          <div class="card">
+            <h3>Real vibrancy</h3>
+            <p>NSVisualEffectView background blur + 6&nbsp;px content padding + spring animation. The chrome reads as one intentional macOS panel.</p>
+          </div>
+          <div class="card">
+            <h3>The little things</h3>
+            <p>I-beam cursor over text, clickable URLs, right-click menu, shell-set tab titles, <code>exit</code> closes the pane. The details you only notice when they're missing.</p>
+          </div>
+        </div>
+        <p class="note">
+          Diagnosed brutally, fixed methodically — the full audit is at
+          <a href="https://github.com/hoangperry/herminal/blob/main/docs/research/09-polish-audit.md">docs/research/09-polish-audit.md</a>.
+        </p>
+      </div>
+    </section>
+
     <!-- PROMISES -->
     <section id="promises" class="band band-dark">
       <div class="grid">
@@ -260,8 +303,8 @@
         <div class="install-tabs">
           <article class="install-card">
             <h3>Download · recommended</h3>
-            <pre><code>curl -LO https://github.com/hoangperry/herminal/releases/download/v0.2.5/herminal-v0.2.5.dmg
-open herminal-v0.2.5.dmg</code></pre>
+            <pre><code>curl -LO https://github.com/hoangperry/herminal/releases/download/v0.3.3/herminal-v0.3.3.dmg
+open herminal-v0.3.3.dmg</code></pre>
             <p class="note small">Signed + notarized + stapled. First launch is silent.</p>
           </article>
 
@@ -288,21 +331,21 @@ open .build/herminal.app</code></pre>
     <section class="band">
       <div class="grid">
         <p class="kicker">Status + next</p>
-        <h2 class="section-title">Where v0.2.5 lands.</h2>
+        <h2 class="section-title">Where v0.3.3 lands.</h2>
         <ol class="roadmap">
           <li>
-            <span class="rm-tag now">now · v0.2.5</span>
-            All PRD MVP plus 5-slice audit pass (clipboard, mouse selection, exit-close,
-            OSC title, MOUSE_SHAPE + OPEN_URL). Notarized.
+            <span class="rm-tag now">now · v0.3.3</span>
+            MVP + the v0.3 polish wave: scrollback search, command palette, ⌥Space
+            hotkey, drag-resize splits, vibrancy. Notarized.
           </li>
           <li>
-            <span class="rm-tag soon">soon · v0.3.x</span>
-            Notes search, Sparkle auto-update, font picker, ⌘+/⌘&minus; binding for size.
+            <span class="rm-tag soon">soon · v0.4.x</span>
+            Font-picker UI, Sparkle auto-update, semantic double-click, image rendering.
             Beta-feedback-driven.
           </li>
           <li>
             <span class="rm-tag later">later · v1.0</span>
-            Recursive split trees. Drag-resize. Opt-in diary upload. More agent kinds.
+            Recursive split trees. Opt-in diary upload. More agent kinds. Bilingual site.
           </li>
         </ol>
         <p class="note">
@@ -316,7 +359,7 @@ open .build/herminal.app</code></pre>
       <div class="grid">
         <h2>Open a bug. Tell us what you want next.</h2>
         <div class="cta-row centered">
-          <a class="cta primary" href="https://github.com/hoangperry/herminal/releases/latest">Download v0.2.5</a>
+          <a class="cta primary" href="https://github.com/hoangperry/herminal/releases/latest">Download v0.3.3</a>
           <a class="cta ghost" href="https://github.com/hoangperry/herminal/issues/new/choose">File an issue</a>
         </div>
       </div>
