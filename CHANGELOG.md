@@ -7,6 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-06-01
+
+v0.4 milestone slice 1 — **Claude session browser**. The feature the
+"terminal for devs living in Claude Code" tagline always promised.
+
+### Added
+
+- **Claude session browser (⌘⇧C).** A new left sidebar reads Claude
+  Code's own transcript store at `~/.claude/projects/` and lists every
+  project you've run `claude` in — sorted by last-active, showing the
+  real cwd, git branch, and how recently you touched it. One click:
+  - **Resume** opens a tab running `claude --resume <id>` in the
+    project's working directory — reattaches the exact conversation.
+  - **Open Shell Here** (context menu) drops a plain shell in that cwd.
+- **`ClaudeSessionStore`** — reads only the first 16 KB of each
+  project's newest transcript, so a multi-hundred-MB session file
+  costs two syscalls, not a parse. The project slug (`/`→`-`) is
+  lossy (a real hyphen is indistinguishable from a path separator —
+  e.g. `andromeda-next`), so the real cwd is parsed from the
+  transcript body, never decoded from the slug.
+
+### Foundation (also new, reused by future session-restore work)
+
+- **OSC 7 working-directory tracking.** `GHOSTTY_ACTION_PWD` is now
+  wired — every pane learns its live cwd as the shell reports it.
+- **`working_directory` spawn support.** Tabs can open in a specific
+  directory (used by Resume + Open Shell Here). Plumbed through
+  `HerminalSurfaceView` / `TerminalSession` / `WorkspaceTab` /
+  `addTab`.
+
 ## [0.3.3] - 2026-05-30
 
 Polish-wave slice 4 — drag-resize splits.

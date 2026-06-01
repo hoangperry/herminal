@@ -26,8 +26,11 @@ final class WorkspaceTab: Identifiable {
     /// surface that libghostty would reject.
     static let minRatio: CGFloat = 0.08
 
-    init(app: ghostty_app_t, command: String? = nil, title: String = "herminal") {
-        self.panes = [TerminalSession(app: app, title: title, command: command)]
+    init(app: ghostty_app_t, command: String? = nil, title: String = "herminal",
+         workingDirectory: String? = nil) {
+        self.panes = [TerminalSession(
+            app: app, title: title, command: command, workingDirectory: workingDirectory
+        )]
         self.isVerticalSplit = true
         self.focusedPaneIndex = 0
         self.paneRatios = [1.0]

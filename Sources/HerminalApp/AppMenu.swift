@@ -169,6 +169,15 @@ enum AppMenu {
         toggleSSH.keyEquivalentModifierMask = [.command, .shift]
         windowMenu.addItem(toggleSSH)
 
+        // v0.4 — Claude session browser. ⌘⇧C reads ~/.claude/projects.
+        let toggleClaude = NSMenuItem(
+            title: "Toggle Claude Sessions",
+            action: #selector(WorkspaceView.toggleClaudeSessions(_:)),
+            keyEquivalent: "c"
+        )
+        toggleClaude.keyEquivalentModifierMask = [.command, .shift]
+        windowMenu.addItem(toggleClaude)
+
         let toggleNotes = NSMenuItem(
             title: "Toggle Notes",
             action: #selector(WorkspaceView.toggleNotes(_:)),

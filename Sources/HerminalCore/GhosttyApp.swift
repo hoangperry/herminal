@@ -186,6 +186,12 @@ public final class GhosttyApp {
     public nonisolated static let surfaceMouseShapeDidChangeNotification = Notification.Name("herminal.surfaceMouseShapeDidChange")
     public nonisolated static let surfaceMouseShapeKey = "mouseShape"
 
+    /// OSC 7 working-directory report (GHOSTTY_ACTION_PWD). Foundation
+    /// for session restore + the Claude session browser — each pane
+    /// learns its live cwd. (v0.4-S1a.)
+    public nonisolated static let surfacePwdDidChangeNotification = Notification.Name("herminal.surfacePwdDidChange")
+    public nonisolated static let surfacePwdKey = "pwd"
+
     /// Search lifecycle — v0.3.2 polish slice 3. libghostty owns the
     /// match-finding machinery; HerminalApp owns the overlay UI and the
     /// needle text field. The four notifications match the four
@@ -301,6 +307,21 @@ public final class GhosttyApp {
             DispatchQueue.main.async {
                 NSWorkspace.shared.open(url)
             }
+            return true
+
+        case GHOSTTY_ACTION_PWD:
+            guard target.tag == GHOSTTY_TARGET_SURFACE,
+                  let surface = target.target.surface,
+                  let userdata = ghostty_surface_userdata(surface),
+                  let pwdPtr = action.action.pwd.pwd
+            else { return false }
+            let owner = Unmanaged<AnyObject>.fromOpaque(userdata).takeUnretainedValue()
+            guard let surfaceOwner = owner as? ClipboardOwner else { return false }
+            NotificationCenter.default.post(
+                name: surfacePwdDidChangeNotification,
+                object: surfaceOwner,
+                userInfo: [surfacePwdKey: String(cString: pwdPtr)]
+            )
             return true
 
         case GHOSTTY_ACTION_MOUSE_SHAPE:

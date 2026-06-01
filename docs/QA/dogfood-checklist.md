@@ -84,6 +84,14 @@ runtime callbacks / surface events — not the application layer.
   gap (cursor → resize arrows), drag to rebalance. Closing a pane
   redistributes the freed space; the survivors never shrink below a
   grabbable sliver.
+- [ ] **Claude session browser** (v0.4.0, ⌘⇧C) — sidebar lists
+  projects from `~/.claude/projects` by recency with real cwd + git
+  branch. Resume opens a tab running `claude --resume <id>` in that
+  cwd; the conversation reattaches. Paths with hyphens (e.g.
+  `andromeda-next`) resolve correctly (cwd parsed from transcript,
+  not the lossy slug).
+- [ ] **Pane cwd tracking** — `cd` somewhere, the pane's working dir
+  is known internally (OSC 7). Foundation for session restore.
 
 The programmable check for the first three lives in
 `Scripts/verify-clipboard.sh` and runs daily as part of

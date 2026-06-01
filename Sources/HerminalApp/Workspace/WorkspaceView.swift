@@ -16,14 +16,17 @@ final class WorkspaceView: NSView {
     private static let paneGap: CGFloat = 1
     private static let dashboardWidth: CGFloat = 220
     private static let sshPanelWidth: CGFloat = 280
+    private static let claudePanelWidth: CGFloat = 300
     private static let notesWidth: CGFloat = 280
 
-    /// At most one widget occupies the left sidebar — agents and SSH share
-    /// the slot so the surface always gets the maximum content width.
+    /// At most one widget occupies the left sidebar — agents, SSH, and the
+    /// Claude session browser share the slot so the surface always gets
+    /// the maximum content width.
     private enum LeftSidebar {
         case none
         case agents
         case ssh
+        case claude
     }
 
     private let app: ghostty_app_t
@@ -37,6 +40,7 @@ final class WorkspaceView: NSView {
     private let surfaceContainer: NSView
     private let dashboardHost: NSHostingView<AgentDashboardView>
     private let sshPanelHost: NSHostingView<AnyView>
+    private let claudePanelHost: NSHostingView<AnyView>
     private let notesHost: NSHostingView<AnyView>
     private let statusBarHost: NSHostingView<StatusBarView>
     /// Draggable handles between split panes — one per gap (count - 1).
@@ -80,6 +84,7 @@ final class WorkspaceView: NSView {
         ))
         self.dashboardHost = NSHostingView(rootView: AgentDashboardView(agents: []))
         self.sshPanelHost = NSHostingView(rootView: AnyView(EmptyView()))
+        self.claudePanelHost = NSHostingView(rootView: AnyView(EmptyView()))
         self.notesHost = NSHostingView(rootView: AnyView(EmptyView()))
         // Stub probe — replaced below after `self` is available so we can
         // safely capture `latestAgentCount`. NSHostingView needs a rootView
@@ -101,6 +106,7 @@ final class WorkspaceView: NSView {
         surfaceContainer.layer?.backgroundColor = NSColor(HerminalDesign.Palette.border).cgColor
         dashboardHost.isHidden = true
         sshPanelHost.isHidden = true
+        claudePanelHost.isHidden = true
         notesHost.isHidden = true
         statusBarHost.isHidden = !Preferences.showStatusBar
 
@@ -108,6 +114,7 @@ final class WorkspaceView: NSView {
         addSubview(tabHost)
         addSubview(dashboardHost)
         addSubview(sshPanelHost)
+        addSubview(claudePanelHost)
         addSubview(notesHost)
         addSubview(statusBarHost)
         addTab()
@@ -149,6 +156,14 @@ final class WorkspaceView: NSView {
             self,
             selector: #selector(surfaceMouseShapeDidChange(_:)),
             name: GhosttyApp.surfaceMouseShapeDidChangeNotification,
+            object: nil
+        )
+        // OSC 7 working-directory reports — foundation for the Claude
+        // session browser + future session restore. (v0.4-S1a.)
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(surfacePwdDidChange(_:)),
+            name: GhosttyApp.surfacePwdDidChangeNotification,
             object: nil
         )
         // v0.3.2 — search overlay lifecycle. libghostty fires these
@@ -195,6 +210,11 @@ final class WorkspaceView: NSView {
             name: GhosttyApp.surfaceMouseShapeDidChangeNotification,
             object: nil
         )
+        NotificationCenter.default.removeObserver(
+            self,
+            name: GhosttyApp.surfacePwdDidChangeNotification,
+            object: nil
+        )
         for name: Notification.Name in [
             GhosttyApp.surfaceSearchStartNotification,
             GhosttyApp.surfaceSearchEndNotification,
@@ -233,6 +253,7 @@ final class WorkspaceView: NSView {
             case .none: return 0
             case .agents: return Self.dashboardWidth
             case .ssh: return Self.sshPanelWidth
+            case .claude: return Self.claudePanelWidth
             }
         }()
         let rightSidebar = isNotesVisible ? Self.notesWidth : 0
@@ -243,6 +264,7 @@ final class WorkspaceView: NSView {
         if !isAnimatingLayout {
             dashboardHost.isHidden = leftSidebar != .agents
             sshPanelHost.isHidden = leftSidebar != .ssh
+            claudePanelHost.isHidden = leftSidebar != .claude
             notesHost.isHidden = !isNotesVisible
         }
         statusBarHost.isHidden = !Preferences.showStatusBar
@@ -253,20 +275,21 @@ final class WorkspaceView: NSView {
         let sidebarTop = bounds.height
         let sidebarBottom: CGFloat = statusHeight
         let sidebarHeight = max(sidebarTop - sidebarBottom, 0)
-        let dashboardTarget = CGRect(x: 0, y: sidebarBottom, width: leftWidth, height: sidebarHeight)
-        let sshTarget = CGRect(x: 0, y: sidebarBottom, width: leftWidth, height: sidebarHeight)
+        let leftTarget = CGRect(x: 0, y: sidebarBottom, width: leftWidth, height: sidebarHeight)
         let notesTarget = CGRect(
             x: bounds.width - rightSidebar, y: sidebarBottom,
             width: rightSidebar, height: sidebarHeight
         )
 
         if isAnimatingLayout {
-            dashboardHost.animator().frame = dashboardTarget
-            sshPanelHost.animator().frame = sshTarget
+            dashboardHost.animator().frame = leftTarget
+            sshPanelHost.animator().frame = leftTarget
+            claudePanelHost.animator().frame = leftTarget
             notesHost.animator().frame = notesTarget
         } else {
-            dashboardHost.frame = dashboardTarget
-            sshPanelHost.frame = sshTarget
+            dashboardHost.frame = leftTarget
+            sshPanelHost.frame = leftTarget
+            claudePanelHost.frame = leftTarget
             notesHost.frame = notesTarget
         }
 
@@ -442,11 +465,15 @@ final class WorkspaceView: NSView {
     }
 
     /// Opens a new tab that runs `command` instead of the default shell.
-    /// Used by the SSH manager to spawn `ssh user@host` in a fresh pane.
-    func addTab(command: String, title: String) {
-        tabs.append(WorkspaceTab(app: app, command: command, title: title))
+    /// Used by the SSH manager to spawn `ssh user@host` in a fresh pane,
+    /// and the Claude session browser to spawn `claude --resume <id>` in
+    /// the session's working directory.
+    func addTab(command: String, title: String, workingDirectory: String? = nil) {
+        tabs.append(WorkspaceTab(
+            app: app, command: command, title: title, workingDirectory: workingDirectory
+        ))
         activeTabIndex = tabs.count - 1
-        Diary.shared.log("addTab command=\(command) title=\(title)", category: "tabs")
+        Diary.shared.log("addTab command=\(command) title=\(title) cwd=\(workingDirectory ?? "-")", category: "tabs")
         refresh()
     }
 
@@ -668,6 +695,39 @@ final class WorkspaceView: NSView {
         }
     }
 
+    // MARK: - Claude sessions panel (v0.4-S1)
+
+    private func refreshClaudePanel() {
+        let sessions = ClaudeSessionStore.recentProjects()
+        claudePanelHost.rootView = AnyView(
+            ClaudeSessionsPanel(
+                sessions: sessions,
+                onResume: { [weak self] session in self?.resumeClaude(session) },
+                onOpenShell: { [weak self] session in self?.openShell(in: session.cwd, title: session.projectName) },
+                onRefresh: { [weak self] in self?.refreshClaudePanel() }
+            )
+        )
+    }
+
+    /// Opens a tab that resumes the project's newest Claude conversation
+    /// in its real cwd. `claude --resume <id>` reattaches the exact
+    /// session; the working directory is set on the libghostty surface
+    /// so relative paths in the conversation still resolve.
+    private func resumeClaude(_ session: ClaudeProjectSession) {
+        Diary.shared.log("resume claude \(session.projectName) session=\(session.sessionId)", category: "claude")
+        addTab(
+            command: "claude --resume \(session.sessionId)",
+            title: session.projectName,
+            workingDirectory: session.cwd
+        )
+    }
+
+    /// Opens a plain login shell already cd'd into `cwd`.
+    private func openShell(in cwd: String, title: String) {
+        Diary.shared.log("open shell in \(cwd)", category: "claude")
+        addTab(command: "", title: title, workingDirectory: cwd)
+    }
+
     // MARK: - SSH hosts panel
 
     private static let sshLog = Logger(
@@ -848,6 +908,13 @@ final class WorkspaceView: NSView {
         animateSidebarChange()
     }
 
+    @objc func toggleClaudeSessions(_ sender: Any?) {
+        leftSidebar = (leftSidebar == .claude) ? .none : .claude
+        if leftSidebar == .claude { refreshClaudePanel() }
+        persistSidebarState()
+        animateSidebarChange()
+    }
+
     @objc func toggleNotes(_ sender: Any?) {
         isNotesVisible.toggle()
         if isNotesVisible { updateNotesPanel() }
@@ -864,10 +931,12 @@ final class WorkspaceView: NSView {
         case .none: leftSidebar = .none
         case .agents: leftSidebar = .agents
         case .ssh: leftSidebar = .ssh
+        case .claude: leftSidebar = .claude
         }
         isNotesVisible = snapshot.notesVisible
         if leftSidebar == .agents { refreshAgents() }
         if leftSidebar == .ssh { refreshSSHPanel() }
+        if leftSidebar == .claude { refreshClaudePanel() }
         if isNotesVisible { updateNotesPanel() }
         needsLayout = true
     }
@@ -878,6 +947,7 @@ final class WorkspaceView: NSView {
             case .none: return .none
             case .agents: return .agents
             case .ssh: return .ssh
+            case .claude: return .claude
             }
         }()
         WindowState.saveSidebar(left: mapped, notesVisible: isNotesVisible)
@@ -1031,6 +1101,14 @@ final class WorkspaceView: NSView {
         view.applyMouseShape(raw)
     }
 
+    /// OSC 7 cwd report — forward to the matching pane so it tracks its
+    /// live working directory. (v0.4-S1a foundation.)
+    @objc func surfacePwdDidChange(_ note: Notification) {
+        guard let view = note.object as? HerminalSurfaceView,
+              let pwd = note.userInfo?[GhosttyApp.surfacePwdKey] as? String else { return }
+        view.applyPwd(pwd)
+    }
+
     @objc func surfaceDidClose(_ note: Notification) {
         guard let view = note.object as? HerminalSurfaceView else { return }
         // Locate the pane by identity.
@@ -1071,6 +1149,7 @@ final class WorkspaceView: NSView {
         tabHost.rootView = makeTabBar()
         if leftSidebar == .agents { refreshAgents() }
         if leftSidebar == .ssh { refreshSSHPanel() }
+        if leftSidebar == .claude { refreshClaudePanel() }
         if isNotesVisible { updateNotesPanel() }
         // Rebuild the status bar so its background/text re-resolve against
         // the new theme tokens and so the visibility flag picks up the
@@ -1094,6 +1173,7 @@ final class WorkspaceView: NSView {
         tabHost.rootView = makeTabBar()
         if leftSidebar == .agents { refreshAgents() }
         if leftSidebar == .ssh { refreshSSHPanel() }
+        if leftSidebar == .claude { refreshClaudePanel() }
         if isNotesVisible { updateNotesPanel() }
         // Reset the dashboard if visible so the new palette lands now,
         // not on the next 2s poll.
@@ -1114,6 +1194,7 @@ final class WorkspaceView: NSView {
         // completion handler restores the correct hidden state.
         dashboardHost.isHidden = false
         sshPanelHost.isHidden = false
+        claudePanelHost.isHidden = false
         notesHost.isHidden = false
         isAnimatingLayout = true
         NSAnimationContext.runAnimationGroup({ ctx in
@@ -1130,6 +1211,7 @@ final class WorkspaceView: NSView {
                 self.isAnimatingLayout = false
                 self.dashboardHost.isHidden = self.leftSidebar != .agents
                 self.sshPanelHost.isHidden = self.leftSidebar != .ssh
+                self.claudePanelHost.isHidden = self.leftSidebar != .claude
                 self.notesHost.isHidden = !self.isNotesVisible
             }
         })
@@ -1222,6 +1304,7 @@ final class WorkspaceView: NSView {
             case .none: return "none"
             case .agents: return "agents"
             case .ssh: return "ssh"
+            case .claude: return "claude"
             }
         }()
         let paneCounts = tabs.map { String($0.panes.count) }.joined(separator: ",")

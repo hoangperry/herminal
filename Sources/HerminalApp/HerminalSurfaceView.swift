@@ -14,12 +14,22 @@ final class HerminalSurfaceView: NSView, ClipboardOwner, NSUserInterfaceValidati
     /// entire surface lifetime, not just the `withCString` call.
     /// `nonisolated(unsafe)`: freed once in the nonisolated NSView deinit.
     private nonisolated(unsafe) let commandBuffer: UnsafeMutablePointer<CChar>?
+    /// Heap-owned C buffer for the spawn working directory, same lifetime
+    /// rules as `commandBuffer`. Set when a tab is opened in a specific
+    /// dir (e.g. resuming a Claude session). (v0.4-S1a.)
+    private nonisolated(unsafe) let workingDirectoryBuffer: UnsafeMutablePointer<CChar>?
     // nonisolated(unsafe): a C handle freed once in deinit (NSView deinit is nonisolated).
     // Internal visibility (was `private`) so we can satisfy the public
     // `ClipboardOwner.surface` requirement from HerminalCore — the
     // clipboard callbacks in GhosttyApp need to round-trip the userdata
     // pointer back to a live surface handle.
     nonisolated(unsafe) var surface: ghostty_surface_t?
+
+    /// Live working directory of the shell in this pane, reported by
+    /// libghostty via OSC 7 (GHOSTTY_ACTION_PWD). nil until the shell
+    /// emits its first PWD. Foundation for session restore + the Claude
+    /// session browser. (v0.4-S1a.)
+    private(set) var currentWorkingDirectory: String?
 
     /// IME composition (preedit) text — underlined text shown while composing,
     /// e.g. Vietnamese Telex "tieesng" before it commits to "tiếng".
@@ -35,9 +45,13 @@ final class HerminalSurfaceView: NSView, ClipboardOwner, NSUserInterfaceValidati
     /// resize handles, etc.). (v0.2.5 audit pass.)
     private var currentCursor: NSCursor = .iBeam
 
-    init(app: ghostty_app_t, command: String? = nil) {
+    init(app: ghostty_app_t, command: String? = nil, workingDirectory: String? = nil) {
         self.app = app
         self.commandBuffer = command.flatMap { $0.isEmpty ? nil : strdup($0) }
+        self.workingDirectoryBuffer = workingDirectory.flatMap { $0.isEmpty ? nil : strdup($0) }
+        // Seed the live cwd with the spawn dir so a freshly opened tab
+        // reports its dir before the shell emits its first OSC 7.
+        self.currentWorkingDirectory = workingDirectory
         // Non-zero frame: libghostty's renderer needs non-zero layer bounds
         // (see Ghostty's SurfaceView_AppKit init comment).
         super.init(frame: NSRect(x: 0, y: 0, width: 800, height: 600))
@@ -75,6 +89,11 @@ final class HerminalSurfaceView: NSView, ClipboardOwner, NSUserInterfaceValidati
         // command is provided so the pane stays visible after `ssh` exits.
         if let commandBuffer {
             config.command = UnsafePointer(commandBuffer)
+        }
+        // Spawn in a specific directory (e.g. the cwd of a Claude session
+        // being resumed). libghostty cd's the PTY child here before exec.
+        if let workingDirectoryBuffer {
+            config.working_directory = UnsafePointer(workingDirectoryBuffer)
         }
 
         guard let surface = ghostty_surface_new(app, &config) else {
@@ -547,6 +566,16 @@ final class HerminalSurfaceView: NSView, ClipboardOwner, NSUserInterfaceValidati
         if let commandBuffer {
             free(commandBuffer)
         }
+        if let workingDirectoryBuffer {
+            free(workingDirectoryBuffer)
+        }
+    }
+
+    /// Updates the tracked cwd from libghostty's OSC 7 report. Called by
+    /// WorkspaceView when GHOSTTY_ACTION_PWD fires for this surface.
+    /// (v0.4-S1a.)
+    func applyPwd(_ path: String) {
+        currentWorkingDirectory = path.isEmpty ? nil : path
     }
 }
 

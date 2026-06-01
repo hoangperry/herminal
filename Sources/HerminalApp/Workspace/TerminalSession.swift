@@ -14,8 +14,11 @@ final class TerminalSession: Identifiable {
     /// (Nth-oldest login → Nth-oldest session).
     let createdAt: TimeInterval
 
-    init(app: ghostty_app_t, title: String = "herminal", command: String? = nil) {
-        self.surfaceView = HerminalSurfaceView(app: app, command: command)
+    init(app: ghostty_app_t, title: String = "herminal",
+         command: String? = nil, workingDirectory: String? = nil) {
+        self.surfaceView = HerminalSurfaceView(
+            app: app, command: command, workingDirectory: workingDirectory
+        )
         self.title = title
         self.createdAt = Date().timeIntervalSince1970
     }

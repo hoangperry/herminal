@@ -31,7 +31,7 @@ enum WindowState {
     /// scope so the AppDelegate can read it without exposing the
     /// internal type. Persisted as the raw String.
     enum LeftSidebar: String {
-        case none, agents, ssh
+        case none, agents, ssh, claude
     }
 
     private enum Key {
