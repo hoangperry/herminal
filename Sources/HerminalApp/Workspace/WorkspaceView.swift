@@ -72,6 +72,11 @@ final class WorkspaceView: NSView {
     /// agent poll regardless of whether the dashboard sidebar is open —
     /// the status bar needs it even when the panel is closed.
     private var latestAgentCount: Int = 0
+    /// Gates session-restore persistence. False during init + restore so
+    /// the default/launch tab churn doesn't clobber the saved snapshot;
+    /// AppDelegate flips it true once the launch decision is made.
+    /// (v0.4.1.)
+    private var sessionPersistenceEnabled = false
 
     init(app: ghostty_app_t, notesStore: NotesStore, sshHostsStore: SSHHostsStore) {
         self.app = app
@@ -462,6 +467,7 @@ final class WorkspaceView: NSView {
         activeTabIndex = tabs.count - 1
         Diary.shared.log("addTab — total=\(tabs.count)", category: "tabs")
         refresh()
+        persistWorkspaceIfReady()
     }
 
     /// Opens a new tab that runs `command` instead of the default shell.
@@ -475,6 +481,7 @@ final class WorkspaceView: NSView {
         activeTabIndex = tabs.count - 1
         Diary.shared.log("addTab command=\(command) title=\(title) cwd=\(workingDirectory ?? "-")", category: "tabs")
         refresh()
+        persistWorkspaceIfReady()
     }
 
     func selectNextTab() {
@@ -514,11 +521,14 @@ final class WorkspaceView: NSView {
     private func closeTabImmediately(at index: Int) {
         tabs.remove(at: index)
         if tabs.isEmpty {
+            // Don't persist an empty workspace — the window is closing.
+            // The last non-empty snapshot stays on disk for next launch.
             window?.close()
             return
         }
         activeTabIndex = min(activeTabIndex, tabs.count - 1)
         refresh()
+        persistWorkspaceIfReady()
     }
 
     /// Returns true if it's safe to proceed with closing the panes
@@ -560,6 +570,7 @@ final class WorkspaceView: NSView {
         activeTab?.split(app: app, vertical: vertical)
         Diary.shared.log("splitActivePane vertical=\(vertical)", category: "panes")
         refresh()
+        persistWorkspaceIfReady()
     }
 
     /// Closes the focused pane — or the whole tab if it was the last pane.
@@ -580,6 +591,7 @@ final class WorkspaceView: NSView {
         } else {
             Diary.shared.log("closeActivePane remaining=\(tab.panes.count)", category: "panes")
             refresh()
+            persistWorkspaceIfReady()
         }
     }
 
@@ -951,6 +963,51 @@ final class WorkspaceView: NSView {
             }
         }()
         WindowState.saveSidebar(left: mapped, notesVisible: isNotesVisible)
+    }
+
+    // MARK: - Session restore (v0.4.1)
+
+    /// Replaces the current tabs with those from a restored snapshot.
+    /// Called by AppDelegate at launch (before the window is shown) when
+    /// the restore preference is on and a snapshot exists. Returns true
+    /// if at least one tab was restored.
+    @discardableResult
+    func restoreWorkspace(_ snapshot: WorkspaceSnapshot) -> Bool {
+        guard !snapshot.tabs.isEmpty else { return false }
+        tabs = snapshot.tabs.map { WorkspaceTab(app: app, restoring: $0) }
+        activeTabIndex = min(max(snapshot.activeTabIndex, 0), tabs.count - 1)
+        Diary.shared.log("restored \(tabs.count) tab(s) from snapshot", category: "session")
+        refresh()
+        return true
+    }
+
+    /// Snapshots the whole workspace for persistence.
+    func snapshotWorkspace() -> WorkspaceSnapshot {
+        WorkspaceSnapshot(
+            tabs: tabs.map { $0.snapshot() },
+            activeTabIndex: activeTabIndex
+        )
+    }
+
+    /// Turns on persistence + writes an immediate snapshot. AppDelegate
+    /// calls this once the launch restore decision is made, so the
+    /// default/launch tab churn before it doesn't overwrite the saved
+    /// session prematurely.
+    func enableSessionPersistence() {
+        sessionPersistenceEnabled = true
+        persistWorkspace()
+    }
+
+    /// Writes the current workspace to disk. Always safe to call (used by
+    /// AppDelegate.applicationWillTerminate); the `IfReady` variant is for
+    /// the structural mutators so they no-op during init/restore.
+    func persistWorkspace() {
+        WorkspaceStore.save(snapshotWorkspace())
+    }
+
+    private func persistWorkspaceIfReady() {
+        guard sessionPersistenceEnabled else { return }
+        persistWorkspace()
     }
 
     /// M9/C-light: flip between dark and light theme. SwiftUI re-evaluates

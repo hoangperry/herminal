@@ -10,6 +10,9 @@ import HerminalAgent
 final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private var ghostty: GhosttyApp?
     private var window: NSWindow?
+    /// Kept so `applicationWillTerminate` can snapshot the workspace for
+    /// session restore. (v0.4.1)
+    private var workspace: WorkspaceView?
     private var tickTimer: Timer?
     /// Set after we restore the workspace state in didFinishLaunching so
     /// the windowDidMove/Resize callbacks don't write back the default
@@ -49,6 +52,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             sshHostsStore: AppDelegate.makeSSHHostsStore()
         )
         workspace.applyRestoredSidebarState(savedState)
+        // v0.4.1 — session restore. If the owner left the restore
+        // preference on and a snapshot exists, rebuild the tab/pane/split
+        // layout (each pane a plain shell in its last cwd). Then enable
+        // persistence so subsequent structural changes are saved. When
+        // restore is off, clear any stale snapshot so it doesn't resurrect
+        // later if the owner flips the toggle back on.
+        if Preferences.restoreSessionOnLaunch, let snapshot = WorkspaceStore.load() {
+            workspace.restoreWorkspace(snapshot)
+        } else if !Preferences.restoreSessionOnLaunch {
+            WorkspaceStore.clear()
+        }
+        workspace.enableSessionPersistence()
+        self.workspace = workspace
         let window = AppDelegate.makeWindow(contentView: workspace,
                                             savedFrame: savedState.frame)
         window.delegate = self
@@ -459,6 +475,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
     func applicationWillTerminate(_ notification: Notification) {
         Diary.shared.log("applicationWillTerminate", category: "lifecycle")
+        // v0.4.1 — capture the final workspace layout + pane cwds so the
+        // next launch restores it. Only when the owner wants restore;
+        // otherwise leave the (cleared-at-launch) store alone.
+        if Preferences.restoreSessionOnLaunch {
+            workspace?.persistWorkspace()
+        }
         Diary.shared.flush()
         tickTimer?.invalidate()
         tickTimer = nil

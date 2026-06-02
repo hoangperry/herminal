@@ -36,6 +36,32 @@ final class WorkspaceTab: Identifiable {
         self.paneRatios = [1.0]
     }
 
+    /// Rebuilds a tab from a restored `TabSnapshot` (v0.4.1 session
+    /// restore). Every pane spawns a plain shell in its saved cwd — the
+    /// snapshot never carries a command, so ssh/claude panes come back
+    /// as clean local shells (see WorkspaceStore header). The snapshot is
+    /// already sanitised (≥1 pane, ratios normalised, focus in range).
+    init(app: ghostty_app_t, restoring snapshot: TabSnapshot) {
+        let restoredPanes = snapshot.panes.map { pane in
+            TerminalSession(app: app, command: nil, workingDirectory: pane.cwd)
+        }
+        self.panes = restoredPanes
+        self.isVerticalSplit = snapshot.isVerticalSplit
+        self.focusedPaneIndex = min(max(snapshot.focusedPaneIndex, 0), max(restoredPanes.count - 1, 0))
+        self.paneRatios = snapshot.paneRatios.map { CGFloat($0) }
+    }
+
+    /// Captures this tab's restorable state. Pane cwds come from the live
+    /// OSC 7 tracking on each surface. (v0.4.1.)
+    func snapshot() -> TabSnapshot {
+        TabSnapshot(
+            isVerticalSplit: isVerticalSplit,
+            focusedPaneIndex: focusedPaneIndex,
+            paneRatios: paneRatios.map { Double($0) },
+            panes: panes.map { PaneSnapshot(cwd: $0.surfaceView.currentWorkingDirectory) }
+        )
+    }
+
     var focusedPane: TerminalSession { panes[focusedPaneIndex] }
 
     var title: String {

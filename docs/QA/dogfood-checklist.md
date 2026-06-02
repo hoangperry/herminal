@@ -92,6 +92,12 @@ runtime callbacks / surface events — not the application layer.
   not the lossy slug).
 - [ ] **Pane cwd tracking** — `cd` somewhere, the pane's working dir
   is known internally (OSC 7). Foundation for session restore.
+- [ ] **Session restore** (v0.4.1) — open 2-3 tabs, split one, `cd`
+  into different dirs, quit (⌘Q), relaunch. Same tab/split layout
+  comes back, each pane in its last directory. Toggle off in
+  Settings → "Restore tabs & panes on launch" → relaunch opens a
+  single fresh tab. An ssh pane comes back as a local shell (command
+  not re-run), at home if its remote cwd doesn't exist locally.
 
 The programmable check for the first three lives in
 `Scripts/verify-clipboard.sh` and runs daily as part of

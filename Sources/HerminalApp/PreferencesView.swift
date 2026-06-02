@@ -31,6 +31,7 @@ struct PreferencesView: View {
 private struct GeneralTab: View {
     @AppStorage(Preferences.Key.showStatusBar) private var showStatusBar = true
     @AppStorage(Preferences.Key.confirmCloseWithNote) private var confirmCloseWithNote = true
+    @AppStorage(Preferences.Key.restoreSessionOnLaunch) private var restoreSessionOnLaunch = true
     @AppStorage(Preferences.Key.firstRunCompleted) private var firstRunCompleted = true
 
     var body: some View {
@@ -40,6 +41,8 @@ private struct GeneralTab: View {
                     .onChange(of: showStatusBar) { _, _ in Preferences.broadcastChange() }
                 Toggle("Confirm before closing a tab with notes", isOn: $confirmCloseWithNote)
                     .onChange(of: confirmCloseWithNote) { _, _ in Preferences.broadcastChange() }
+                Toggle("Restore tabs & panes on launch", isOn: $restoreSessionOnLaunch)
+                    .help("Reopen last session's tab/split layout, each pane in its last working directory. Commands (ssh, claude) are not re-run.")
             }
             Section("Onboarding") {
                 Button("Show the welcome hint on next launch") {

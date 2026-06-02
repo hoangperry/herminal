@@ -33,6 +33,7 @@ public enum Preferences {
         public static let defaultShellPath = "preferences.shell.path"
         public static let showStatusBar = "preferences.window.statusBar"
         public static let confirmCloseWithNote = "preferences.window.confirmCloseWithNote"
+        public static let restoreSessionOnLaunch = "preferences.window.restoreSession"
         public static let firstRunCompleted = "preferences.firstRun.completed"
     }
 
@@ -72,6 +73,7 @@ public enum Preferences {
             Key.defaultShellPath: "",  // empty = inherit from $SHELL
             Key.showStatusBar: true,
             Key.confirmCloseWithNote: true,
+            Key.restoreSessionOnLaunch: true,
             Key.firstRunCompleted: false,
         ]
     }
@@ -130,6 +132,10 @@ public enum Preferences {
 
     public static var confirmCloseWithNote: Bool {
         UserDefaults.standard.bool(forKey: Key.confirmCloseWithNote)
+    }
+
+    public static var restoreSessionOnLaunch: Bool {
+        UserDefaults.standard.bool(forKey: Key.restoreSessionOnLaunch)
     }
 
     public static var firstRunCompleted: Bool {

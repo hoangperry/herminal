@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.1] - 2026-06-02
+
+v0.4 milestone slice 2 — **session restore**. Quit with a layout, get
+it back on next launch. Builds on the v0.4.0 OSC 7 cwd foundation.
+
+### Added
+
+- **Session restore.** herminal now remembers your tab + split layout
+  and reopens it on launch — each pane a plain shell in its last
+  working directory. New `WorkspaceStore` persists a JSON snapshot to
+  `~/Library/Application Support/herminal/workspace.json` on quit and
+  on every structural change (add/close/split tab).
+- **Settings → "Restore tabs & panes on launch"** (General tab,
+  default on). Turning it off clears the saved snapshot.
+
+### Behaviour notes
+
+- Restore replays the **layout + cwd**, not commands. ssh / claude /
+  arbitrary commands are NOT re-run — those are side-effectful
+  (network connections, LLM resumes) and surprising on every launch.
+  A former ssh pane comes back as a clean local shell.
+- Every restored cwd is validated against the local filesystem; a
+  stale or remote path (e.g. an ssh pane's remote dir) falls back to
+  the shell's home rather than failing to spawn.
+- Closing the last tab does NOT overwrite the snapshot — the window
+  is closing, so the last real layout survives for next launch.
+
 ## [0.4.0] - 2026-06-01
 
 v0.4 milestone slice 1 — **Claude session browser**. The feature the
