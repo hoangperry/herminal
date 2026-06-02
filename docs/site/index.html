@@ -25,9 +25,9 @@
       </a>
       <nav aria-label="primary">
         <a href="#agents">agents</a>
+        <a href="#sessions">sessions</a>
         <a href="#ime">vn ime</a>
         <a href="#ssh">ssh</a>
-        <a href="#polish">polish</a>
         <a href="#install">install</a>
         <a class="ext" href="https://github.com/hoangperry/herminal" rel="noopener">github</a>
       </nav>
@@ -52,7 +52,7 @@
         </p>
         <div class="cta-row">
           <a class="cta primary" href="https://github.com/hoangperry/herminal/releases/latest">
-            Download v0.3.3
+            Download v0.4.1
             <span class="cta-meta">macOS 14 · arm64 · 6 MB</span>
           </a>
           <a class="cta ghost" href="https://github.com/hoangperry/herminal">
@@ -135,8 +135,51 @@
       </div>
     </section>
 
+    <!-- SESSIONS (v0.4) -->
+    <section id="sessions" class="feature alt">
+      <div class="grid">
+        <p class="kicker">Sessions · v0.4</p>
+        <h2>Pick up exactly where you left off.</h2>
+        <p>
+          The terminal built for living inside Claude Code remembers your work — both the
+          conversations and the workspace around them.
+        </p>
+        <div class="cards">
+          <div class="card">
+            <h3>⌘⇧C — Claude session browser</h3>
+            <p>
+              Reads Claude Code's own store (<code>~/.claude/projects</code>) and lists every
+              project you've run <code>claude</code> in, by recency, with the real working
+              directory and git branch. One click <strong>resumes</strong> the exact
+              conversation — <code>claude --resume</code> in the right cwd.
+            </p>
+          </div>
+          <div class="card">
+            <h3>Session restore</h3>
+            <p>
+              Quit with three tabs and a split, relaunch to the same layout — each pane back
+              in its last directory. No rebuilding your workspace every morning. Toggle it
+              off in Settings if you'd rather start clean.
+            </p>
+          </div>
+          <div class="card">
+            <h3>Safe by construction</h3>
+            <p>
+              Restore replays the <em>layout + directory</em>, never your commands — no
+              surprise ssh connections or LLM resumes on launch. Read-only against
+              <code>~/.claude</code>; herminal never writes there.
+            </p>
+          </div>
+        </div>
+        <p class="note">
+          Built on OSC 7 working-directory tracking — every pane knows where it is, so the
+          terminal can put it back.
+        </p>
+      </div>
+    </section>
+
     <!-- VIETNAMESE IME -->
-    <section id="ime" class="feature alt">
+    <section id="ime" class="feature">
       <div class="grid two-col reverse">
         <div class="col-text">
           <p class="kicker">Vietnamese Telex</p>
@@ -164,7 +207,7 @@
     </section>
 
     <!-- SSH MANAGER -->
-    <section id="ssh" class="feature">
+    <section id="ssh" class="feature alt">
       <div class="grid">
         <p class="kicker">SSH manager</p>
         <h2>Built around <code>~/.ssh/config</code>.</h2>
@@ -187,7 +230,7 @@
     </section>
 
     <!-- NOTES -->
-    <section class="feature alt">
+    <section class="feature">
       <div class="grid two-col">
         <div class="col-text">
           <p class="kicker">Per-session notes</p>
@@ -217,7 +260,7 @@
     </section>
 
     <!-- POLISH WAVE (v0.3) -->
-    <section id="polish" class="feature">
+    <section id="polish" class="feature alt">
       <div class="grid">
         <p class="kicker">v0.3 polish wave</p>
         <h2>Native enough to forget it's there.</h2>
@@ -303,8 +346,8 @@
         <div class="install-tabs">
           <article class="install-card">
             <h3>Download · recommended</h3>
-            <pre><code>curl -LO https://github.com/hoangperry/herminal/releases/download/v0.3.3/herminal-v0.3.3.dmg
-open herminal-v0.3.3.dmg</code></pre>
+            <pre><code>curl -LO https://github.com/hoangperry/herminal/releases/download/v0.4.1/herminal-v0.4.1.dmg
+open herminal-v0.4.1.dmg</code></pre>
             <p class="note small">Signed + notarized + stapled. First launch is silent.</p>
           </article>
 
@@ -331,21 +374,21 @@ open .build/herminal.app</code></pre>
     <section class="band">
       <div class="grid">
         <p class="kicker">Status + next</p>
-        <h2 class="section-title">Where v0.3.3 lands.</h2>
+        <h2 class="section-title">Where v0.4.1 lands.</h2>
         <ol class="roadmap">
           <li>
-            <span class="rm-tag now">now · v0.3.3</span>
-            MVP + the v0.3 polish wave: scrollback search, command palette, ⌥Space
-            hotkey, drag-resize splits, vibrancy. Notarized.
+            <span class="rm-tag now">now · v0.4.1</span>
+            MVP + v0.3 polish wave + the Sessions milestone: Claude session browser,
+            session restore, OSC 7 cwd tracking. Notarized.
           </li>
           <li>
             <span class="rm-tag soon">soon · v0.4.x</span>
-            Font-picker UI, Sparkle auto-update, semantic double-click, image rendering.
-            Beta-feedback-driven.
+            Named workspaces (saved layouts), font-picker UI, Sparkle auto-update,
+            semantic double-click. Beta-feedback-driven.
           </li>
           <li>
             <span class="rm-tag later">later · v1.0</span>
-            Recursive split trees. Opt-in diary upload. More agent kinds. Bilingual site.
+            Recursive split trees. Image rendering. More agent kinds. Bilingual site.
           </li>
         </ol>
         <p class="note">
@@ -359,7 +402,7 @@ open .build/herminal.app</code></pre>
       <div class="grid">
         <h2>Open a bug. Tell us what you want next.</h2>
         <div class="cta-row centered">
-          <a class="cta primary" href="https://github.com/hoangperry/herminal/releases/latest">Download v0.3.3</a>
+          <a class="cta primary" href="https://github.com/hoangperry/herminal/releases/latest">Download v0.4.1</a>
           <a class="cta ghost" href="https://github.com/hoangperry/herminal/issues/new/choose">File an issue</a>
         </div>
       </div>
