@@ -7,12 +7,16 @@ import HerminalDB
 import HerminalAgent
 
 @MainActor
-final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
+final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMenuDelegate {
     private var ghostty: GhosttyApp?
     private var window: NSWindow?
     /// Kept so `applicationWillTerminate` can snapshot the workspace for
     /// session restore. (v0.4.1)
     private var workspace: WorkspaceView?
+    /// The "Open Workspace" submenu — repopulated on open via
+    /// `menuNeedsUpdate`. Owned here so the delegate identity check
+    /// works. (v0.4.2)
+    private let workspaceSubmenu = NSMenu(title: "Open Workspace")
     private var tickTimer: Timer?
     /// Set after we restore the workspace state in didFinishLaunching so
     /// the windowDidMove/Resize callbacks don't write back the default
@@ -43,7 +47,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         }
         self.ghostty = ghostty
 
-        NSApp.mainMenu = AppMenu.build()
+        workspaceSubmenu.delegate = self
+        NSApp.mainMenu = AppMenu.build(openWorkspaceSubmenu: workspaceSubmenu)
 
         let savedState = WindowState.load()
         let workspace = WorkspaceView(
@@ -437,6 +442,84 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     /// herminal.
     @objc func toggleHotkeyWindow(_ sender: Any?) {
         HotkeyManager.shared.handleFired()
+    }
+
+    // MARK: - Named workspaces (v0.4.2)
+
+    /// Prompts for a name and saves the current layout as a named
+    /// workspace. Pre-fills with any existing name match so re-saving
+    /// the same workspace is a quick overwrite.
+    @objc func saveWorkspaceAs(_ sender: Any?) {
+        guard let workspace else { return }
+        let alert = NSAlert()
+        alert.messageText = "Save Workspace"
+        alert.informativeText = "Name this tab + split layout so you can reopen it later. Commands aren't saved — only the layout and each pane's directory."
+        alert.addButton(withTitle: "Save")
+        alert.addButton(withTitle: "Cancel")
+        let field = NSTextField(frame: NSRect(x: 0, y: 0, width: 240, height: 24))
+        field.placeholderString = "e.g. kamimind"
+        alert.accessoryView = field
+        alert.window.initialFirstResponder = field
+        guard alert.runModal() == .alertFirstButtonReturn else { return }
+        guard WorkspacesStore.save(name: field.stringValue, snapshot: workspace.snapshotWorkspace()) else {
+            return
+        }
+        Diary.shared.log("saved workspace '\(field.stringValue)'", category: "session")
+    }
+
+    /// Opens a saved workspace, identified by the menu item's
+    /// representedObject (its name). Replaces the current layout.
+    @objc func openWorkspaceMenuAction(_ sender: NSMenuItem) {
+        guard let name = sender.representedObject as? String,
+              let saved = WorkspacesStore.workspace(named: name) else { return }
+        workspace?.restoreWorkspace(saved.snapshot)
+        Diary.shared.log("opened workspace '\(name)'", category: "session")
+    }
+
+    /// Deletes a saved workspace (Option-click alternate in the menu).
+    @objc func deleteWorkspaceMenuAction(_ sender: NSMenuItem) {
+        guard let name = sender.representedObject as? String else { return }
+        WorkspacesStore.delete(name: name)
+        Diary.shared.log("deleted workspace '\(name)'", category: "session")
+    }
+
+    // MARK: - NSMenuDelegate (dynamic "Open Workspace" submenu)
+
+    /// Repopulates the Open-Workspace submenu each time it's about to
+    /// open, so newly-saved workspaces appear without an app restart.
+    /// Each workspace gets an "Open" item plus an Option-key alternate
+    /// "Delete" item (the classic Mac hidden-destructive pattern).
+    func menuNeedsUpdate(_ menu: NSMenu) {
+        guard menu === workspaceSubmenu else { return }
+        menu.removeAllItems()
+        let saved = WorkspacesStore.all()
+        guard !saved.isEmpty else {
+            let empty = NSMenuItem(title: "No saved workspaces", action: nil, keyEquivalent: "")
+            empty.isEnabled = false
+            menu.addItem(empty)
+            return
+        }
+        for workspace in saved {
+            let open = NSMenuItem(
+                title: workspace.name,
+                action: #selector(openWorkspaceMenuAction(_:)),
+                keyEquivalent: ""
+            )
+            open.target = self
+            open.representedObject = workspace.name
+            menu.addItem(open)
+
+            let delete = NSMenuItem(
+                title: "Delete “\(workspace.name)”",
+                action: #selector(deleteWorkspaceMenuAction(_:)),
+                keyEquivalent: ""
+            )
+            delete.target = self
+            delete.representedObject = workspace.name
+            delete.isAlternate = true
+            delete.keyEquivalentModifierMask = [.option]
+            menu.addItem(delete)
+        }
     }
 
     // MARK: - NSWindowDelegate (M12-P5)

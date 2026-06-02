@@ -98,6 +98,11 @@ runtime callbacks / surface events — not the application layer.
   Settings → "Restore tabs & panes on launch" → relaunch opens a
   single fresh tab. An ssh pane comes back as a local shell (command
   not re-run), at home if its remote cwd doesn't exist locally.
+- [ ] **Named workspaces** (v0.4.2) — arrange tabs/splits, Window →
+  "Save Workspace As…" (⌃⌘S), name it. Change the layout, then
+  Window → "Open Workspace ▸ <name>" restores it. Newly-saved
+  entries appear without relaunch. Hold Option on an entry → it
+  becomes "Delete <name>".
 
 The programmable check for the first three lives in
 `Scripts/verify-clipboard.sh` and runs daily as part of

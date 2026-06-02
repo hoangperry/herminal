@@ -5,7 +5,10 @@
 import AppKit
 
 enum AppMenu {
-    static func build() -> NSMenu {
+    /// `openWorkspaceSubmenu` is owned by AppDelegate (which is its
+    /// delegate) so it can repopulate the saved-workspace list each time
+    /// the menu opens. (v0.4.2)
+    static func build(openWorkspaceSubmenu: NSMenu) -> NSMenu {
         let mainMenu = NSMenu()
 
         // App menu
@@ -215,6 +218,22 @@ enum AppMenu {
         // grant the global hotkey (combo taken by another app).
         hotkey.keyEquivalentModifierMask = [.option]
         windowMenu.addItem(hotkey)
+
+        windowMenu.addItem(.separator())
+        // v0.4.2 — named workspaces. Save the current layout under a
+        // name; reopen any saved one from the dynamic submenu (AppDelegate
+        // repopulates it on open, with an Option-key alternate to delete).
+        let saveWorkspace = NSMenuItem(
+            title: "Save Workspace As…",
+            action: #selector(AppDelegate.saveWorkspaceAs(_:)),
+            keyEquivalent: "s"
+        )
+        saveWorkspace.keyEquivalentModifierMask = [.command, .control]
+        windowMenu.addItem(saveWorkspace)
+
+        let openWorkspace = NSMenuItem(title: "Open Workspace", action: nil, keyEquivalent: "")
+        openWorkspace.submenu = openWorkspaceSubmenu
+        windowMenu.addItem(openWorkspace)
 
         return mainMenu
     }

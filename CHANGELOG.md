@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.2] - 2026-06-02
+
+v0.4 milestone slice 3 — **named workspaces**. Closes the Sessions
+milestone (Claude browser → restore → named layouts).
+
+### Added
+
+- **Named workspaces.** Save the current tab + split layout under a
+  name (Window → "Save Workspace As…", ⌃⌘S, or the command palette),
+  reopen it any time from Window → "Open Workspace ▸". Like iTerm2's
+  window arrangements, on the same conservative restore policy as
+  session restore: layout + per-pane cwd come back as plain shells;
+  commands are not replayed.
+- The **Open Workspace** submenu is built fresh each time it opens
+  (`NSMenuDelegate.menuNeedsUpdate`), so newly-saved layouts show up
+  without a relaunch. Hold **Option** on an entry to turn it into a
+  delete. Empty state shows a disabled "No saved workspaces".
+- New `WorkspacesStore` persists the library to
+  `~/Library/Application Support/herminal/workspaces.json` (save
+  dedupes by name; sorted case-insensitively for stable menu order).
+
 ## [0.4.1] - 2026-06-02
 
 v0.4 milestone slice 2 — **session restore**. Quit with a layout, get
