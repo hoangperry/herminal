@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-06-04
+
+Recursive split trees — panes now nest like tmux / iTerm2.
+
+### Added
+
+- **Nested splits.** Any pane can split again along either axis,
+  arbitrarily deep — `⌘D` (vertical) / `⌘⇧D` (horizontal) split the
+  *focused* pane in place, so you can build layouts like "editor on the
+  left, two stacked shells on the right". The old single-axis limit
+  (every pane in a tab shared one row or one column) is gone.
+- Each split boundary has its own draggable divider; dragging resizes
+  that split relative to its own region, so nested panes resize the way
+  you'd expect. Closing a pane collapses its split and hands focus to the
+  neighbour.
+
+### Changed
+
+- The tab layout is now a binary tree (`LayoutNode`) instead of a flat
+  pane list. `workspace.json` gained a `layout` field describing the
+  tree; **pre-v0.5 saved sessions still load** — a flat layout folds into
+  the equivalent tree on first launch.
+
 ## [0.4.4] - 2026-06-03
 
 Live working directory surfacing — the terminal now always tells you

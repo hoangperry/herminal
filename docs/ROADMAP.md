@@ -100,9 +100,10 @@ input signal arrives that confirms the work's shape.
 - **Shipped:** Drag-to-resize dividers (Q2-002) — v0.3.3 polish wave
 - **Shipped:** Auto-follow-system theme — v0.4.0 ("Follow System"
   picker reading `NSApp.effectiveAppearance`)
-- **Deferred:** Recursive split trees (Q2-003) — tmux-style
-  nesting. Wait: does beta hit the single-axis limit in real
-  workflows?
+- **Shipped:** Recursive split trees (Q2-003) — tmux-style nesting
+  (v0.5.0). Panes nest along either axis arbitrarily deep; the layout is
+  a binary `LayoutNode` tree, persisted in `workspace.json` (old flat
+  sessions still load).
 
 ### Theme H — Sessions (✅ fully closed in v0.4.0-v0.4.2)
 
