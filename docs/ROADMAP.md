@@ -131,14 +131,18 @@ Retro: `docs/backlog/v0.4-sessions-retrospective.md`.
 - **Deferred:** Live-Telex CI automation (would need a Telex
   simulator; unclear it's worth building)
 
-### Theme E — Distribution (infrastructure done, owner-gated)
-- **Shipped:** Sign + notarize pipeline, DMG, cask formula,
-  Sparkle wiring, CD workflow
-- **Pending (owner):** Developer-ID enrolment
-- **Pending:** First notarized v0.1.1 release
-- **Pending:** Homebrew cask submission (own tap → upstream after
-  ≥1 month stable)
-- **Pending:** Sparkle framework integration (post v0.1.1)
+### Theme E — Distribution (mostly shipped)
+- **Shipped:** Sign + notarize pipeline, DMG, CD workflow
+- **Shipped:** Developer-ID enrolment + notarized releases
+  (v0.1.0 → v0.4.2, all signed + notarized + stapled)
+- **Shipped:** Homebrew tap live —
+  `brew install --cask hoangperry/herminal/herminal`
+  (repo: `hoangperry/homebrew-herminal`, cask audit passes online)
+- **Handoff-ready:** Sparkle auto-update — full integration spec at
+  `docs/SPARKLE-NEXT.md`. Gated on the owner's EdDSA key (a secret)
+  + careful framework-embedding into the hand-rolled bundle.
+- **Pending (owner):** Push the tap upstream to homebrew-cask after
+  ≥1 month stable + enough installs
 
 ### Theme F — Telemetry-free observability v2 (slice 1 shipped)
 - **Shipped:** `Diary.exportRedacted()` for bug-report pasting

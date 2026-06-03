@@ -16,6 +16,12 @@
 // The appcast template lives at `docs/appcast-template.xml`. When the
 // owner cuts v0.2.0 the release.sh script (M10/E-cd) regenerates it
 // with the real version + signature.
+//
+// FULL INTEGRATION STEPS: docs/SPARKLE-NEXT.md — SPM dep, framework
+// embedding + signing into the hand-rolled bundle, Info.plist keys,
+// the owner-gated EdDSA key-gen, and the per-release appcast signing.
+// Sequenced AFTER the Homebrew tap (shipped + audited) because Sparkle
+// carries pipeline risk + a secret signing key.
 
 import Foundation
 
