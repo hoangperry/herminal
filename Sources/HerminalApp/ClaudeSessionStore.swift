@@ -39,7 +39,10 @@ public struct ClaudeProjectSession: Identifiable, Sendable, Equatable {
     }
 }
 
-@MainActor
+// Not @MainActor: this is pure read-only file I/O (FileManager +
+// JSONSerialization) and touches no main-actor state, so it's safe to
+// call from a background task. refreshClaudePanel offloads the scan off
+// the main thread precisely because of that (v0.4.3 review HIGH-4).
 public enum ClaudeSessionStore {
     /// `~/.claude/projects`. Resolved fresh each call so a HOME change
     /// in tests is honoured.
@@ -98,13 +101,33 @@ public enum ClaudeSessionStore {
         // lossy). Skip rather than guess.
         guard let cwd else { return nil }
 
+        // SECURITY (v0.4.3): the session id is the transcript filename
+        // stem and it gets interpolated into the `claude --resume <id>`
+        // command, which libghostty runs via the shell. A local process
+        // can write any filename into ~/.claude/projects/*/, so a stem
+        // like `x; rm -rf ~ #` would be a command-injection vector when
+        // the user clicks Resume. Claude Code always names transcripts
+        // with a UUID — reject anything that isn't one, so a crafted
+        // filename can never reach the shell.
+        let sessionId = newest.0.deletingPathExtension().lastPathComponent
+        guard Self.isValidSessionID(sessionId) else { return nil }
+
         return ClaudeProjectSession(
-            sessionId: newest.0.deletingPathExtension().lastPathComponent,
+            sessionId: sessionId,
             cwd: cwd,
             gitBranch: gitBranch,
             lastActive: newest.1,
             sessionCount: transcripts.count
         )
+    }
+
+    /// A Claude Code session id is a canonical UUID — the only shape
+    /// Claude Code ever writes. `UUID(uuidString:)` enforces the exact
+    /// `8-4-4-4-12` hex layout, so a planted filename (anything carrying
+    /// shell metacharacters, or merely the wrong shape) can never reach
+    /// the `claude --resume <id>` command string. (v0.4.3 review.)
+    static func isValidSessionID(_ id: String) -> Bool {
+        UUID(uuidString: id) != nil
     }
 
     /// Reads the head of a transcript and pulls the first `cwd` (and

@@ -76,8 +76,12 @@ public final class Diary: @unchecked Sendable {
             self.append(entry: entry)
         }
         // Also forward to NSLog so Console.app users see the same events
-        // unified with libghostty's own log stream.
-        NSLog("%@", entry)
+        // unified with libghostty's own log stream. The local diary file
+        // keeps full fidelity, but NSLog lands in the system-wide unified
+        // log that ANY local process can read (`log stream`), so redact
+        // the home-username prefix + surface addresses before it leaves
+        // (v0.4.3 security review F3 — keep PII out of the shared log).
+        NSLog("%@", Self.redact(entry))
     }
 
     /// Snapshot of recent entries — used by tests + (eventually) the future

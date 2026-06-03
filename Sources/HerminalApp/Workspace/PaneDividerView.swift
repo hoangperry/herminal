@@ -76,6 +76,17 @@ final class PaneDividerView: NSView {
         ))
     }
 
+    // An NSTrackingArea retains its `owner`, so `owner: self` forms a
+    // self-cycle (view → trackingArea → view) that survives
+    // `removeFromSuperview` and leaks every divider WorkspaceView rebuilds
+    // on each split/resize. Drop the tracking areas as the view leaves the
+    // hierarchy to break it. (v0.4.3 review HIGH-3.)
+    override func removeFromSuperview() {
+        trackingAreas.forEach(removeTrackingArea)
+        onDrag = nil
+        super.removeFromSuperview()
+    }
+
     override func mouseDown(with event: NSEvent) {
         lastLocation = event.locationInWindow
         isHighlighted = true

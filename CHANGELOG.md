@@ -7,6 +7,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.3] - 2026-06-03
+
+Quality-hardening release. A parallel security + code-review pass (C2)
+over the v0.3.0–v0.4.2 surface — the polish wave and the whole Sessions
+milestone, never reviewed before — found and closed one real security
+bug plus several correctness issues. No user-facing feature changes.
+
+### Security
+
+- **Shell-injection fix (HIGH).** The Claude session browser interpolated
+  a transcript filename stem into the `claude --resume <id>` command,
+  which runs via the shell. Because any local process can plant a file
+  under `~/.claude/projects/*/`, a crafted filename like `x; rm -rf ~ #`
+  could execute when you clicked Resume. The session id is now required
+  to be a canonical UUID — the only shape Claude Code writes — so a
+  planted filename can never reach the shell. Covered by a new
+  parameterized regression test.
+- **Search-needle hardening.** Control characters are stripped from the
+  ⌘F needle before it's handed to libghostty's binding-action grammar,
+  so a pasted needle can't smuggle a second action.
+- **Less PII in the unified log.** Diary entries forwarded to `NSLog`
+  (readable by any local process via `log stream`) are now redacted —
+  the on-disk diary keeps full fidelity, the system-wide log gets the
+  home-username masked. Workspace names carrying a path separator or NUL
+  are rejected.
+
+### Fixed
+
+- **Sidebar no longer janks** on opening the Claude panel — the
+  `~/.claude/projects` scan moved off the main thread.
+- **Divider leak** — drag-resize dividers no longer leak via an
+  `NSTrackingArea` retain cycle on every split/resize.
+- **Command palette** opens with an empty field every time (it used to
+  keep the previously-typed query).
+- **Session-restore opt-out** is honored — turning restore off no longer
+  leaves a snapshot on disk from the launch tab.
+- Corrupt (NaN/∞) pane ratios in a hand-edited `workspace.json` can no
+  longer reach the layout math.
+
 ## [0.4.2] - 2026-06-02
 
 v0.4 milestone slice 3 — **named workspaces**. Closes the Sessions

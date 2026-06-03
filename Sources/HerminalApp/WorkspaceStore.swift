@@ -95,9 +95,11 @@ enum WorkspaceStore {
                 return PaneSnapshot(cwd: (exists && isDir.boolValue) ? cwd : nil)
             }
             // Ratios must match pane count; fall back to even if not.
+            // `$0 > 0` already rejects NaN and -∞; `isFinite` also rejects
+            // +∞, so a corrupt JSON ratio can never reach the layout math.
             let ratios: [Double]
             if tab.paneRatios.count == panes.count,
-               tab.paneRatios.allSatisfy({ $0 > 0 }) {
+               tab.paneRatios.allSatisfy({ $0 > 0 && $0.isFinite }) {
                 let sum = tab.paneRatios.reduce(0, +)
                 ratios = sum > 0 ? tab.paneRatios.map { $0 / sum }
                                  : Array(repeating: 1.0 / Double(panes.count), count: panes.count)

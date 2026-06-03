@@ -45,11 +45,14 @@ enum WorkspacesStore {
     }
 
     /// Saves (or overwrites by name) a workspace. Trims the name; a blank
-    /// name is rejected (returns false).
+    /// name is rejected (returns false). The name is also rejected if it
+    /// carries a path separator or NUL — today it's only a JSON value, but
+    /// guarding here keeps it safe to use as a filename component later
+    /// (defense-in-depth; flagged in the v0.4.3 security review).
     @discardableResult
     static func save(name rawName: String, snapshot: WorkspaceSnapshot) -> Bool {
         let name = rawName.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !name.isEmpty else { return false }
+        guard !name.isEmpty, !name.contains("/"), !name.contains("\0") else { return false }
         var list = all().filter { $0.name != name }
         list.append(NamedWorkspace(name: name, snapshot: snapshot))
         write(list)

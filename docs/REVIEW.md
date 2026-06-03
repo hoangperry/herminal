@@ -1,10 +1,106 @@
-# Review report — M11-A (2026-05-25) + M13 follow-up (2026-05-26)
+# Review report — M11-A (2026-05-25) + M13 (2026-05-26) + C2 (2026-06-03)
 
 Parallel code-reviewer + security-reviewer agents audited the v0.1.0
-codebase before publish (M11-A), and again after the M12 polish slices
-landed (M13 follow-up). This document captures what they found, what
-shipped fixed, and what stays deferred — so future reviews start
-from the right baseline.
+codebase before publish (M11-A), again after the M12 polish slices
+landed (M13 follow-up), and a third time over the v0.3.0–v0.4.2 surface
+that had never been reviewed (C2). This document captures what they
+found, what shipped fixed, and what stays deferred — so future reviews
+start from the right baseline.
+
+---
+
+## C2 follow-up (2026-06-03, scope: v0.3.0–v0.4.2 hunks only)
+
+The polish wave (command palette, hotkey, scrollback search,
+drag-resize) and the Sessions milestone (OSC 7, Claude session browser,
+session restore, named workspaces) shipped across v0.3.0–v0.4.2 without
+a dedicated review pass. C2 closed that gap. Shipped in **v0.4.3**.
+
+| Severity | Found | Fixed | Deferred |
+|---|---|---|---|
+| CRITICAL | 0 | — | — |
+| HIGH | 4 | 3 | 1 (false positive) |
+| MEDIUM | 5 | 4 | 1 (accepted) |
+| LOW | 3 | 0 | 3 (noted) |
+
+**Verdict:** The one genuinely dangerous finding — **shell injection
+via a crafted `~/.claude/projects/*/<stem>.jsonl` filename** flowing
+into `claude --resume <id>` — is closed, with a parameterized
+regression test (`ClaudeSessionStoreTests`). The remaining HIGH was a
+false positive (a main-run-loop `Timer` block can't fire off-main, so
+`MainActor.assumeIsolated` never traps; that code is also pre-v0.3, out
+of scope).
+
+### C2 — Fixed
+
+- **HIGH (security F1 / code) — shell injection via session id.** The
+  Claude session id is a transcript filename stem interpolated into the
+  `claude --resume <id>` shell command. A local process can plant any
+  filename under `~/.claude/projects/*/`, so a stem like `x; rm -rf ~ #`
+  would execute on Resume. `ClaudeSessionStore.isValidSessionID` now
+  requires a canonical `UUID(uuidString:)` — the only shape Claude Code
+  writes — so a crafted filename never reaches the shell. New
+  `ClaudeSessionStoreTests` (12 cases: real UUIDs accepted; metachars +
+  wrong shapes rejected).
+- **HIGH (code) — `PaneDividerView` tracking-area retain cycle.**
+  `NSTrackingArea(owner: self)` retains its owner, forming a self-cycle
+  that survived `removeFromSuperview` and leaked one divider per
+  split/resize rebuild. `removeFromSuperview()` now drops the tracking
+  areas (and the `onDrag` closure) to break it.
+- **HIGH (code) — `ClaudeSessionStore` blocked the main thread.**
+  `recentProjects()` (a dir stat + 16 KB read per project) ran
+  synchronously on `@MainActor` from `refreshClaudePanel`, janking the
+  sidebar on open / theme change / prefs change for users with many
+  projects. The store is no longer `@MainActor` (it's pure read-only
+  I/O) and the scan runs on a `Task.detached(.utility)`, hopping back to
+  MainActor only to swap the view.
+- **MEDIUM (security F2) — search needle injection.** `"search:\(needle)"`
+  is fed to libghostty's line/colon-delimited binding-action grammar.
+  Control chars are now stripped so a pasted needle can't smuggle a
+  second action (e.g. newline + `close_surface`).
+- **MEDIUM (security F3) — PII in the unified log.** `Diary.log`
+  forwarded every entry (including full cwd paths) to `NSLog`, which
+  lands in the system-wide unified log any local process can read. The
+  NSLog forward is now redacted (`Self.redact`) — the local diary file
+  keeps full fidelity, the shared log gets the home-username masked.
+- **MEDIUM (code) — `CommandPalette` kept a stale query.** The static
+  panel was never released, and `hidesOnDeactivate` bypassed `close()`,
+  so the typed needle survived into the next ⌘⇧P. `show()` now rebuilds
+  fresh and `close()` nils the panel (releasing its SwiftUI tree).
+- **MEDIUM (code) — `enableSessionPersistence` undid the opt-out.** With
+  restore OFF, AppDelegate clears the saved file, but the unconditional
+  immediate persist re-created it from the default launch tab. It's now
+  gated on `Preferences.restoreSessionOnLaunch`.
+- **MEDIUM (code) — NaN/∞ ratios in `WorkspaceStore.sanitise`.** The
+  `$0 > 0` ratio check rejected NaN/−∞ only by evaluation-order luck;
+  an explicit `&& $0.isFinite` now also rejects +∞ before it reaches
+  the layout math.
+- **LOW (security F4) — workspace name not path-guarded.** Names are
+  only JSON values today, but `WorkspacesStore.save` now rejects `/` and
+  NUL so the name stays safe to use as a filename component later.
+
+### C2 — Deferred
+
+- **HIGH (code) — `MainActor.assumeIsolated` in `Timer` blocks**
+  (AppDelegate tick + WorkspaceView agent poll). **False positive +
+  out of scope:** `Timer.scheduledTimer` adds to the main run loop,
+  which only the main thread drives, so the block always fires on
+  main and the assumption holds. Both timers are pre-v0.3 code that's
+  run fine for months. No change.
+- **MEDIUM (code) — `WorkspaceTab.focusedPane` can index out of
+  bounds** if read after `removePane` empties the tab. **Accepted:** the
+  invariant is enforced by callers (every `surfaceDidClose` path guards
+  `panes.isEmpty` before reading `focusedPane`, and `removePane` only
+  empties immediately before the tab is closed). Converting to an
+  Optional would cascade through ~10 call sites for a path no caller
+  currently reaches. Documented; revisit if a new caller appears.
+- **LOW (code) — `normalizeRatios` zero-sum path** is already guarded
+  (`guard sum > 0`); noted only.
+- **LOW (code) — `SearchOverlayView` 50 ms focus delay** is fragile
+  under load but works; a `@FocusState`-driven refactor isn't worth the
+  churn now.
+- **LOW (code) — `CommandPalette` panel-reuse** subsumed by the MEDIUM
+  fix above (now rebuilds fresh).
 
 ---
 
@@ -315,3 +411,6 @@ the codebase grows or the threat model shifts.
 - Fixes shipped in commit `11c65b3` (M11-A2)
 - Each finding cited file_path:line_number against the codebase as
   of commit `11c65b3`.
+- C2 follow-up: parallel security-reviewer + code-reviewer agent runs,
+  2026-06-03, scope v0.3.0–v0.4.2. Fixes shipped in v0.4.3; F1
+  regression test in `Tests/HerminalAppTests/ClaudeSessionStoreTests.swift`.

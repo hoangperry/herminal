@@ -710,15 +710,25 @@ final class WorkspaceView: NSView {
     // MARK: - Claude sessions panel (v0.4-S1)
 
     private func refreshClaudePanel() {
-        let sessions = ClaudeSessionStore.recentProjects()
-        claudePanelHost.rootView = AnyView(
-            ClaudeSessionsPanel(
-                sessions: sessions,
-                onResume: { [weak self] session in self?.resumeClaude(session) },
-                onOpenShell: { [weak self] session in self?.openShell(in: session.cwd, title: session.projectName) },
-                onRefresh: { [weak self] in self?.refreshClaudePanel() }
+        // Scanning ~/.claude/projects (a dir stat + 16 KB read per project)
+        // is filesystem I/O — keep it off the main thread so a user with
+        // hundreds of projects doesn't see the sidebar jank on open / theme
+        // change / prefs change. Hop back to MainActor to swap the view.
+        // (v0.4.3 review HIGH-4.)
+        Task { [weak self] in
+            let sessions = await Task.detached(priority: .utility) {
+                ClaudeSessionStore.recentProjects()
+            }.value
+            guard let self else { return }
+            self.claudePanelHost.rootView = AnyView(
+                ClaudeSessionsPanel(
+                    sessions: sessions,
+                    onResume: { [weak self] session in self?.resumeClaude(session) },
+                    onOpenShell: { [weak self] session in self?.openShell(in: session.cwd, title: session.projectName) },
+                    onRefresh: { [weak self] in self?.refreshClaudePanel() }
+                )
             )
-        )
+        }
     }
 
     /// Opens a tab that resumes the project's newest Claude conversation
@@ -995,7 +1005,14 @@ final class WorkspaceView: NSView {
     /// session prematurely.
     func enableSessionPersistence() {
         sessionPersistenceEnabled = true
-        persistWorkspace()
+        // Only write the immediate snapshot when restore is actually on.
+        // With restore off, AppDelegate has just cleared the saved file —
+        // an unconditional persist here would re-create it from the default
+        // launch tab and silently undo that opt-out. Later real mutations
+        // still persist via persistWorkspaceIfReady. (v0.4.3 review.)
+        if Preferences.restoreSessionOnLaunch {
+            persistWorkspace()
+        }
     }
 
     /// Writes the current workspace to disk. Always safe to call (used by
@@ -1116,8 +1133,11 @@ final class WorkspaceView: NSView {
         // subscription's lifetime to the overlay's.
         let cancellable = state.$needle.sink { [weak self, weak view] needle in
             guard let view, let _ = self else { return }
-            let action = "search:\(needle)"
-            view.runBindingActionForHarness(action)
+            // libghostty's binding-action grammar is line/colon-delimited;
+            // strip control chars so a pasted needle can't smuggle a second
+            // action (e.g. a newline + `close_surface`). v0.4.3 review F2.
+            let safe = needle.filter { !$0.isNewline && $0 != "\0" }
+            view.runBindingActionForHarness("search:\(safe)")
         }
         searchNeedleSubscription = cancellable
 

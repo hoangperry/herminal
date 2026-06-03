@@ -30,7 +30,14 @@ enum CommandPalette {
     }
 
     static func show() {
-        let palette = panel ?? makePanel()
+        // Always rebuild a fresh panel: reusing the cached one keeps its
+        // SwiftUI @State (the typed query + selection cursor) across opens,
+        // and `hidesOnDeactivate` orders the panel out without routing
+        // through close(), so a stale needle would survive the next ⌘⇧P.
+        // Tearing down + rebuilding guarantees an empty field every time
+        // and frees the hosting view between opens. (v0.4.3 review MED.)
+        close()
+        let palette = makePanel()
         panel = palette
 
         // Centre over the current key window — falls back to screen
@@ -53,6 +60,10 @@ enum CommandPalette {
 
     static func close() {
         panel?.orderOut(nil)
+        // Drop the strong ref so the panel + its SwiftUI hosting view
+        // deallocate; show() rebuilds fresh. (isReleasedWhenClosed is
+        // false, so nil-ing here is what actually releases it.)
+        panel = nil
     }
 
     private static func makePanel() -> NSPanel {
