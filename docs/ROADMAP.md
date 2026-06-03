@@ -95,15 +95,33 @@ input signal arrives that confirms the work's shape.
 - **Deferred:** Per-host keypair UI (security review needed
   first; .ssh/config is the canonical source today)
 
-### Theme C — Workspace ergonomics (slice 1 shipped)
+### Theme C — Workspace ergonomics (multiple slices shipped)
 - **Shipped:** Light theme variant (Q5-002)
+- **Shipped:** Drag-to-resize dividers (Q2-002) — v0.3.3 polish wave
+- **Shipped:** Auto-follow-system theme — v0.4.0 ("Follow System"
+  picker reading `NSApp.effectiveAppearance`)
 - **Deferred:** Recursive split trees (Q2-003) — tmux-style
   nesting. Wait: does beta hit the single-axis limit in real
   workflows?
-- **Deferred:** Drag-to-resize dividers (Q2-002) — current 50/50
-  split is good enough until someone asks
-- **Deferred:** Auto-follow-system theme — wait until people
-  actually use the theme toggle
+
+### Theme H — Sessions (✅ fully closed in v0.4.0-v0.4.2)
+
+The "terminal for devs living in Claude Code" continuity layer.
+Retro: `docs/backlog/v0.4-sessions-retrospective.md`.
+
+- **Shipped:** OSC 7 working-directory tracking + `working_directory`
+  spawn (v0.4.0 foundation)
+- **Shipped:** Claude session browser (⌘⇧C) — reads
+  `~/.claude/projects`, one-click `claude --resume` in the right cwd
+  (v0.4.0)
+- **Shipped:** Session restore — last layout + per-pane cwd reopened
+  on launch, toggle in Settings (v0.4.1)
+- **Shipped:** Named workspaces — save/open/delete layouts via the
+  Window menu + ⌃⌘S + palette (v0.4.2)
+- **Deferred:** Re-running commands on restore (opt-in per pane) —
+  conservative default is layout+cwd only; revisit if asked
+- **Deferred:** Live cwd in the status bar / tab title — tracked but
+  not yet surfaced in the UI
 
 ### Theme D — IME hardening (slices ready)
 - **Shipped:** Vietnamese checklist (20 phrases, owner runs live)
