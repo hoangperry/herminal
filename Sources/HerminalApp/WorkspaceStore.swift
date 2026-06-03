@@ -84,7 +84,7 @@ enum WorkspaceStore {
     /// Drops empty tabs, repairs out-of-range indices, validates each
     /// pane's cwd against the local filesystem (stale / remote dirs →
     /// nil so the shell opens at home), and renormalises ratios.
-    private static func sanitise(_ snapshot: WorkspaceSnapshot) -> WorkspaceSnapshot? {
+    static func sanitise(_ snapshot: WorkspaceSnapshot) -> WorkspaceSnapshot? {
         let fm = FileManager.default
         let tabs: [TabSnapshot] = snapshot.tabs.compactMap { tab in
             guard !tab.panes.isEmpty else { return nil }
