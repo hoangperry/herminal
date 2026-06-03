@@ -27,6 +27,9 @@ CHECKS=(
     # SET_TITLE / SET_TAB_TITLE silently returned false. Bake the
     # round-trip so future audits catch any other unhandled action.
     "v0.2.4 title   |verify-title.sh"
+    # v0.4.1: session restore was only ever hand-verified. Craft a
+    # snapshot, launch, assert dumpState restored the shape.
+    "v0.4.1 restore |verify-session-restore.sh"
 )
 
 # Special baseline call needs args (text + check-file).

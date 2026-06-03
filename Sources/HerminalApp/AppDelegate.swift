@@ -139,6 +139,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
             let dumpPath = Self.validatedDumpPath(env["HERMINAL_TEST_TITLE_DUMP"])
             scheduleTitleSmoke(into: workspace, dumpPath: dumpPath)
         }
+        if env["HERMINAL_TEST_RESTORE_DUMP"] != nil {
+            let dumpPath = Self.validatedDumpPath(env["HERMINAL_TEST_RESTORE_DUMP"])
+            scheduleRestoreDump(into: workspace, dumpPath: dumpPath)
+        }
+    }
+
+    /// Session-restore regression hook (v0.4.1 carry-forward). Restore
+    /// already ran in `applicationDidFinishLaunching` before this fires;
+    /// we just wait for the launch to settle, then dump the workspace
+    /// state so `verify-session-restore.sh` can assert the crafted
+    /// snapshot was rebuilt. Pure read — no mutation.
+    private func scheduleRestoreDump(into workspace: WorkspaceView, dumpPath: String?) {
+        NSLog("herminal: restore-dump armed (dump=\(dumpPath ?? "<unset>"))")
+        Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 3_000_000_000)
+            let state = workspace.dumpState()
+            NSLog("herminal: restore-dump state\n\(state)")
+            if let dumpPath {
+                try? state.write(toFile: dumpPath, atomically: true, encoding: .utf8)
+            }
+        }
     }
 
     /// OSC 0/2 title-set smoke (v0.2.4 regression-guard). Injects an
