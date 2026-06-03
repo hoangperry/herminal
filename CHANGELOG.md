@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.4] - 2026-06-03
+
+Live working directory surfacing — the terminal now always tells you
+where you are. Builds on the v0.4.0 OSC 7 cwd tracking.
+
+### Added
+
+- **Working directory in the status bar.** The bottom strip now leads
+  with the focused pane's current directory (abbreviated to `~`),
+  truncated from the middle so both the repo root and the leaf dir stay
+  readable. The diagnostic chips (tick p95 · agents · diary · theme)
+  move to the right.
+- **Git branch in the status bar.** When the cwd is inside a git repo,
+  the branch shows next to the path (`~/pet-project/herminal · main`).
+  Read straight from `.git/HEAD` on each `cd` — no `git` subprocess, no
+  polling.
+- **Working directory in the tab title.** A tab with no program-set
+  title now reads its cwd basename (`api`, `~`) instead of a static
+  "herminal". Programs that set their own title (vim, ssh, a prompt with
+  `PROMPT_COMMAND`) still win — the OSC 0/2 title always takes priority,
+  so nothing regresses for shells that already name their tabs.
+
 ## [0.4.3] - 2026-06-03
 
 Quality-hardening release. A parallel security + code-review pass (C2)

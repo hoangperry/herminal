@@ -118,10 +118,11 @@ Retro: `docs/backlog/v0.4-sessions-retrospective.md`.
   on launch, toggle in Settings (v0.4.1)
 - **Shipped:** Named workspaces — save/open/delete layouts via the
   Window menu + ⌃⌘S + palette (v0.4.2)
+- **Shipped:** Live cwd in the status bar + tab title, with git branch
+  next to the path (v0.4.4). Tab falls back to cwd basename only when no
+  program set an OSC title; the status bar always shows the full path.
 - **Deferred:** Re-running commands on restore (opt-in per pane) —
   conservative default is layout+cwd only; revisit if asked
-- **Deferred:** Live cwd in the status bar / tab title — tracked but
-  not yet surfaced in the UI
 
 ### Theme D — IME hardening (slices ready)
 - **Shipped:** Vietnamese checklist (20 phrases, owner runs live)

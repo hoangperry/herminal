@@ -33,11 +33,15 @@ struct StatusBarView: View {
 
     var body: some View {
         HStack(spacing: 16) {
+            // cwd is the headline — it sits on the left and truncates from
+            // the middle so the path's head + tail stay legible. The
+            // diagnostic chips are pushed to the right by the Spacer.
+            cwdChip
+            Spacer(minLength: 12)
             chip(label: "tick p95", value: snapshot.latencyText)
             chip(label: "agents", value: "\(snapshot.agentCount)")
             chip(label: "diary", value: snapshot.diarySizeText)
             chip(label: "theme", value: snapshot.themeText)
-            Spacer(minLength: 0)
         }
         .padding(.horizontal, 12)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -62,6 +66,34 @@ struct StatusBarView: View {
                 .foregroundColor(HerminalDesign.Palette.textPrimary)
         }
     }
+
+    /// The focused pane's working directory — a folder glyph + the path,
+    /// truncated from the middle when the window is narrow so both the
+    /// repo root and the leaf dir stay readable.
+    private var cwdChip: some View {
+        HStack(spacing: 6) {
+            Image(systemName: "folder")
+                .font(.system(size: 10, weight: .medium))
+                .foregroundColor(HerminalDesign.Palette.textSecondary)
+            Text(snapshot.cwdText)
+                .font(.system(size: 11, weight: .medium, design: .monospaced))
+                .foregroundColor(HerminalDesign.Palette.textPrimary)
+                .lineLimit(1)
+                .truncationMode(.middle)
+            if let branch = snapshot.gitBranch {
+                Image(systemName: "arrow.triangle.branch")
+                    .font(.system(size: 10, weight: .medium))
+                    .foregroundColor(HerminalDesign.Palette.accent)
+                    .padding(.leading, 2)
+                Text(branch)
+                    .font(.system(size: 11, weight: .medium, design: .monospaced))
+                    .foregroundColor(HerminalDesign.Palette.textSecondary)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+            }
+        }
+        .layoutPriority(1)
+    }
 }
 
 /// Snapshot of the live status. Sendable so SwiftUI can hand it across
@@ -73,13 +105,22 @@ struct StatusSnapshot: Sendable, Equatable {
     let latencyP95: Double?
     let diaryBytes: Int64
     let themeText: String
+    /// Focused pane's working directory, already abbreviated to ~. nil
+    /// when no pane has reported one (OSC 7) yet.
+    let cwd: String?
+    /// Focused pane's git branch, nil outside a repo.
+    let gitBranch: String?
 
     static let empty = StatusSnapshot(
         agentCount: 0,
         latencyP95: nil,
         diaryBytes: 0,
-        themeText: "—"
+        themeText: "—",
+        cwd: nil,
+        gitBranch: nil
     )
+
+    var cwdText: String { cwd ?? "—" }
 
     var latencyText: String {
         guard let value = latencyP95 else { return "—" }

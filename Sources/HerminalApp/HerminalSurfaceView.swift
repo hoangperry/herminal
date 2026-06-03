@@ -31,6 +31,11 @@ final class HerminalSurfaceView: NSView, ClipboardOwner, NSUserInterfaceValidati
     /// session browser. (v0.4-S1a.)
     private(set) var currentWorkingDirectory: String?
 
+    /// Current git branch of `currentWorkingDirectory`, recomputed each
+    /// time the cwd changes (cheap, event-driven). nil outside a repo.
+    /// (v0.4.4 status-bar surfacing.)
+    private(set) var currentGitBranch: String?
+
     /// IME composition (preedit) text — underlined text shown while composing,
     /// e.g. Vietnamese Telex "tieesng" before it commits to "tiếng".
     private var markedText = NSMutableAttributedString()
@@ -576,6 +581,9 @@ final class HerminalSurfaceView: NSView, ClipboardOwner, NSUserInterfaceValidati
     /// (v0.4-S1a.)
     func applyPwd(_ path: String) {
         currentWorkingDirectory = path.isEmpty ? nil : path
+        // Recompute the branch off the new cwd — a bounded `.git/HEAD`
+        // read, run once per shell prompt (not on a timer).
+        currentGitBranch = currentWorkingDirectory.flatMap { GitInfo.branch(forDirectory: $0) }
     }
 }
 

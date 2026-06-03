@@ -660,11 +660,18 @@ final class WorkspaceView: NSView {
     /// reads are cheap (one O(n log n) sort over ≤600 doubles, one Int,
     /// one stat(2), one enum read) so we don't need to cache anything.
     private func captureStatusSnapshot() -> StatusSnapshot {
-        StatusSnapshot(
+        // The focused pane's live cwd (OSC 7) + git branch, both cached on
+        // the surface (branch recomputed only on cd) — no filesystem I/O
+        // on the 1 Hz tick, just two string reads.
+        let surface = activeTab?.focusedPane.surfaceView
+        let cwd = surface?.currentWorkingDirectory.map { PathLabel.abbreviateHome($0) }
+        return StatusSnapshot(
             agentCount: latestAgentCount,
             latencyP95: LatencyProbe.shared.snapshotP95Milliseconds(),
             diaryBytes: Diary.shared.fileSizeBytes(),
-            themeText: Self.themeDisplayName()
+            themeText: Self.themeDisplayName(),
+            cwd: cwd,
+            gitBranch: surface?.currentGitBranch
         )
     }
 
@@ -1055,7 +1062,7 @@ final class WorkspaceView: NSView {
             // libghostty's OSC 0 with empty payload follows that
             // convention. Fall back to a stable label rather than
             // letting the tab title go blank.
-            pane.title = title.isEmpty ? "herminal" : title
+            pane.title = title.isEmpty ? TerminalSession.defaultTitle : title
             tabHost.rootView = makeTabBar()
             return
         }
@@ -1184,6 +1191,11 @@ final class WorkspaceView: NSView {
         guard let view = note.object as? HerminalSurfaceView,
               let pwd = note.userInfo?[GhosttyApp.surfacePwdKey] as? String else { return }
         view.applyPwd(pwd)
+        // The cwd feeds the tab label (when no program title is set) and
+        // the status-bar path chip. Rebuild the tab strip so the label
+        // tracks `cd` immediately; the status bar picks it up on its next
+        // 1 Hz tick. (v0.4.4 live-cwd surfacing.)
+        tabHost.rootView = makeTabBar()
     }
 
     @objc func surfaceDidClose(_ note: Notification) {

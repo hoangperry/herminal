@@ -65,7 +65,7 @@ final class WorkspaceTab: Identifiable {
     var focusedPane: TerminalSession { panes[focusedPaneIndex] }
 
     var title: String {
-        let base = focusedPane.title
+        let base = focusedPane.displayLabel
         return panes.count > 1 ? "\(base) (\(panes.count))" : base
     }
 

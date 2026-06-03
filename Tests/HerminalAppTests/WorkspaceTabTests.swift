@@ -168,4 +168,23 @@ struct WorkspaceTabTests {
         #expect(abs(snap.paneRatios[0] - 0.6) < 1e-9)
         #expect(abs(snap.paneRatios.reduce(0, +) - 1.0) < 1e-9)
     }
+
+    // MARK: - Tab label sourcing (v0.4.4 live cwd)
+
+    @Test("a tab with a cwd but no program title shows the cwd basename")
+    func tabLabelFallsBackToCwd() {
+        // No explicit title → stays the default → displayLabel uses cwd.
+        // Use a path that can't be the test machine's home so tabLabel
+        // returns the basename deterministically.
+        let tab = WorkspaceTab(app: dummyApp,
+                               workingDirectory: "/opt/herminal-fixture/api")
+        #expect(tab.title == "api")
+    }
+
+    @Test("a program-set title wins over the cwd")
+    func explicitTitleWinsOverCwd() {
+        let tab = WorkspaceTab(app: dummyApp, command: nil, title: "VIM - main.swift",
+                               workingDirectory: "/opt/herminal-fixture/api")
+        #expect(tab.title == "VIM - main.swift")
+    }
 }
