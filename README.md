@@ -69,13 +69,21 @@ dividers, light theme, group/search in SSH manager.
 
 ## Install
 
-### From a tagged release (recommended once v0.1.0 is published)
+### Homebrew (recommended)
 
-1. Download `herminal-v0.1.0.zip` from the
-   [Releases](https://github.com/hoangperry/herminal/releases) page.
-2. Unzip → drag `herminal.app` into `/Applications`.
-3. Launch. macOS may show the standard Gatekeeper notice the first
-   time; subsequent launches are silent (the build is notarized).
+```sh
+brew install --cask hoangperry/herminal/herminal
+```
+
+`brew upgrade --cask herminal` keeps it current. The cask installs a
+signed + notarized build, so Gatekeeper accepts it silently.
+
+### Direct download
+
+1. Grab `herminal-vX.Y.Z.dmg` from the
+   [Releases](https://github.com/hoangperry/herminal/releases/latest) page.
+2. Open the DMG → drag `herminal.app` into `/Applications`.
+3. Launch — first run is silent (the build is notarized + stapled).
 
 ### From source
 
