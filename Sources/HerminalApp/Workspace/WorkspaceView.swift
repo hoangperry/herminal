@@ -46,8 +46,12 @@ final class WorkspaceView: NSView {
     /// Draggable handles between split panes — one per gap (count - 1).
     /// Recycled across re-layouts; `refresh()` wipes surfaceContainer's
     /// subviews so layoutPanes re-attaches these on top of the panes.
-    /// (v0.3.3 drag-resize.)
-    private var paneDividers: [PaneDividerView] = []
+    /// One divider per split node, keyed by the node's id. (v0.3.3 →
+    /// v0.5 recursive tree.)
+    private var paneDividers: [UUID: PaneDividerView] = [:]
+    /// Each split node's rect from the last layout pass — a divider drag
+    /// is a fraction of ITS rect, not the whole container. (v0.5.)
+    private var splitFrames: [UUID: NSRect] = [:]
     /// Created lazily on first launch when `firstRunCompleted` is false,
     /// removed (and nil'd) after the user dismisses. Stays nil forever
     /// after that on every subsequent launch. (M12-P3)
@@ -344,76 +348,91 @@ final class WorkspaceView: NSView {
     /// hairline gap. Draggable divider handles overlay each gap.
     private func layoutPanes() {
         guard let tab = activeTab else {
-            syncDividers(needed: 0, isVertical: true)
+            syncDividers(specs: [])
             return
         }
         let bounds = surfaceContainer.bounds
-        let panes = tab.panes
-        let count = panes.count
-        guard count > 0 else {
-            syncDividers(needed: 0, isVertical: true)
-            return
-        }
-
-        if count == 1 {
-            panes[0].surfaceView.frame = bounds
-            syncDividers(needed: 0, isVertical: tab.isVerticalSplit)
-            return
-        }
-
-        let gap = Self.paneGap
-        let ratios = tab.paneRatios
-        // Defensive: ratios should always match panes, but guard against
-        // a transient desync rather than crash on a bad index.
-        guard ratios.count == count else {
-            syncDividers(needed: 0, isVertical: tab.isVerticalSplit)
-            return
-        }
-
-        if tab.isVerticalSplit {
-            let usable = max(bounds.width - gap * CGFloat(count - 1), 0)
-            var x: CGFloat = 0
-            for (index, pane) in panes.enumerated() {
-                let w = usable * ratios[index]
-                pane.surfaceView.frame = CGRect(x: x, y: 0, width: w, height: bounds.height)
-                x += w + gap
-            }
-        } else {
-            // Stacked; pane 0 sits at the top (NSView origin is bottom-left).
-            let usable = max(bounds.height - gap * CGFloat(count - 1), 0)
-            var topDistance: CGFloat = 0
-            for (index, pane) in panes.enumerated() {
-                let h = usable * ratios[index]
-                pane.surfaceView.frame = CGRect(
-                    x: 0,
-                    y: bounds.height - topDistance - h,
-                    width: bounds.width, height: h
-                )
-                topDistance += h + gap
-            }
-        }
-
-        syncDividers(needed: count - 1, isVertical: tab.isVerticalSplit)
-        positionDividers(in: bounds, isVertical: tab.isVerticalSplit)
+        guard bounds.width > 0, bounds.height > 0 else { return }
+        var specs: [DividerSpec] = []
+        var rects: [UUID: NSRect] = [:]
+        layoutNode(tab.root, in: bounds, tab: tab, dividers: &specs, splitRects: &rects)
+        splitFrames = rects
+        syncDividers(specs: specs)
     }
 
-    /// Ensures `paneDividers` holds exactly `needed` handles, each a
-    /// subview of `surfaceContainer` (re-attached after `refresh()`
-    /// wipes the container), with the current axis + drag callback.
-    private func syncDividers(needed: Int, isVertical: Bool) {
-        while paneDividers.count < needed {
-            let divider = PaneDividerView(frame: .zero)
-            paneDividers.append(divider)
+    /// Geometry for one split's divider, produced by the layout walk.
+    private struct DividerSpec {
+        let id: UUID
+        let isVertical: Bool
+        let rect: NSRect
+    }
+
+    /// Recursively assigns each leaf surface its frame and records a
+    /// divider on every split boundary. `rect` is in surfaceContainer
+    /// coordinates (NSView origin is bottom-left). (v0.5.)
+    private func layoutNode(_ node: LayoutNode, in rect: NSRect, tab: WorkspaceTab,
+                            dividers: inout [DividerSpec], splitRects: inout [UUID: NSRect]) {
+        switch node {
+        case let .leaf(id):
+            tab.surfaceView(for: id)?.frame = rect
+        case let .split(info):
+            splitRects[info.id] = rect
+            let gap = Self.paneGap
+            let hit = PaneDividerView.hitThickness
+            if info.axis == .vertical {
+                let usable = max(rect.width - gap, 0)
+                let firstW = usable * info.ratio
+                let firstRect = NSRect(x: rect.minX, y: rect.minY,
+                                       width: firstW, height: rect.height)
+                let secondRect = NSRect(x: rect.minX + firstW + gap, y: rect.minY,
+                                        width: usable - firstW, height: rect.height)
+                layoutNode(info.first, in: firstRect, tab: tab,
+                           dividers: &dividers, splitRects: &splitRects)
+                layoutNode(info.second, in: secondRect, tab: tab,
+                           dividers: &dividers, splitRects: &splitRects)
+                let centreX = rect.minX + firstW + gap / 2
+                dividers.append(DividerSpec(id: info.id, isVertical: true,
+                    rect: NSRect(x: centreX - hit / 2, y: rect.minY,
+                                 width: hit, height: rect.height)))
+            } else {
+                // Horizontal: `first` is the TOP child.
+                let usable = max(rect.height - gap, 0)
+                let firstH = usable * info.ratio
+                let firstRect = NSRect(x: rect.minX, y: rect.maxY - firstH,
+                                       width: rect.width, height: firstH)
+                let secondRect = NSRect(x: rect.minX, y: rect.minY,
+                                        width: rect.width, height: usable - firstH)
+                layoutNode(info.first, in: firstRect, tab: tab,
+                           dividers: &dividers, splitRects: &splitRects)
+                layoutNode(info.second, in: secondRect, tab: tab,
+                           dividers: &dividers, splitRects: &splitRects)
+                let centreY = rect.maxY - firstH - gap / 2
+                dividers.append(DividerSpec(id: info.id, isVertical: false,
+                    rect: NSRect(x: rect.minX, y: centreY - hit / 2,
+                                 width: rect.width, height: hit)))
+            }
         }
-        while paneDividers.count > needed {
-            paneDividers.removeLast().removeFromSuperview()
+    }
+
+    /// Reconciles live divider views to `specs` — one per split node,
+    /// keyed by the split id — positioning each and wiring its drag.
+    /// Re-attaches to surfaceContainer after `refresh()` wipes it.
+    private func syncDividers(specs: [DividerSpec]) {
+        let wanted = Set(specs.map { $0.id })
+        for (id, divider) in paneDividers where !wanted.contains(id) {
+            divider.removeFromSuperview()
+            paneDividers[id] = nil
         }
-        for (index, divider) in paneDividers.enumerated() {
-            divider.isVertical = isVertical
-            // Capture the divider index so the closure resizes the right
-            // pair. `index` is the gap between pane `index` and `index+1`.
+        for spec in specs {
+            let divider = paneDividers[spec.id] ?? {
+                let made = PaneDividerView(frame: .zero)
+                paneDividers[spec.id] = made
+                return made
+            }()
+            divider.isVertical = spec.isVertical
+            divider.frame = spec.rect
             divider.onDrag = { [weak self] delta in
-                self?.resizeDivider(at: index, byPointDelta: delta, isVertical: isVertical)
+                self?.resizeSplit(spec.id, byPointDelta: delta, isVertical: spec.isVertical)
             }
             if divider.superview !== surfaceContainer {
                 surfaceContainer.addSubview(divider)
@@ -421,42 +440,18 @@ final class WorkspaceView: NSView {
         }
     }
 
-    /// Positions each divider centred on the gap to the right of (or
-    /// below) pane `index`, using the pane frames the layout just set.
-    private func positionDividers(in bounds: NSRect, isVertical: Bool) {
-        guard let tab = activeTab else { return }
-        let panes = tab.panes
-        let hit = PaneDividerView.hitThickness
-        for (index, divider) in paneDividers.enumerated() {
-            guard panes.indices.contains(index) else { continue }
-            let frame = panes[index].surfaceView.frame
-            if isVertical {
-                // Gap sits just past the right edge of pane `index`.
-                let centreX = frame.maxX + Self.paneGap / 2
-                divider.frame = CGRect(
-                    x: centreX - hit / 2, y: 0,
-                    width: hit, height: bounds.height
-                )
-            } else {
-                // Gap sits just below the bottom edge of pane `index`.
-                let centreY = frame.minY - Self.paneGap / 2
-                divider.frame = CGRect(
-                    x: 0, y: centreY - hit / 2,
-                    width: bounds.width, height: hit
-                )
-            }
-        }
-    }
-
-    /// Translate a divider drag (points along the axis) into a ratio
-    /// shift and re-layout. (v0.3.3.)
-    private func resizeDivider(at index: Int, byPointDelta delta: CGFloat, isVertical: Bool) {
-        let extent = isVertical ? surfaceContainer.bounds.width : surfaceContainer.bounds.height
+    /// Translates a divider drag (points along the axis) into a ratio for
+    /// the split's OWN rect — not the whole container, which is what makes
+    /// nested splits resize correctly — then re-lays out. (v0.5.)
+    private func resizeSplit(_ id: UUID, byPointDelta delta: CGFloat, isVertical: Bool) {
+        guard let tab = activeTab, let rect = splitFrames[id],
+              let current = tab.ratio(ofSplit: id) else { return }
+        let extent = max((isVertical ? rect.width : rect.height) - Self.paneGap, 0)
         guard extent > 0 else { return }
-        // Vertical: dragging right (+x) grows the left pane.
-        // Horizontal: dragging down (−y) grows the upper pane, so flip.
-        let fraction = (isVertical ? delta : -delta) / extent
-        activeTab?.adjustDivider(at: index, byFraction: fraction)
+        // Vertical: dragging right (+x) grows the first (left) child.
+        // Horizontal: dragging down (−y) grows the first (top) child, flip.
+        let deltaFraction = (isVertical ? delta : -delta) / extent
+        tab.adjustRatio(splitID: id, to: current + deltaFraction)
         layoutPanes()
     }
 
@@ -1202,13 +1197,13 @@ final class WorkspaceView: NSView {
         guard let view = note.object as? HerminalSurfaceView else { return }
         // Locate the pane by identity.
         for (tabIndex, tab) in tabs.enumerated() {
-            guard let paneIndex = tab.panes.firstIndex(where: { $0.surfaceView === view }) else { continue }
+            guard let pane = tab.panes.first(where: { $0.surfaceView === view }) else { continue }
             // Drop the pane. If it was the last pane in the tab, the
             // whole tab disappears. Skip the note-confirm prompt — the
             // shell exited on its own, prompting the user "are you
             // sure?" right after they typed `exit` would be silly.
-            tab.removePane(at: paneIndex)
-            Diary.shared.log("surfaceDidClose tab=\(tabIndex) pane=\(paneIndex)", category: "panes")
+            tab.removePane(id: pane.id)
+            Diary.shared.log("surfaceDidClose tab=\(tabIndex) pane=\(pane.id)", category: "panes")
             if tab.panes.isEmpty {
                 closeTabImmediately(at: tabIndex)
             } else {
@@ -1397,7 +1392,15 @@ final class WorkspaceView: NSView {
             }
         }()
         let paneCounts = tabs.map { String($0.panes.count) }.joined(separator: ",")
-        let axis = activeTab.map { $0.isVerticalSplit ? "vertical" : "horizontal" } ?? "n/a"
+        // Report the root split's axis; a lone-leaf tab has no axis, so
+        // keep the pre-v0.5 default ("vertical") the smoke harness expects.
+        let axis: String = {
+            guard let root = activeTab?.root else { return "n/a" }
+            if case let .split(info) = root {
+                return info.axis == .vertical ? "vertical" : "horizontal"
+            }
+            return "vertical"
+        }()
         let focused = activeTab?.focusedPaneIndex ?? -1
         return """
         tabs=\(tabs.count)

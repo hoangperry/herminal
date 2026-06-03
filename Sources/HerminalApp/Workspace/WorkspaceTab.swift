@@ -1,9 +1,13 @@
 // WorkspaceTab — one tab. Holds one or more panes (terminal sessions)
-// arranged along a single split axis.
+// arranged in a recursive split TREE (v0.5).
 //
-// MVP scope: a tab splits along ONE axis (all panes side-by-side, or all
-// stacked). Recursive split trees (tmux-style nesting) are deferred — see
-// docs/backlog/month-2.md Q2-002.
+// v0.4.x split along a single axis (all side-by-side or all stacked).
+// v0.5 generalises to tmux/iTerm2-style nesting: any pane can split again
+// along either axis. The geometry lives in a `LayoutNode` tree; the
+// sessions live in a flat array the tree references by id. `panes` and
+// `focusedPane` are derived from the tree so the rest of the app — which
+// only iterates panes or reads the focused one — is unaffected by the
+// model change.
 
 import AppKit
 import GhosttyKit
@@ -11,128 +15,200 @@ import GhosttyKit
 @MainActor
 final class WorkspaceTab: Identifiable {
     nonisolated let id = UUID()
-    private(set) var panes: [TerminalSession]
-    /// true → panes sit side-by-side (vertical divider); false → stacked.
-    private(set) var isVerticalSplit: Bool
-    private(set) var focusedPaneIndex: Int
-    /// Fractional extent of each pane along the split axis. Sums to 1.0
-    /// and stays in lock-step with `panes`. Even-split is the default;
-    /// divider drag (v0.3.3) mutates this. Invariant: count ==
-    /// panes.count, every element ≥ `Self.minRatio`.
-    private(set) var paneRatios: [CGFloat]
 
-    /// A pane can't be dragged smaller than this fraction of the axis —
-    /// keeps a sliver always grabbable and avoids a 0-extent Metal
-    /// surface that libghostty would reject.
-    static let minRatio: CGFloat = 0.08
+    /// Every live session in this tab — the tree's leaves, stored flat for
+    /// identity lookups. `panes` returns them in the tree's reading order.
+    private var sessions: [TerminalSession]
+    /// The split tree. Leaves reference `sessions` by id.
+    private(set) var root: LayoutNode
+    /// The focused leaf's id. Invariant: always a live session.
+    private(set) var focusedPaneID: UUID
 
-    init(app: ghostty_app_t, command: String? = nil, title: String = "herminal",
+    init(app: ghostty_app_t, command: String? = nil,
+         title: String = TerminalSession.defaultTitle,
          workingDirectory: String? = nil) {
-        self.panes = [TerminalSession(
+        let session = TerminalSession(
             app: app, title: title, command: command, workingDirectory: workingDirectory
-        )]
-        self.isVerticalSplit = true
-        self.focusedPaneIndex = 0
-        self.paneRatios = [1.0]
+        )
+        self.sessions = [session]
+        self.root = .leaf(session.id)
+        self.focusedPaneID = session.id
     }
 
-    /// Rebuilds a tab from a restored `TabSnapshot` (v0.4.1 session
-    /// restore). Every pane spawns a plain shell in its saved cwd — the
-    /// snapshot never carries a command, so ssh/claude panes come back
-    /// as clean local shells (see WorkspaceStore header). The snapshot is
-    /// already sanitised (≥1 pane, ratios normalised, focus in range).
+    /// Rebuilds a tab from a restored `TabSnapshot` (session restore).
+    /// Every pane spawns a plain shell in its saved cwd — the snapshot
+    /// never carries a command, so ssh/claude panes come back as clean
+    /// local shells (see WorkspaceStore header). When the snapshot has a
+    /// `layout` tree we rebuild it; pre-v0.5 flat snapshots are folded
+    /// into a left-leaning chain along the saved axis.
     init(app: ghostty_app_t, restoring snapshot: TabSnapshot) {
-        let restoredPanes = snapshot.panes.map { pane in
+        let restored = snapshot.panes.map { pane in
             TerminalSession(app: app, command: nil, workingDirectory: pane.cwd)
         }
-        self.panes = restoredPanes
-        self.isVerticalSplit = snapshot.isVerticalSplit
-        self.focusedPaneIndex = min(max(snapshot.focusedPaneIndex, 0), max(restoredPanes.count - 1, 0))
-        self.paneRatios = snapshot.paneRatios.map { CGFloat($0) }
+        let live = restored.isEmpty ? [TerminalSession(app: app)] : restored
+        self.sessions = live
+
+        if let tree = snapshot.layout, Self.isValidTree(tree, count: live.count) {
+            self.root = Self.buildNode(from: tree, sessions: live)
+        } else {
+            self.root = Self.flatTree(
+                sessions: live,
+                vertical: snapshot.isVerticalSplit ?? true,
+                ratios: snapshot.paneRatios
+            )
+        }
+        let focus = min(max(snapshot.focusedPaneIndex, 0), live.count - 1)
+        self.focusedPaneID = live[focus].id
     }
 
-    /// Captures this tab's restorable state. Pane cwds come from the live
-    /// OSC 7 tracking on each surface. (v0.4.1.)
-    func snapshot() -> TabSnapshot {
-        TabSnapshot(
-            isVerticalSplit: isVerticalSplit,
-            focusedPaneIndex: focusedPaneIndex,
-            paneRatios: paneRatios.map { Double($0) },
-            panes: panes.map { PaneSnapshot(cwd: $0.surfaceView.currentWorkingDirectory) }
-        )
+    // MARK: - Derived views (preserve the pre-v0.5 API)
+
+    /// Panes in reading order (tree in-order traversal of leaves).
+    var panes: [TerminalSession] {
+        let byID = Dictionary(sessions.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
+        return root.leaves().compactMap { byID[$0] }
     }
 
-    var focusedPane: TerminalSession { panes[focusedPaneIndex] }
+    var focusedPane: TerminalSession {
+        sessions.first { $0.id == focusedPaneID } ?? sessions[0]
+    }
+
+    /// Index of the focused pane within `panes`. Back-compat for the
+    /// dump-state harness; the tree tracks focus by id internally.
+    var focusedPaneIndex: Int { panes.firstIndex { $0.id == focusedPaneID } ?? 0 }
 
     var title: String {
         let base = focusedPane.displayLabel
-        return panes.count > 1 ? "\(base) (\(panes.count))" : base
+        return sessions.count > 1 ? "\(base) (\(sessions.count))" : base
     }
 
-    /// Splits the focused pane, adding a new pane next to it.
-    /// The first split sets the tab's axis; later splits reuse it.
-    /// The focused pane's ratio is halved and the new pane takes the
-    /// other half, so the split is visually 50/50 of whatever the
-    /// focused pane currently occupies.
+    /// The surface for a given leaf id — the recursive layout looks panes
+    /// up by id as it walks the tree.
+    func surfaceView(for id: UUID) -> HerminalSurfaceView? {
+        sessions.first { $0.id == id }?.surfaceView
+    }
+
+    // MARK: - Mutations
+
+    /// Splits the focused pane in two along `vertical ? .vertical :
+    /// .horizontal`, 50/50, and moves focus to the new pane.
     func split(app: ghostty_app_t, vertical: Bool) {
-        if panes.count == 1 { isVerticalSplit = vertical }
-        let session = TerminalSession(app: app)
-        panes.insert(session, at: focusedPaneIndex + 1)
-        let half = paneRatios[focusedPaneIndex] / 2
-        paneRatios[focusedPaneIndex] = half
-        paneRatios.insert(half, at: focusedPaneIndex + 1)
-        focusedPaneIndex += 1
+        let new = TerminalSession(app: app)
+        sessions.append(new)
+        let axis: SplitAxis = vertical ? .vertical : .horizontal
+        let replacement = LayoutNode.split(SplitInfo(
+            id: UUID(), axis: axis, ratio: 0.5,
+            first: .leaf(focusedPaneID), second: .leaf(new.id)
+        ))
+        root = root.replacingLeaf(focusedPaneID, with: replacement)
+        focusedPaneID = new.id
     }
 
     /// Closes the focused pane. Returns true if the tab is now empty.
-    func closeFocusedPane() -> Bool {
-        panes.remove(at: focusedPaneIndex)
-        paneRatios.remove(at: focusedPaneIndex)
-        if panes.isEmpty { return true }
-        normalizeRatios()
-        focusedPaneIndex = min(focusedPaneIndex, panes.count - 1)
+    @discardableResult
+    func closeFocusedPane() -> Bool { remove(focusedPaneID) }
+
+    /// Removes a specific pane (used by the `surfaceDidClose` listener when
+    /// a PTY child dies — not necessarily the focused pane).
+    func removePane(id: UUID) { _ = remove(id) }
+
+    func focusPane(id: UUID) {
+        if sessions.contains(where: { $0.id == id }) { focusedPaneID = id }
+    }
+
+    /// Sets the ratio of a split node (driven by a divider drag).
+    func adjustRatio(splitID: UUID, to ratio: CGFloat) {
+        root = root.adjustingRatio(splitID: splitID, to: ratio)
+    }
+
+    /// Current ratio of a split — used to convert a drag delta to the new
+    /// absolute ratio.
+    func ratio(ofSplit id: UUID) -> CGFloat? { root.ratio(ofSplit: id) }
+
+    @discardableResult
+    private func remove(_ id: UUID) -> Bool {
+        guard sessions.contains(where: { $0.id == id }) else { return sessions.isEmpty }
+        // Pick the focus successor (sibling leaf) before we mutate the tree.
+        let successor = root.leafToFocusAfterRemoving(id)
+        sessions.removeAll { $0.id == id }
+        guard let newRoot = root.removingLeaf(id) else {
+            return true // that was the last pane → tab empty
+        }
+        root = newRoot
+        if focusedPaneID == id {
+            focusedPaneID = successor ?? newRoot.leaves().first ?? focusedPaneID
+        }
         return false
     }
 
-    /// Remove the pane at a specific index. Used by the
-    /// `surfaceDidClose` listener when libghostty tells us a PTY child
-    /// died — the pane to remove may not be the focused one.
-    func removePane(at index: Int) {
-        guard panes.indices.contains(index) else { return }
-        panes.remove(at: index)
-        paneRatios.remove(at: index)
-        if !panes.isEmpty { normalizeRatios() }
-        focusedPaneIndex = panes.isEmpty ? 0 : min(focusedPaneIndex, panes.count - 1)
+    // MARK: - Snapshot
+
+    func snapshot() -> TabSnapshot {
+        let ordered = panes
+        let indexByID = Dictionary(
+            ordered.enumerated().map { ($1.id, $0) }, uniquingKeysWith: { a, _ in a }
+        )
+        return TabSnapshot(
+            panes: ordered.map { PaneSnapshot(cwd: $0.surfaceView.currentWorkingDirectory) },
+            focusedPaneIndex: ordered.firstIndex { $0.id == focusedPaneID } ?? 0,
+            layout: Self.snapshotNode(root, indexByID: indexByID),
+            isVerticalSplit: nil,
+            paneRatios: nil
+        )
     }
 
-    func focusPane(at index: Int) {
-        guard panes.indices.contains(index) else { return }
-        focusedPaneIndex = index
-    }
+    // MARK: - Tree (de)serialization helpers
 
-    /// Move the divider between pane `index` and `index + 1` by
-    /// `fraction` of the total axis extent. Positive grows the
-    /// lower-index pane. Clamped so neither neighbour shrinks below
-    /// `minRatio`. (v0.3.3 drag-resize.)
-    func adjustDivider(at index: Int, byFraction fraction: CGFloat) {
-        guard paneRatios.indices.contains(index),
-              paneRatios.indices.contains(index + 1) else { return }
-        let left = paneRatios[index] + fraction
-        let right = paneRatios[index + 1] - fraction
-        guard left >= Self.minRatio, right >= Self.minRatio else { return }
-        paneRatios[index] = left
-        paneRatios[index + 1] = right
-    }
-
-    /// Rescale `paneRatios` so they sum to 1.0 — called after a remove
-    /// redistributes the closed pane's share across the survivors.
-    private func normalizeRatios() {
-        let sum = paneRatios.reduce(0, +)
-        guard sum > 0 else {
-            let even = 1.0 / CGFloat(max(paneRatios.count, 1))
-            paneRatios = Array(repeating: even, count: paneRatios.count)
-            return
+    private static func snapshotNode(_ node: LayoutNode, indexByID: [UUID: Int]) -> LayoutSnapshot {
+        switch node {
+        case let .leaf(id):
+            return .leaf(indexByID[id] ?? 0)
+        case let .split(info):
+            return .split(axis: info.axis, ratio: Double(info.ratio),
+                          first: snapshotNode(info.first, indexByID: indexByID),
+                          second: snapshotNode(info.second, indexByID: indexByID))
         }
-        paneRatios = paneRatios.map { $0 / sum }
+    }
+
+    private static func isValidTree(_ tree: LayoutSnapshot, count: Int) -> Bool {
+        tree.leafIndices().sorted() == Array(0..<count)
+    }
+
+    private static func buildNode(from snap: LayoutSnapshot, sessions: [TerminalSession]) -> LayoutNode {
+        switch snap {
+        case let .leaf(i):
+            return .leaf(sessions[i].id)
+        case let .split(axis, ratio, first, second):
+            let clamped = min(max(CGFloat(ratio), LayoutNode.minRatio), 1 - LayoutNode.minRatio)
+            return .split(SplitInfo(
+                id: UUID(), axis: axis, ratio: clamped,
+                first: buildNode(from: first, sessions: sessions),
+                second: buildNode(from: second, sessions: sessions)
+            ))
+        }
+    }
+
+    /// Folds a flat (pre-v0.5) layout into a left-leaning chain along
+    /// `axis`, preserving the per-pane proportions from `ratios`.
+    private static func flatTree(sessions: [TerminalSession],
+                                 vertical: Bool, ratios: [Double]?) -> LayoutNode {
+        let axis: SplitAxis = vertical ? .vertical : .horizontal
+        let weights: [Double] = {
+            if let r = ratios, r.count == sessions.count, r.allSatisfy({ $0 > 0 && $0.isFinite }) {
+                return r
+            }
+            return Array(repeating: 1.0, count: sessions.count)
+        }()
+        func build(_ start: Int) -> LayoutNode {
+            if start >= sessions.count - 1 { return .leaf(sessions[start].id) }
+            let remaining = weights[start...].reduce(0, +)
+            let ratio = remaining > 0 ? CGFloat(weights[start] / remaining) : 0.5
+            let clamped = min(max(ratio, LayoutNode.minRatio), 1 - LayoutNode.minRatio)
+            return .split(SplitInfo(
+                id: UUID(), axis: axis, ratio: clamped,
+                first: .leaf(sessions[start].id), second: build(start + 1)
+            ))
+        }
+        return build(0)
     }
 }

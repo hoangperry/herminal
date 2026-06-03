@@ -7,15 +7,21 @@
 // rather than UserDefaults — it's a structured tree that can grow, and a
 // human-readable file is easier to inspect / nuke than an opaque plist.
 //
-// Restore policy (deliberately conservative for v0.4.1):
-//  - We restore the LAYOUT (tabs, split axis, pane ratios, focus) and
-//    each pane's last working directory, spawning a PLAIN SHELL in each.
+// Restore policy (deliberately conservative since v0.4.1):
+//  - We restore the LAYOUT (the split tree + per-pane working directory),
+//    spawning a PLAIN SHELL in each pane.
 //  - We do NOT re-run ssh / claude / arbitrary commands. Those are
 //    side-effectful (opening network connections, resuming an LLM
 //    session) and surprising to fire on every launch. The cwd of an
 //    ssh pane may also be a remote path — `load()` validates every cwd
 //    against the local filesystem and drops it (→ home) if it doesn't
 //    resolve, so a former ssh pane degrades to a clean local shell.
+//
+// Format note (v0.5): the layout is now a binary split TREE
+// (`LayoutSnapshot`). Pre-v0.5 files were flat (a single axis +
+// `paneRatios`); those fields are kept optional so old `workspace.json`
+// still loads — `WorkspaceTab.init(restoring:)` rebuilds a flat tree from
+// them when `layout` is absent.
 
 import Foundation
 
@@ -27,13 +33,33 @@ struct PaneSnapshot: Codable, Sendable, Equatable {
     var cwd: String?
 }
 
-/// One tab: its split geometry + the panes inside it.
+/// Serialized split tree. Leaves reference panes by INDEX into
+/// `TabSnapshot.panes` — restore builds fresh sessions, so there's no
+/// stable id to carry across launches. (Swift auto-synthesizes Codable
+/// for this enum.)
+indirect enum LayoutSnapshot: Codable, Sendable, Equatable {
+    case leaf(Int)
+    case split(axis: SplitAxis, ratio: Double, first: LayoutSnapshot, second: LayoutSnapshot)
+
+    /// Every leaf index in the tree, in-order.
+    func leafIndices() -> [Int] {
+        switch self {
+        case let .leaf(i): return [i]
+        case let .split(_, _, first, second): return first.leafIndices() + second.leafIndices()
+        }
+    }
+}
+
+/// One tab: its panes + the split tree binding them together.
 struct TabSnapshot: Codable, Sendable, Equatable {
-    var isVerticalSplit: Bool
-    var focusedPaneIndex: Int
-    /// Fractional pane extents along the split axis (sums to ~1.0).
-    var paneRatios: [Double]
     var panes: [PaneSnapshot]
+    var focusedPaneIndex: Int
+    /// The split tree (v0.5+). nil in pre-v0.5 files — those are flat and
+    /// rebuilt from the legacy axis + ratios below.
+    var layout: LayoutSnapshot?
+    // Pre-v0.5 flat layout — optional so old workspace.json still decodes.
+    var isVerticalSplit: Bool?
+    var paneRatios: [Double]?
 }
 
 /// The whole workspace at quit time.
@@ -83,7 +109,8 @@ enum WorkspaceStore {
 
     /// Drops empty tabs, repairs out-of-range indices, validates each
     /// pane's cwd against the local filesystem (stale / remote dirs →
-    /// nil so the shell opens at home), and renormalises ratios.
+    /// nil so the shell opens at home), and drops a layout tree that
+    /// doesn't reference exactly the surviving panes (→ flat fallback).
     static func sanitise(_ snapshot: WorkspaceSnapshot) -> WorkspaceSnapshot? {
         let fm = FileManager.default
         let tabs: [TabSnapshot] = snapshot.tabs.compactMap { tab in
@@ -94,24 +121,29 @@ enum WorkspaceStore {
                 let exists = fm.fileExists(atPath: cwd, isDirectory: &isDir)
                 return PaneSnapshot(cwd: (exists && isDir.boolValue) ? cwd : nil)
             }
-            // Ratios must match pane count; fall back to even if not.
-            // `$0 > 0` already rejects NaN and -∞; `isFinite` also rejects
-            // +∞, so a corrupt JSON ratio can never reach the layout math.
-            let ratios: [Double]
-            if tab.paneRatios.count == panes.count,
-               tab.paneRatios.allSatisfy({ $0 > 0 && $0.isFinite }) {
-                let sum = tab.paneRatios.reduce(0, +)
-                ratios = sum > 0 ? tab.paneRatios.map { $0 / sum }
-                                 : Array(repeating: 1.0 / Double(panes.count), count: panes.count)
-            } else {
-                ratios = Array(repeating: 1.0 / Double(panes.count), count: panes.count)
-            }
+            // A layout tree only survives if its leaves are exactly the
+            // panes 0..<count (each referenced once) — otherwise it can't
+            // be rebuilt safely, so drop it and let restore fall back to a
+            // flat even split.
+            let layout: LayoutSnapshot? = {
+                guard let tree = tab.layout else { return nil }
+                let indices = tree.leafIndices().sorted()
+                return indices == Array(0..<panes.count) ? tree : nil
+            }()
+            // Legacy flat fields (only used when `layout` is nil) — keep a
+            // ratio array that matches the pane count, else drop to even.
+            let legacyRatios: [Double]? = {
+                guard let r = tab.paneRatios, r.count == panes.count,
+                      r.allSatisfy({ $0 > 0 && $0.isFinite }) else { return nil }
+                return r
+            }()
             let focus = min(max(tab.focusedPaneIndex, 0), panes.count - 1)
             return TabSnapshot(
-                isVerticalSplit: tab.isVerticalSplit,
+                panes: panes,
                 focusedPaneIndex: focus,
-                paneRatios: ratios,
-                panes: panes
+                layout: layout,
+                isVerticalSplit: tab.isVerticalSplit,
+                paneRatios: legacyRatios
             )
         }
         guard !tabs.isEmpty else { return nil }

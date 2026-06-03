@@ -56,19 +56,34 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
             notesStore: AppDelegate.makeNotesStore(),
             sshHostsStore: AppDelegate.makeSSHHostsStore()
         )
-        workspace.applyRestoredSidebarState(savedState)
+        // The smoke-plan harness asserts an exact tab/pane + sidebar shape
+        // from a clean default start, so it must NOT restore a prior
+        // session or sidebar state on top — and it must not persist (which
+        // would clobber the owner's real workspace.json with the test's
+        // throwaway layout). Detected here (debug-only) so the harness
+        // stays fully isolated from the owner's saved state.
+        var smokeIsolation = false
+        #if DEBUG
+        smokeIsolation = ProcessInfo.processInfo.environment["HERMINAL_TEST_SMOKE_PLAN"] != nil
+        #endif
+        if !smokeIsolation {
+            workspace.applyRestoredSidebarState(savedState)
+        }
+
         // v0.4.1 — session restore. If the owner left the restore
         // preference on and a snapshot exists, rebuild the tab/pane/split
         // layout (each pane a plain shell in its last cwd). Then enable
         // persistence so subsequent structural changes are saved. When
         // restore is off, clear any stale snapshot so it doesn't resurrect
         // later if the owner flips the toggle back on.
-        if Preferences.restoreSessionOnLaunch, let snapshot = WorkspaceStore.load() {
+        if !smokeIsolation, Preferences.restoreSessionOnLaunch, let snapshot = WorkspaceStore.load() {
             workspace.restoreWorkspace(snapshot)
-        } else if !Preferences.restoreSessionOnLaunch {
+        } else if !smokeIsolation, !Preferences.restoreSessionOnLaunch {
             WorkspaceStore.clear()
         }
-        workspace.enableSessionPersistence()
+        if !smokeIsolation {
+            workspace.enableSessionPersistence()
+        }
         self.workspace = workspace
         let window = AppDelegate.makeWindow(contentView: workspace,
                                             savedFrame: savedState.frame)

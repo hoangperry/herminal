@@ -74,6 +74,36 @@ indirect enum LayoutNode: Equatable, Sendable {
         }
     }
 
+    /// The current ratio of the split identified by `splitID`, if present.
+    /// Used to turn a divider drag delta into the new absolute ratio.
+    func ratio(ofSplit splitID: UUID) -> CGFloat? {
+        switch self {
+        case .leaf:
+            return nil
+        case let .split(info):
+            if info.id == splitID { return info.ratio }
+            return info.first.ratio(ofSplit: splitID) ?? info.second.ratio(ofSplit: splitID)
+        }
+    }
+
+    /// The sibling leaf to focus after `target` is closed: the first leaf
+    /// of `target`'s sibling subtree. nil if `target` is the whole tree.
+    func leafToFocusAfterRemoving(_ target: UUID) -> UUID? {
+        switch self {
+        case .leaf:
+            return nil
+        case let .split(info):
+            if case let .leaf(id) = info.first, id == target {
+                return info.second.leaves().first
+            }
+            if case let .leaf(id) = info.second, id == target {
+                return info.first.leaves().first
+            }
+            return info.first.leafToFocusAfterRemoving(target)
+                ?? info.second.leafToFocusAfterRemoving(target)
+        }
+    }
+
     // MARK: - Mutations (return a new tree)
 
     /// Replaces the leaf `target` with `replacement` (used to split a
