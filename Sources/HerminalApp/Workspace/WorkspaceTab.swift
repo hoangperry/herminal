@@ -162,7 +162,12 @@ final class WorkspaceTab: Identifiable {
     private static func snapshotNode(_ node: LayoutNode, indexByID: [UUID: Int]) -> LayoutSnapshot {
         switch node {
         case let .leaf(id):
-            return .leaf(indexByID[id] ?? 0)
+            if let index = indexByID[id] { return .leaf(index) }
+            // Unreachable under the sessions⇄tree invariant. Surface it
+            // instead of silently coercing, so a future desync is visible
+            // (restore would then drop to the flat fallback). (v0.5 review.)
+            NSLog("herminal: snapshotNode leaf without a session index — tree/sessions desync")
+            return .leaf(0)
         case let .split(info):
             return .split(axis: info.axis, ratio: Double(info.ratio),
                           first: snapshotNode(info.first, indexByID: indexByID),

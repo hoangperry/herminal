@@ -147,7 +147,10 @@ indirect enum LayoutNode: Equatable, Sendable {
             if let newSecond = info.second.removingLeaf(target) {
                 copy.second = newSecond
             } else {
-                return copy.first
+                // Read the ORIGINAL left subtree, not `copy.first` — they're
+                // equal here under the single-leaf-instance invariant, but
+                // `info.first` is unambiguously correct if that ever breaks.
+                return info.first
             }
             return .split(copy)
         }

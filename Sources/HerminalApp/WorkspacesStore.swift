@@ -37,8 +37,15 @@ enum WorkspacesStore {
 
     /// All saved workspaces, sorted by name (stable menu order).
     static func all() -> [NamedWorkspace] {
-        guard let data = try? Data(contentsOf: fileURL),
-              let list = try? JSONDecoder().decode([NamedWorkspace].self, from: data) else {
+        guard let data = try? Data(contentsOf: fileURL) else { return [] }
+        // Reject a pathologically deep tree before the recursive Codable
+        // decode can overflow the stack — same guard as WorkspaceStore,
+        // since this file is equally user-editable (v0.5 security review).
+        guard !JSONDepthGuard.exceedsMaxDepth(data) else {
+            NSLog("herminal: workspaces.json exceeds max nesting depth — ignoring")
+            return []
+        }
+        guard let list = try? JSONDecoder().decode([NamedWorkspace].self, from: data) else {
             return []
         }
         return list.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
@@ -64,7 +71,13 @@ enum WorkspacesStore {
     }
 
     static func workspace(named name: String) -> NamedWorkspace? {
-        all().first { $0.name == name }
+        // Run the saved snapshot through the same sanitiser the launch
+        // restore path uses, so a named workspace gets cwd validation +
+        // index clamping + tree validation too (v0.5 review — the named
+        // path previously bypassed it). nil if nothing usable survives.
+        guard let found = all().first(where: { $0.name == name }),
+              let clean = WorkspaceStore.sanitise(found.snapshot) else { return nil }
+        return NamedWorkspace(name: found.name, snapshot: clean)
     }
 
     private static func write(_ list: [NamedWorkspace]) {

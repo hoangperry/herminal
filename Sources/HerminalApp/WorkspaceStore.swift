@@ -94,8 +94,14 @@ enum WorkspaceStore {
     /// Loads and sanitises the snapshot. Returns nil when there's nothing
     /// usable to restore (no file, empty, or every tab pruned away).
     static func load() -> WorkspaceSnapshot? {
-        guard let data = try? Data(contentsOf: fileURL),
-              let raw = try? JSONDecoder().decode(WorkspaceSnapshot.self, from: data) else {
+        guard let data = try? Data(contentsOf: fileURL) else { return nil }
+        // Reject a pathologically deep tree before the recursive Codable
+        // decode can overflow the stack (v0.5 security review — CRITICAL).
+        guard !JSONDepthGuard.exceedsMaxDepth(data) else {
+            NSLog("herminal: workspace.json exceeds max nesting depth — ignoring")
+            return nil
+        }
+        guard let raw = try? JSONDecoder().decode(WorkspaceSnapshot.self, from: data) else {
             return nil
         }
         return sanitise(raw)

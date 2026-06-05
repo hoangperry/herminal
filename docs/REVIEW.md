@@ -1,11 +1,78 @@
-# Review report — M11-A (2026-05-25) + M13 (2026-05-26) + C2 (2026-06-03)
+# Review report — M11-A · M13 · C2 · v0.5
 
 Parallel code-reviewer + security-reviewer agents audited the v0.1.0
 codebase before publish (M11-A), again after the M12 polish slices
-landed (M13 follow-up), and a third time over the v0.3.0–v0.4.2 surface
-that had never been reviewed (C2). This document captures what they
-found, what shipped fixed, and what stays deferred — so future reviews
-start from the right baseline.
+landed (M13), a third time over the v0.3.0–v0.4.2 surface (C2), and a
+fourth over the v0.5 recursive-split-tree refactor. This document
+captures what they found, what shipped fixed, and what stays deferred —
+so future reviews start from the right baseline.
+
+---
+
+## v0.5 follow-up (2026-06-04, scope: recursive split-tree refactor)
+
+The single-axis pane model became a binary `LayoutNode` tree (v0.5.0,
+commits `208301c`/`6ae170d`). Both reviewers ran against that diff. The
+pattern held: every pass has found a real issue, and this one surfaced a
+genuine **CRITICAL**.
+
+| Severity | Found | Fixed | Deferred |
+|---|---|---|---|
+| CRITICAL | 1 | 1 | 0 |
+| HIGH | 2 | 2 | 0 |
+| MEDIUM | 2 | 1 | 1 (accepted) |
+| LOW | 1 | — | 1 (false positive, cleared) |
+
+**Verdict:** The CRITICAL boot-loop DoS is closed. The persisted layout
+tree is now depth-guarded before decode and named workspaces go through
+the same sanitiser as launch restore.
+
+### v0.5 — Fixed
+
+- **CRITICAL — stack overflow via deeply-nested layout JSON.**
+  `LayoutSnapshot` is an `indirect enum`, so `JSONDecoder` recurses while
+  decoding. A crafted/corrupt `workspace.json` (or `workspaces.json`)
+  with thousands of nested `.split` nodes overflowed the stack *inside
+  the decoder* — before `sanitise` ran — crashing on launch in an
+  unrecoverable boot loop (the file reloads → re-crashes). New
+  `JSONDepthGuard.exceedsMaxDepth` does a single iterative byte pass
+  (no recursion, skips string contents) rejecting anything past 200
+  nesting levels; `WorkspaceStore.load()` and `WorkspacesStore.all()`
+  both call it before decoding. 6 unit tests.
+- **HIGH — named-workspace restore bypassed `sanitise`.** Opening a saved
+  workspace went `WorkspacesStore.workspace(named:)` →
+  `restoreWorkspace` without the launch path's sanitiser, so cwd paths
+  were never validated against the filesystem (stale/remote dirs reached
+  the PTY) and the depth guard never ran on `workspaces.json`. (The
+  index-out-of-bounds crash both agents floated is **already gated** —
+  `WorkspaceTab.init(restoring:)` only calls `buildNode` when
+  `isValidTree` confirms the leaf set is exactly `0..<count`, so an
+  out-of-range index falls back to a flat tree, never subscripts.)
+  `workspace(named:)` now runs the snapshot through `WorkspaceStore.sanitise`.
+- **HIGH — `LayoutNode.removingLeaf` returned `copy.first`.** The second
+  collapse branch read the already-mutated `copy.first` instead of the
+  original `info.first`. Equal under the single-leaf-instance invariant
+  (no crash today), but corrupting if that invariant ever breaks — now
+  `return info.first`, unambiguously correct.
+- **MEDIUM — silent `snapshotNode` coercion.** A leaf id with no matching
+  session index silently became `.leaf(0)`. Unreachable under the
+  sessions⇄tree invariant, but it now logs the desync instead of hiding
+  it (restore would drop to the flat fallback).
+
+### v0.5 — Deferred / accepted
+
+- **MEDIUM — `focusedPane`'s `?? sessions[0]`** traps if `sessions` is
+  empty. Invariant-protected (the only emptying path returns "tab empty"
+  and the caller closes the tab before any further `focusedPane` access),
+  and both agents agree it's unreachable. Making it Optional cascades
+  through ~10 call sites; **accepted + documented**, consistent with the
+  C2 decision on the same property.
+- **MEDIUM — `splitFrames` staleness** between a layout pass and a divider
+  drag: self-corrects on the next event (every `resizeSplit` re-runs
+  `layoutPanes`). Benign; no change.
+- **LOW — `smokeIsolation` env hook** (`HERMINAL_TEST_SMOKE_PLAN`): the
+  security reviewer **confirmed it's `#if DEBUG`-only** and
+  dead-code-eliminated in release. False positive, cleared.
 
 ---
 
@@ -414,3 +481,7 @@ the codebase grows or the threat model shifts.
 - C2 follow-up: parallel security-reviewer + code-reviewer agent runs,
   2026-06-03, scope v0.3.0–v0.4.2. Fixes shipped in v0.4.3; F1
   regression test in `Tests/HerminalAppTests/ClaudeSessionStoreTests.swift`.
+- v0.5 follow-up: parallel code-reviewer + security-reviewer agent runs,
+  2026-06-04, scope the recursive split-tree refactor. CRITICAL depth-of-
+  decode fix in `JSONDepthGuard` (+ `JSONDepthGuardTests`); HIGH fixes in
+  `WorkspacesStore.workspace(named:)` + `LayoutNode.removingLeaf`.

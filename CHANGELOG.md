@@ -30,6 +30,15 @@ Recursive split trees — panes now nest like tmux / iTerm2.
   tree; **pre-v0.5 saved sessions still load** — a flat layout folds into
   the equivalent tree on first launch.
 
+### Security
+
+- A parallel code + security review of the refactor (see `docs/REVIEW.md`)
+  closed a **boot-loop DoS**: a corrupt or crafted `workspace.json` /
+  `workspaces.json` with a deeply-nested layout tree could overflow the
+  stack inside the JSON decoder on launch. Both files are now
+  depth-checked before decoding, and opening a named workspace runs the
+  same sanitiser (cwd validation included) as launch restore.
+
 ## [0.4.4] - 2026-06-03
 
 Live working directory surfacing — the terminal now always tells you
