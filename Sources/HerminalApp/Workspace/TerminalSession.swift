@@ -14,6 +14,11 @@ final class TerminalSession: Identifiable {
     nonisolated let id = UUID()
     let surfaceView: HerminalSurfaceView
     var title: String
+    /// The command this pane was spawned with (ssh / claude from the
+    /// managers), or nil for a plain login shell. Persisted in the
+    /// snapshot so "re-run commands on restore" (v0.5.4, opt-in) can
+    /// replay it; a plain shell carries nil and is never replayed.
+    let command: String?
     /// Wall-clock creation time. Used by `AgentPaneMapper` to pair this
     /// session with the libghostty login process spawned alongside it
     /// (Nth-oldest login → Nth-oldest session).
@@ -25,6 +30,7 @@ final class TerminalSession: Identifiable {
             app: app, command: command, workingDirectory: workingDirectory
         )
         self.title = title
+        self.command = command
         self.createdAt = Date().timeIntervalSince1970
     }
 

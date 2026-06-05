@@ -34,6 +34,7 @@ public enum Preferences {
         public static let showStatusBar = "preferences.window.statusBar"
         public static let confirmCloseWithNote = "preferences.window.confirmCloseWithNote"
         public static let restoreSessionOnLaunch = "preferences.window.restoreSession"
+        public static let rerunCommandsOnRestore = "preferences.window.rerunCommandsOnRestore"
         public static let firstRunCompleted = "preferences.firstRun.completed"
     }
 
@@ -74,6 +75,7 @@ public enum Preferences {
             Key.showStatusBar: true,
             Key.confirmCloseWithNote: true,
             Key.restoreSessionOnLaunch: true,
+            Key.rerunCommandsOnRestore: false,  // conservative: layout+cwd only
             Key.firstRunCompleted: false,
         ]
     }
@@ -136,6 +138,13 @@ public enum Preferences {
 
     public static var restoreSessionOnLaunch: Bool {
         UserDefaults.standard.bool(forKey: Key.restoreSessionOnLaunch)
+    }
+
+    /// Opt-in: replay each pane's ssh/claude spawn command on restore
+    /// instead of opening a plain shell. Default false (see registered
+    /// defaults) — restoring stays side-effect-free unless asked.
+    public static var rerunCommandsOnRestore: Bool {
+        UserDefaults.standard.bool(forKey: Key.rerunCommandsOnRestore)
     }
 
     public static var firstRunCompleted: Bool {

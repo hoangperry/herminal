@@ -41,9 +41,13 @@ final class WorkspaceTab: Identifiable {
     /// local shells (see WorkspaceStore header). When the snapshot has a
     /// `layout` tree we rebuild it; pre-v0.5 flat snapshots are folded
     /// into a left-leaning chain along the saved axis.
-    init(app: ghostty_app_t, restoring snapshot: TabSnapshot) {
+    init(app: ghostty_app_t, restoring snapshot: TabSnapshot, rerunCommands: Bool = false) {
         let restored = snapshot.panes.map { pane in
-            TerminalSession(app: app, command: nil, workingDirectory: pane.cwd)
+            // Conservative default: each pane comes back as a plain shell.
+            // Only when the owner opted into "re-run commands on restore"
+            // do we replay the saved ssh/claude command (validated first).
+            let command = rerunCommands ? Self.safeRerunCommand(pane.command) : nil
+            return TerminalSession(app: app, command: command, workingDirectory: pane.cwd)
         }
         let live = restored.isEmpty ? [TerminalSession(app: app)] : restored
         self.sessions = live
@@ -152,12 +156,25 @@ final class WorkspaceTab: Identifiable {
             ordered.enumerated().map { ($1.id, $0) }, uniquingKeysWith: { a, _ in a }
         )
         return TabSnapshot(
-            panes: ordered.map { PaneSnapshot(cwd: $0.surfaceView.currentWorkingDirectory) },
+            panes: ordered.map {
+                PaneSnapshot(cwd: $0.surfaceView.currentWorkingDirectory, command: $0.command)
+            },
             focusedPaneIndex: ordered.firstIndex { $0.id == focusedPaneID } ?? 0,
             layout: Self.snapshotNode(root, indexByID: indexByID),
             isVerticalSplit: nil,
             paneRatios: nil
         )
+    }
+
+    /// Vets a persisted spawn command before replaying it on restore.
+    /// Re-run is already opt-in and `workspace.json` is owner-owned, but a
+    /// hand-edited file shouldn't be able to smuggle a second command via
+    /// a newline (the spawn runs through the shell), so reject anything
+    /// carrying control characters. nil/empty → no command (plain shell).
+    static func safeRerunCommand(_ raw: String?) -> String? {
+        guard let raw, !raw.isEmpty else { return nil }
+        guard !raw.contains(where: { $0.isNewline || $0 == "\0" }) else { return nil }
+        return raw
     }
 
     // MARK: - Tree (de)serialization helpers

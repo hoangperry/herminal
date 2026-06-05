@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.4] - 2026-06-06
+
+Completes the Sessions milestone.
+
+### Added
+
+- **Re-run commands on restore (opt-in).** A new Settings toggle —
+  "Re-run ssh / claude commands on restore" (off by default) — makes
+  session restore replay each pane's original `ssh` / `claude` command
+  instead of opening a plain shell. Off, restore stays exactly as before:
+  layout + working directory only, no automatic network or LLM sessions.
+  The spawn command is now saved per pane in `workspace.json`; on replay
+  it's validated (control characters rejected) so a hand-edited file
+  can't smuggle a second command.
+
 ## [0.5.3] - 2026-06-05
 
 UX + performance refinement.

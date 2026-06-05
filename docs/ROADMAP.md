@@ -128,8 +128,9 @@ Retro: `docs/backlog/v0.4-sessions-retrospective.md`.
 - **Shipped:** Live cwd in the status bar + tab title, with git branch
   next to the path (v0.4.4). Tab falls back to cwd basename only when no
   program set an OSC title; the status bar always shows the full path.
-- **Deferred:** Re-running commands on restore (opt-in per pane) —
-  conservative default is layout+cwd only; revisit if asked
+- **Shipped:** Re-running commands on restore (v0.5.4) — opt-in Settings
+  toggle (default off) replays each pane's ssh/claude command; off keeps
+  the conservative layout+cwd-only restore. Closes Theme H entirely.
 
 ### Theme D — IME hardening (slices ready)
 - **Shipped:** Vietnamese checklist (20 phrases, owner runs live)

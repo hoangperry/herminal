@@ -31,6 +31,10 @@ struct PaneSnapshot: Codable, Sendable, Equatable {
     /// Last-known working directory (OSC 7). nil → spawn at the shell's
     /// default (home). Validated on load.
     var cwd: String?
+    /// The spawn command (ssh / claude), nil for a plain shell. Only
+    /// replayed on restore when the owner opts in; validated at replay
+    /// time. Optional + defaulted so pre-v0.5.4 files decode (→ nil).
+    var command: String? = nil
 }
 
 /// Serialized split tree. Leaves reference panes by INDEX into
@@ -122,10 +126,13 @@ enum WorkspaceStore {
         let tabs: [TabSnapshot] = snapshot.tabs.compactMap { tab in
             guard !tab.panes.isEmpty else { return nil }
             let panes = tab.panes.map { pane -> PaneSnapshot in
-                guard let cwd = pane.cwd else { return PaneSnapshot(cwd: nil) }
+                // Carry the spawn command through untouched — it's only
+                // ever replayed behind the opt-in toggle, and validated
+                // then (WorkspaceTab.safeRerunCommand).
+                guard let cwd = pane.cwd else { return PaneSnapshot(cwd: nil, command: pane.command) }
                 var isDir: ObjCBool = false
                 let exists = fm.fileExists(atPath: cwd, isDirectory: &isDir)
-                return PaneSnapshot(cwd: (exists && isDir.boolValue) ? cwd : nil)
+                return PaneSnapshot(cwd: (exists && isDir.boolValue) ? cwd : nil, command: pane.command)
             }
             // A layout tree only survives if its leaves are exactly the
             // panes 0..<count (each referenced once) — otherwise it can't

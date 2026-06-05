@@ -32,6 +32,7 @@ private struct GeneralTab: View {
     @AppStorage(Preferences.Key.showStatusBar) private var showStatusBar = true
     @AppStorage(Preferences.Key.confirmCloseWithNote) private var confirmCloseWithNote = true
     @AppStorage(Preferences.Key.restoreSessionOnLaunch) private var restoreSessionOnLaunch = true
+    @AppStorage(Preferences.Key.rerunCommandsOnRestore) private var rerunCommandsOnRestore = false
     @AppStorage(Preferences.Key.firstRunCompleted) private var firstRunCompleted = true
 
     var body: some View {
@@ -42,7 +43,10 @@ private struct GeneralTab: View {
                 Toggle("Confirm before closing a tab with notes", isOn: $confirmCloseWithNote)
                     .onChange(of: confirmCloseWithNote) { _, _ in Preferences.broadcastChange() }
                 Toggle("Restore tabs & panes on launch", isOn: $restoreSessionOnLaunch)
-                    .help("Reopen last session's tab/split layout, each pane in its last working directory. Commands (ssh, claude) are not re-run.")
+                    .help("Reopen last session's tab/split layout, each pane in its last working directory.")
+                Toggle("Re-run ssh / claude commands on restore", isOn: $rerunCommandsOnRestore)
+                    .disabled(!restoreSessionOnLaunch)
+                    .help("When restoring, replay each pane's ssh/claude command instead of opening a plain shell. Off by default — restoring stays side-effect-free (no auto network or LLM sessions) unless you turn this on.")
             }
             Section("Onboarding") {
                 Button("Show the welcome hint on next launch") {

@@ -128,4 +128,15 @@ struct WorkspaceStoreTests {
         let out = try #require(WorkspaceStore.sanitise(snap))
         #expect(out.tabs[0].layout == nil)
     }
+
+    @Test("a pane's spawn command is carried through sanitise")
+    func commandSurvivesSanitise() throws {
+        let snap = WorkspaceSnapshot(
+            tabs: [TabSnapshot(panes: [PaneSnapshot(cwd: nil, command: "ssh ops@host")],
+                               focusedPaneIndex: 0, layout: nil,
+                               isVerticalSplit: true, paneRatios: nil)],
+            activeTabIndex: 0)
+        let out = try #require(WorkspaceStore.sanitise(snap))
+        #expect(out.tabs[0].panes[0].command == "ssh ops@host")
+    }
 }

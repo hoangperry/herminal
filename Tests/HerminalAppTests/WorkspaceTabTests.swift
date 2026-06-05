@@ -188,4 +188,32 @@ struct WorkspaceTabTests {
         tab.split(app: dummyApp, vertical: true)  // focus moves to the new pane
         #expect(tab.focusedPane.surfaceView.currentWorkingDirectory == "/opt/herminal-fixture/proj")
     }
+
+    // MARK: - Re-run commands on restore (v0.5.4)
+
+    @Test("snapshot records each pane's spawn command")
+    func snapshotRecordsCommand() {
+        let tab = WorkspaceTab(app: dummyApp, command: "ssh ops@host")
+        #expect(tab.snapshot().panes.first?.command == "ssh ops@host")
+    }
+
+    @Test("restore replays the command only when re-run is enabled")
+    func restoreRerunsCommandWhenEnabled() {
+        let snap = TabSnapshot(
+            panes: [PaneSnapshot(cwd: nil, command: "claude --resume abc")],
+            focusedPaneIndex: 0, layout: nil, isVerticalSplit: true, paneRatios: [1.0])
+        let off = WorkspaceTab(app: dummyApp, restoring: snap)  // default: rerun off
+        #expect(off.focusedPane.command == nil)
+        let on = WorkspaceTab(app: dummyApp, restoring: snap, rerunCommands: true)
+        #expect(on.focusedPane.command == "claude --resume abc")
+    }
+
+    @Test("safeRerunCommand rejects empties and control-char smuggling")
+    func safeRerunCommandValidation() {
+        #expect(WorkspaceTab.safeRerunCommand("ssh ops@host") == "ssh ops@host")
+        #expect(WorkspaceTab.safeRerunCommand(nil) == nil)
+        #expect(WorkspaceTab.safeRerunCommand("") == nil)
+        #expect(WorkspaceTab.safeRerunCommand("ssh x\nrm -rf ~") == nil)  // newline smuggle
+        #expect(WorkspaceTab.safeRerunCommand("a\u{0}b") == nil)          // NUL
+    }
 }

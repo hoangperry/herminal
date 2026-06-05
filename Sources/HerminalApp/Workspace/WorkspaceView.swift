@@ -1034,7 +1034,8 @@ final class WorkspaceView: NSView {
     @discardableResult
     func restoreWorkspace(_ snapshot: WorkspaceSnapshot) -> Bool {
         guard !snapshot.tabs.isEmpty else { return false }
-        tabs = snapshot.tabs.map { WorkspaceTab(app: app, restoring: $0) }
+        let rerun = Preferences.rerunCommandsOnRestore
+        tabs = snapshot.tabs.map { WorkspaceTab(app: app, restoring: $0, rerunCommands: rerun) }
         activeTabIndex = min(max(snapshot.activeTabIndex, 0), tabs.count - 1)
         Diary.shared.log("restored \(tabs.count) tab(s) from snapshot", category: "session")
         refresh()
