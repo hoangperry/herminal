@@ -26,6 +26,7 @@
       <nav aria-label="primary">
         <a href="#agents">agents</a>
         <a href="#sessions">sessions</a>
+        <a href="#splits">splits</a>
         <a href="#ime">vn ime</a>
         <a href="#ssh">ssh</a>
         <a href="#install">install</a>
@@ -52,7 +53,7 @@
         </p>
         <div class="cta-row">
           <a class="cta primary" href="https://github.com/hoangperry/herminal/releases/latest">
-            Download v0.4.2
+            Download v0.5.4
             <span class="cta-meta">macOS 14 · arm64 · 6 MB</span>
           </a>
           <a class="cta ghost" href="https://github.com/hoangperry/herminal">
@@ -172,10 +173,11 @@
           </div>
         </div>
         <p class="note">
-          Safe by construction: restore replays the <em>layout + directory</em>, never your
-          commands — no surprise ssh connections or LLM resumes on launch. Read-only against
-          <code>~/.claude</code>. Built on OSC 7 working-directory tracking — every pane
-          knows where it is, so the terminal can put it back.
+          Safe by default: restore replays the <em>layout + directory</em> only — no surprise
+          ssh connections or LLM resumes on launch. Opt into <em>re-run ssh / claude
+          commands</em> in Settings when you do want the whole session back. Read-only against
+          <code>~/.claude</code>, built on OSC 7 working-directory tracking — every pane knows
+          where it is, so the terminal can put it back.
         </p>
       </div>
     </section>
@@ -304,6 +306,51 @@
       </div>
     </section>
 
+    <!-- WORKSPACE / SPLITS (v0.5) -->
+    <section id="splits" class="feature">
+      <div class="grid">
+        <p class="kicker">v0.5 · workspace</p>
+        <h2>Splits that nest like tmux.</h2>
+        <p>
+          v0.5 rebuilt the pane layout as a real binary tree, then made it feel native:
+          split any pane again along either axis, move focus by direction, always see where
+          you are.
+        </p>
+        <div class="cards">
+          <div class="card">
+            <h3>Recursive splits</h3>
+            <p>Any pane splits again, nesting arbitrarily deep — editor left, two stacked shells right. <code>⌘D</code> / <code>⌘⇧D</code> split the focused pane in place. The old single-axis limit is gone.</p>
+          </div>
+          <div class="card">
+            <h3>⌥⌘ + arrow focus</h3>
+            <p>Move focus to the nearest pane in a direction, spatially — the way iTerm2 and tmux do. Cycling stops being enough once panes nest.</p>
+          </div>
+          <div class="card">
+            <h3>Focused-pane outline</h3>
+            <p>A thin accent border marks the active pane, so you always know where the keyboard goes. Mouse-transparent — it never eats a click or a divider drag.</p>
+          </div>
+          <div class="card">
+            <h3>Tabs open where you are</h3>
+            <p><code>⌘T</code> and splits inherit the focused pane's directory (OSC 7) — split in <code>~/proj</code>, land in <code>~/proj</code>, like Terminal.app and iTerm2.</p>
+          </div>
+          <div class="card">
+            <h3>Idle-render throttle</h3>
+            <p>The driver tick drops 60 Hz → 10 Hz when the window is fully hidden, so herminal stops burning CPU rendering a window no one's looking at. The PTY keeps draining on its own thread.</p>
+          </div>
+          <div class="card">
+            <h3>Re-run on restore</h3>
+            <p>Opt in (off by default) and session restore replays each pane's <code>ssh</code> / <code>claude</code> command, not just the layout — the whole session back, on your terms.</p>
+          </div>
+        </div>
+        <p class="note">
+          The recursive layout went through a parallel code + security review before shipping
+          — it caught a real crash (a deeply-nested <code>workspace.json</code> could overflow
+          the decoder), now fixed and regression-tested. See
+          <a href="https://github.com/hoangperry/herminal/blob/main/docs/REVIEW.md">docs/REVIEW.md</a>.
+        </p>
+      </div>
+    </section>
+
     <!-- PROMISES -->
     <section id="promises" class="band band-dark">
       <div class="grid">
@@ -328,10 +375,10 @@
         <h2>The audit trail is the value proposition.</h2>
         <dl class="stats">
           <div><dt>MVP</dt><dd>7 months, solo dev + Claude Opus pair</dd></div>
-          <div><dt>Tests</dt><dd>79 unit + 5 integration scripts · all green</dd></div>
-          <div><dt>Crashes</dt><dd>0 in dogfood, 0 in stress</dd></div>
+          <div><dt>Tests</dt><dd>141 unit + 9 integration guards · all green</dd></div>
+          <div><dt>Reviews</dt><dd>4 parallel code + security passes</dd></div>
           <div><dt>Kernel bugs</dt><dd>3 documented Sequoia gotchas</dd></div>
-          <div><dt>Swift LOC</dt><dd>~6,000 — readable in an evening</dd></div>
+          <div><dt>Swift LOC</dt><dd>~8,700 — still readable in a sitting</dd></div>
           <div><dt>External deps</dt><dd>2 — SQLite.swift, libghostty</dd></div>
         </dl>
         <p class="note small">
@@ -354,8 +401,8 @@
 
           <article class="install-card">
             <h3>Direct download</h3>
-            <pre><code>curl -LO https://github.com/hoangperry/herminal/releases/download/v0.4.2/herminal-v0.4.2.dmg
-open herminal-v0.4.2.dmg</code></pre>
+            <pre><code>curl -LO https://github.com/hoangperry/herminal/releases/download/v0.5.4/herminal-v0.5.4.dmg
+open herminal-v0.5.4.dmg</code></pre>
             <p class="note small">Signed + notarized + stapled. First launch is silent.</p>
           </article>
 
@@ -375,21 +422,22 @@ open .build/herminal.app</code></pre>
     <section class="band">
       <div class="grid">
         <p class="kicker">Status + next</p>
-        <h2 class="section-title">Where v0.4.2 lands.</h2>
+        <h2 class="section-title">Where v0.5.4 lands.</h2>
         <ol class="roadmap">
           <li>
-            <span class="rm-tag now">now · v0.4.2</span>
-            MVP + v0.3 polish wave + the complete Sessions milestone: Claude session
-            browser, session restore, named workspaces, OSC 7 cwd tracking. Notarized.
+            <span class="rm-tag now">now · v0.5.4</span>
+            MVP + v0.3 polish + the complete Sessions milestone + the v0.5 workspace wave:
+            recursive splits, ⌥⌘ directional focus, focused-pane outline, cwd-inheriting
+            tabs, opt-in re-run-on-restore, occlusion render throttle. Notarized.
           </li>
           <li>
-            <span class="rm-tag soon">soon · v0.5.x</span>
-            Font-picker UI, Sparkle auto-update, semantic double-click, image rendering.
+            <span class="rm-tag soon">soon</span>
+            Sparkle auto-update, font-picker UI, image rendering, SSH search + groups.
             Beta-feedback-driven.
           </li>
           <li>
             <span class="rm-tag later">later · v1.0</span>
-            Recursive split trees. Image rendering. More agent kinds. Bilingual site.
+            More agent kinds. Bilingual site. Whatever the beta asks for.
           </li>
         </ol>
         <p class="note">
@@ -403,7 +451,7 @@ open .build/herminal.app</code></pre>
       <div class="grid">
         <h2>Open a bug. Tell us what you want next.</h2>
         <div class="cta-row centered">
-          <a class="cta primary" href="https://github.com/hoangperry/herminal/releases/latest">Download v0.4.2</a>
+          <a class="cta primary" href="https://github.com/hoangperry/herminal/releases/latest">Download v0.5.4</a>
           <a class="cta ghost" href="https://github.com/hoangperry/herminal/issues/new/choose">File an issue</a>
         </div>
       </div>
