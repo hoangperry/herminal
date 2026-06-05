@@ -478,7 +478,11 @@ final class WorkspaceView: NSView {
     // MARK: - Tab management
 
     func addTab() {
-        tabs.append(WorkspaceTab(app: app))
+        // Open the new tab in the focused pane's directory (OSC 7), the way
+        // Terminal.app / iTerm2 do — `⌘T` from ~/proj lands in ~/proj, not
+        // home. nil (no cwd reported yet) falls back to the shell default.
+        let inheritedCwd = activeTab?.focusedPane.surfaceView.currentWorkingDirectory
+        tabs.append(WorkspaceTab(app: app, workingDirectory: inheritedCwd))
         activeTabIndex = tabs.count - 1
         Diary.shared.log("addTab — total=\(tabs.count)", category: "tabs")
         refresh()

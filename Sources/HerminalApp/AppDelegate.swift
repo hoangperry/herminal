@@ -98,15 +98,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
         self.window = window
         windowStateReady = true
 
-        // libghostty's wakeup_cb is a no-op (C function pointers cannot capture
-        // context), so a steady 60 Hz timer drives the event loop for the spike.
-        tickTimer = Timer.scheduledTimer(withTimeInterval: 1.0 / 60.0, repeats: true) { _ in
-            MainActor.assumeIsolated {
-                let start = ContinuousClock.now
-                ghostty.tick()
-                LatencyProbe.shared.recordTick(ContinuousClock.now - start)
-            }
-        }
+        // libghostty's wakeup_cb is a no-op (C function pointers can't
+        // capture context), so a timer drives the event loop. Full 60 Hz
+        // while the window's content is on screen; throttled when it's
+        // fully occluded (miniaturised / covered) so we don't burn the CPU
+        // rendering a hidden window. libghostty's PTY IO runs on its own
+        // thread, so a slower app tick never stalls a background process —
+        // it just renders less until the window is visible again.
+        installTickTimer()
+        NotificationCenter.default.addObserver(
+            self, selector: #selector(windowOcclusionDidChange),
+            name: NSWindow.didChangeOcclusionStateNotification, object: window
+        )
 
         NSApp.activate(ignoringOtherApps: true)
 
@@ -127,6 +130,32 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
         #if DEBUG
         installTestHarnessHooks(workspace: workspace)
         #endif
+    }
+
+    /// The driver-tick interval: full 60 Hz when the window's content is
+    /// visible, throttled to 10 Hz when it's fully occluded. 10 Hz still
+    /// drains libghostty's cross-thread mailbox (title/bell/pwd/close
+    /// events) promptly while saving the bulk of the idle-render wakeups.
+    private func tickInterval() -> TimeInterval {
+        let visible = window?.occlusionState.contains(.visible) ?? true
+        return visible ? (1.0 / 60.0) : (1.0 / 10.0)
+    }
+
+    /// (Re)installs the driver tick timer at the current interval.
+    private func installTickTimer() {
+        tickTimer?.invalidate()
+        guard let ghostty = self.ghostty else { return }
+        tickTimer = Timer.scheduledTimer(withTimeInterval: tickInterval(), repeats: true) { _ in
+            MainActor.assumeIsolated {
+                let start = ContinuousClock.now
+                ghostty.tick()
+                LatencyProbe.shared.recordTick(ContinuousClock.now - start)
+            }
+        }
+    }
+
+    @objc private func windowOcclusionDidChange() {
+        installTickTimer()
     }
 
     #if DEBUG

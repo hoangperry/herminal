@@ -180,4 +180,12 @@ struct WorkspaceTabTests {
                                workingDirectory: "/opt/herminal-fixture/api")
         #expect(tab.title == "VIM - main.swift")
     }
+
+    @Test("a split pane inherits the focused pane's working directory")
+    func splitInheritsCwd() {
+        let tab = WorkspaceTab(app: dummyApp)
+        tab.focusedPane.surfaceView.applyPwd("/opt/herminal-fixture/proj")
+        tab.split(app: dummyApp, vertical: true)  // focus moves to the new pane
+        #expect(tab.focusedPane.surfaceView.currentWorkingDirectory == "/opt/herminal-fixture/proj")
+    }
 }

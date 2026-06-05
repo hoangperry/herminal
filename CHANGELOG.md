@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.3] - 2026-06-05
+
+UX + performance refinement.
+
+### Added
+
+- **New tabs and splits open in the current directory.** `⌘T` and the
+  split commands now inherit the focused pane's working directory (via
+  OSC 7), the way Terminal.app and iTerm2 do — split while in `~/proj`
+  and the new pane starts in `~/proj`, not home.
+
+### Performance
+
+- **Idle-render throttle.** The libghostty driver tick runs at the full
+  60 Hz while the window is on screen, but drops to 10 Hz when the window
+  is fully occluded (covered or miniaturised), so herminal stops burning
+  CPU rendering a hidden window. The PTY runs on its own thread, so a
+  background process never stalls — the view just catches up the moment
+  the window is visible again.
+
 ## [0.5.2] - 2026-06-04
 
 ### Added
