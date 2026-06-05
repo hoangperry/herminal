@@ -40,28 +40,41 @@ failures=0
 echo "==> Dogfood daily health check  ($(date +'%Y-%m-%d %H:%M'))"
 echo ""
 
-for entry in "${CHECKS[@]}"; do
-    IFS='|' read -r label script <<< "$entry"
-    label_trimmed="$(echo -n "$label" | sed 's/[[:space:]]*$//')"
-    printf "  %-22s ... " "$label_trimmed"
-    # The previous check's `pkill -9` is async — give the kernel a beat
-    # to release the bundle's resources (Metal layer, PTY fds) before
-    # the next check launches a fresh HerminalApp. Without this, the
-    # next launch's surface init occasionally races and the inject path
-    # silently no-ops — the text-injection baseline (heaviest check) was
-    # flaking back-to-back at 2s, reliable at 4s.
+# Runs one check once and echoes its tool output. The leading `pkill`
+# is async, so give the kernel a beat to release the prior bundle's
+# resources (Metal layer, PTY fds) before launching a fresh HerminalApp —
+# without it the new surface init races and the inject path silently
+# no-ops.
+run_check() {
+    local script="$1"
     pkill -9 -x HerminalApp 2>/dev/null
     sleep 4
     if [ "$script" = "run-test-harness.sh" ]; then
         rm -f /tmp/herminal-dogfood-baseline.txt
-        out="$("$REPO_ROOT/Scripts/$script" \
+        "$REPO_ROOT/Scripts/$script" \
             $'touch /tmp/herminal-dogfood-baseline.txt\n' \
-            /tmp/herminal-dogfood-baseline.txt 2>&1)"
+            /tmp/herminal-dogfood-baseline.txt 2>&1
     else
-        out="$("$REPO_ROOT/Scripts/$script" 2>&1)"
+        "$REPO_ROOT/Scripts/$script" 2>&1
+    fi
+}
+
+for entry in "${CHECKS[@]}"; do
+    IFS='|' read -r label script <<< "$entry"
+    label_trimmed="$(echo -n "$label" | sed 's/[[:space:]]*$//')"
+    printf "  %-22s ... " "$label_trimmed"
+    out="$(run_check "$script")"
+    # These checks drive a real GUI launch, so they race occasionally
+    # (Metal/PTY teardown, the fixed-delay text injection). Retry once on
+    # failure: a flake passes the second time, a real regression fails
+    # both — so the release gate stays reliable without masking breakage.
+    retried=""
+    if ! echo "$out" | grep -q "^PASS"; then
+        out="$(run_check "$script")"
+        retried=" (after retry)"
     fi
     if echo "$out" | grep -q "^PASS"; then
-        echo "PASS"
+        echo "PASS$retried"
     else
         echo "FAIL"
         echo "    ↳ $(echo "$out" | tail -3 | tr '\n' ' ')"
