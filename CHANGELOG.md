@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.1] - 2026-06-04
+
+### Added
+
+- **Directional pane navigation.** With recursive splits, "cycle to next
+  pane" wasn't enough — `⌥⌘←/→/↑/↓` now move focus to the nearest pane in
+  that direction (spatially, on the laid-out frames), the way iTerm2 and
+  tmux do. Available from the Window menu and the command palette. No-op
+  when there's no pane on that side.
+
 ## [0.5.0] - 2026-06-04
 
 Recursive split trees — panes now nest like tmux / iTerm2.

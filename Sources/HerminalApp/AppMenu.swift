@@ -155,6 +155,21 @@ enum AppMenu {
         splitDown.keyEquivalentModifierMask = [.command, .shift]
         windowMenu.addItem(splitDown)
 
+        // v0.5.1 — directional pane focus (⌥⌘ + arrow), matching iTerm2's
+        // split-pane navigation. The arrow key equivalents use the AppKit
+        // function-key unicode scalars (↑ F700 ↓ F701 ← F702 → F703).
+        windowMenu.addItem(.separator())
+        for (title, key, selector): (String, String, Selector) in [
+            ("Focus Pane Left",  "\u{F702}", #selector(WorkspaceView.focusPaneLeft(_:))),
+            ("Focus Pane Right", "\u{F703}", #selector(WorkspaceView.focusPaneRight(_:))),
+            ("Focus Pane Up",    "\u{F700}", #selector(WorkspaceView.focusPaneUp(_:))),
+            ("Focus Pane Down",  "\u{F701}", #selector(WorkspaceView.focusPaneDown(_:))),
+        ] {
+            let item = NSMenuItem(title: title, action: selector, keyEquivalent: key)
+            item.keyEquivalentModifierMask = [.command, .option]
+            windowMenu.addItem(item)
+        }
+
         windowMenu.addItem(.separator())
         let toggleDashboard = NSMenuItem(
             title: "Toggle Agent Dashboard",

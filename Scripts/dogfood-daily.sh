@@ -30,6 +30,7 @@ CHECKS=(
     # v0.4.1: session restore was only ever hand-verified. Craft a
     # snapshot, launch, assert dumpState restored the shape.
     "v0.4.1 restore |verify-session-restore.sh"
+    "v0.5.1 pane-nav|verify-pane-nav.sh"
 )
 
 # Special baseline call needs args (text + check-file).

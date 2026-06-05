@@ -104,6 +104,8 @@ input signal arrives that confirms the work's shape.
   (v0.5.0). Panes nest along either axis arbitrarily deep; the layout is
   a binary `LayoutNode` tree, persisted in `workspace.json` (old flat
   sessions still load).
+- **Shipped:** Directional pane focus — ⌥⌘ + arrow moves focus to the
+  nearest pane in that direction, spatially (v0.5.1).
 
 ### Theme H — Sessions (✅ fully closed in v0.4.0-v0.4.2)
 

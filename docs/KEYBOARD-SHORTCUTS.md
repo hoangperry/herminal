@@ -18,10 +18,14 @@ that file; if they ever diverge, the menu source is authoritative.
 | ⌘⇧[ | Previous tab | Wraps at the beginning |
 | ⌘D | Split pane vertically | Side-by-side (left/right) |
 | ⌘⇧D | Split pane horizontally | Stacked (top/bottom) |
+| ⌥⌘← | Focus pane left | Spatial — nearest pane to the left |
+| ⌥⌘→ | Focus pane right | Spatial — nearest pane to the right |
+| ⌥⌘↑ | Focus pane up | Spatial — nearest pane above |
+| ⌥⌘↓ | Focus pane down | Spatial — nearest pane below |
 
-A tab's split axis is set by its FIRST split. Subsequent splits on
-the same tab reuse the axis — there's no recursive nesting in v0.1.0
-(see `docs/ROADMAP.md` Theme C for the deferred recursive-trees work).
+Since v0.5.0 panes split recursively — any pane can split again along
+either axis, nesting like tmux. Use ⌥⌘+arrow to move focus between
+nested panes by direction (v0.5.1).
 
 ---
 

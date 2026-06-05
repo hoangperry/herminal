@@ -918,6 +918,29 @@ final class WorkspaceView: NSView {
     @objc func splitPaneVertical(_ sender: Any?) { splitActivePane(vertical: true) }
     @objc func splitPaneHorizontal(_ sender: Any?) { splitActivePane(vertical: false) }
 
+    @objc func focusPaneLeft(_ sender: Any?) { moveFocus(.left) }
+    @objc func focusPaneRight(_ sender: Any?) { moveFocus(.right) }
+    @objc func focusPaneUp(_ sender: Any?) { moveFocus(.up) }
+    @objc func focusPaneDown(_ sender: Any?) { moveFocus(.down) }
+
+    /// Moves focus to the pane spatially `direction` of the focused one,
+    /// using the laid-out frames (so it's correct for any nesting). No-op
+    /// when there's no pane on that side. (v0.5.1 directional nav.)
+    func moveFocus(_ direction: PaneDirection) {
+        guard let tab = activeTab, tab.panes.count > 1 else { return }
+        let focused = tab.focusedPane
+        let candidates = tab.panes
+            .filter { $0.id != focused.id }
+            .map { (id: $0.id, rect: $0.surfaceView.frame) }
+        guard let targetID = PaneNavigation.nearestPane(
+            from: focused.surfaceView.frame, candidates: candidates, direction: direction
+        ) else { return }
+        tab.focusPane(id: targetID)
+        focusActivePane()
+        tabHost.rootView = makeTabBar()  // focused pane's title may differ
+        persistWorkspaceIfReady()
+    }
+
     @objc func toggleAgentDashboard(_ sender: Any?) {
         leftSidebar = (leftSidebar == .agents) ? .none : .agents
         if leftSidebar == .agents { refreshAgents() }

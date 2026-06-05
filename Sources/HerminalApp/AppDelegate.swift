@@ -64,7 +64,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
         // stays fully isolated from the owner's saved state.
         var smokeIsolation = false
         #if DEBUG
-        smokeIsolation = ProcessInfo.processInfo.environment["HERMINAL_TEST_SMOKE_PLAN"] != nil
+        let harnessEnv = ProcessInfo.processInfo.environment
+        smokeIsolation = harnessEnv["HERMINAL_TEST_SMOKE_PLAN"] != nil
+            || harnessEnv["HERMINAL_TEST_NAV"] != nil
         #endif
         if !smokeIsolation {
             workspace.applyRestoredSidebarState(savedState)
@@ -145,6 +147,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
         if env["HERMINAL_TEST_SMOKE_PLAN"] != nil {
             let dumpPath = Self.validatedDumpPath(env["HERMINAL_TEST_STATE_DUMP"])
             scheduleSmokePlan(into: workspace, dumpPath: dumpPath)
+        }
+        if env["HERMINAL_TEST_NAV"] != nil {
+            let dumpPath = Self.validatedDumpPath(env["HERMINAL_TEST_NAV_DUMP"])
+            scheduleNavSmoke(into: workspace, dumpPath: dumpPath)
         }
         if env["HERMINAL_TEST_CLIPBOARD"] != nil {
             let dumpPath = Self.validatedDumpPath(env["HERMINAL_TEST_CLIPBOARD_DUMP"])
@@ -320,6 +326,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
             if let dumpPath {
                 try? state.write(toFile: dumpPath, atomically: true, encoding: .utf8)
                 NSLog("herminal: smoke: state written to \(dumpPath)")
+            }
+        }
+    }
+
+    /// Directional-nav guard (v0.5.1): split vertically (focus lands on the
+    /// new right pane, index 1), then move focus LEFT. If spatial nav works
+    /// the focused pane becomes index 0; if it no-ops, it stays 1 — so the
+    /// dumped `focused_pane` distinguishes working from broken.
+    private func scheduleNavSmoke(into workspace: WorkspaceView, dumpPath: String?) {
+        NSLog("herminal: nav smoke armed (dump=\(dumpPath ?? "<unset>"))")
+        Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 2_000_000_000)
+            workspace.splitActivePane(vertical: true)
+            try? await Task.sleep(nanoseconds: 500_000_000)
+            workspace.moveFocus(.left)
+            try? await Task.sleep(nanoseconds: 300_000_000)
+            let state = workspace.dumpState()
+            NSLog("herminal: nav smoke: final state\n\(state)")
+            if let dumpPath {
+                try? state.write(toFile: dumpPath, atomically: true, encoding: .utf8)
+                NSLog("herminal: nav smoke: written to \(dumpPath)")
             }
         }
     }
