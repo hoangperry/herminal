@@ -56,19 +56,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
             notesStore: AppDelegate.makeNotesStore(),
             sshHostsStore: AppDelegate.makeSSHHostsStore()
         )
-        // The smoke-plan harness asserts an exact tab/pane + sidebar shape
-        // from a clean default start, so it must NOT restore a prior
-        // session or sidebar state on top — and it must not persist (which
-        // would clobber the owner's real workspace.json with the test's
-        // throwaway layout). Detected here (debug-only) so the harness
-        // stays fully isolated from the owner's saved state.
-        var smokeIsolation = false
+        // GUI-harness isolation: the test harnesses drive the workspace
+        // from a clean default start and assert against it, so they must
+        // NOT restore a prior session/sidebar on top — and must not
+        // persist (which would clobber the owner's real workspace.json
+        // with the test's throwaway layout, and let a restored layout race
+        // the injection path). Covers every workspace-driving harness;
+        // RESTORE_DUMP is deliberately excluded because it *tests* restore.
+        // Debug-only so release builds never read these.
+        var harnessIsolation = false
         #if DEBUG
         let harnessEnv = ProcessInfo.processInfo.environment
-        smokeIsolation = harnessEnv["HERMINAL_TEST_SMOKE_PLAN"] != nil
-            || harnessEnv["HERMINAL_TEST_NAV"] != nil
+        let isolatingHooks = [
+            "HERMINAL_TEST_SMOKE_PLAN", "HERMINAL_TEST_NAV", "HERMINAL_TEST_TEXT",
+            "HERMINAL_TEST_CLIPBOARD", "HERMINAL_TEST_TITLE",
+        ]
+        harnessIsolation = isolatingHooks.contains { harnessEnv[$0] != nil }
         #endif
-        if !smokeIsolation {
+        if !harnessIsolation {
             workspace.applyRestoredSidebarState(savedState)
         }
 
@@ -78,12 +83,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
         // persistence so subsequent structural changes are saved. When
         // restore is off, clear any stale snapshot so it doesn't resurrect
         // later if the owner flips the toggle back on.
-        if !smokeIsolation, Preferences.restoreSessionOnLaunch, let snapshot = WorkspaceStore.load() {
+        if !harnessIsolation, Preferences.restoreSessionOnLaunch, let snapshot = WorkspaceStore.load() {
             workspace.restoreWorkspace(snapshot)
-        } else if !smokeIsolation, !Preferences.restoreSessionOnLaunch {
+        } else if !harnessIsolation, !Preferences.restoreSessionOnLaunch {
             WorkspaceStore.clear()
         }
-        if !smokeIsolation {
+        if !harnessIsolation {
             workspace.enableSessionPersistence()
         }
         self.workspace = workspace

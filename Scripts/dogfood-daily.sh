@@ -48,9 +48,10 @@ for entry in "${CHECKS[@]}"; do
     # to release the bundle's resources (Metal layer, PTY fds) before
     # the next check launches a fresh HerminalApp. Without this, the
     # next launch's surface init occasionally races and the inject path
-    # silently no-ops.
+    # silently no-ops — the text-injection baseline (heaviest check) was
+    # flaking back-to-back at 2s, reliable at 4s.
     pkill -9 -x HerminalApp 2>/dev/null
-    sleep 2
+    sleep 4
     if [ "$script" = "run-test-harness.sh" ]; then
         rm -f /tmp/herminal-dogfood-baseline.txt
         out="$("$REPO_ROOT/Scripts/$script" \
