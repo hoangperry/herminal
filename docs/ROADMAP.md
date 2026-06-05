@@ -106,6 +106,8 @@ input signal arrives that confirms the work's shape.
   sessions still load).
 - **Shipped:** Directional pane focus — ⌥⌘ + arrow moves focus to the
   nearest pane in that direction, spatially (v0.5.1).
+- **Shipped:** Focused-pane outline — accent border on the active pane in
+  multi-pane tabs, mouse-transparent (v0.5.2).
 
 ### Theme H — Sessions (✅ fully closed in v0.4.0-v0.4.2)
 

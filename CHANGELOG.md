@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.2] - 2026-06-04
+
+### Added
+
+- **Focused-pane outline.** In a multi-pane tab the active pane now wears
+  a thin accent border so you can see where the keyboard is going —
+  especially handy with `⌥⌘`-arrow focus movement. The outline is
+  decorative and mouse-transparent (it never intercepts a click or a
+  divider drag); single-pane tabs show nothing.
+
 ## [0.5.1] - 2026-06-04
 
 ### Added

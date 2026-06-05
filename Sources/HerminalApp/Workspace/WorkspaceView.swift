@@ -52,6 +52,9 @@ final class WorkspaceView: NSView {
     /// Each split node's rect from the last layout pass — a divider drag
     /// is a fraction of ITS rect, not the whole container. (v0.5.)
     private var splitFrames: [UUID: NSRect] = [:]
+    /// Accent outline over the focused pane, shown only when a tab has
+    /// more than one pane. Mouse-transparent. (v0.5.2.)
+    private let paneFocusRing = PaneFocusRingView(frame: .zero)
     /// Created lazily on first launch when `firstRunCompleted` is false,
     /// removed (and nil'd) after the user dismisses. Stays nil forever
     /// after that on every subsequent launch. (M12-P3)
@@ -358,6 +361,23 @@ final class WorkspaceView: NSView {
         layoutNode(tab.root, in: bounds, tab: tab, dividers: &specs, splitRects: &rects)
         splitFrames = rects
         syncDividers(specs: specs)
+        updateFocusRing()
+    }
+
+    /// Positions the accent outline over the focused pane, kept topmost so
+    /// the border isn't covered. Hidden for a single-pane tab — there's no
+    /// ambiguity to resolve. (v0.5.2.)
+    private func updateFocusRing() {
+        guard let tab = activeTab, tab.panes.count > 1 else {
+            paneFocusRing.isHidden = true
+            return
+        }
+        // addSubview re-orders to the front, so the ring stays above the
+        // panes + dividers re-added by refresh()/syncDividers.
+        surfaceContainer.addSubview(paneFocusRing)
+        paneFocusRing.frame = tab.focusedPane.surfaceView.frame
+        paneFocusRing.isHidden = false
+        paneFocusRing.needsDisplay = true
     }
 
     /// Geometry for one split's divider, produced by the layout walk.
@@ -937,6 +957,7 @@ final class WorkspaceView: NSView {
         ) else { return }
         tab.focusPane(id: targetID)
         focusActivePane()
+        updateFocusRing()                // move the outline to the new pane
         tabHost.rootView = makeTabBar()  // focused pane's title may differ
         persistWorkspaceIfReady()
     }
