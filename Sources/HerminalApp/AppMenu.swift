@@ -121,6 +121,28 @@ enum AppMenu {
         findPrev.keyEquivalentModifierMask = [.command, .shift]
         editMenu.addItem(findPrev)
 
+        // View menu — font size (libghostty binding actions, applied to
+        // every surface). Pane zoom joins this menu in v1.0 (S2).
+        let viewItem = NSMenuItem()
+        mainMenu.addItem(viewItem)
+        let viewMenu = NSMenu(title: "View")
+        viewItem.submenu = viewMenu
+        viewMenu.addItem(NSMenuItem(
+            title: "Bigger Text",
+            action: #selector(WorkspaceView.increaseFontSize(_:)),
+            keyEquivalent: "+"
+        ))
+        viewMenu.addItem(NSMenuItem(
+            title: "Smaller Text",
+            action: #selector(WorkspaceView.decreaseFontSize(_:)),
+            keyEquivalent: "-"
+        ))
+        viewMenu.addItem(NSMenuItem(
+            title: "Actual Size",
+            action: #selector(WorkspaceView.resetFontSize(_:)),
+            keyEquivalent: "0"
+        ))
+
         // Window menu — tab navigation
         let windowItem = NSMenuItem()
         mainMenu.addItem(windowItem)

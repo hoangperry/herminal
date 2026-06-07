@@ -939,6 +939,21 @@ final class WorkspaceView: NSView {
     @objc func closeTab(_ sender: Any?) { closeActivePane() }
     @objc func nextTab(_ sender: Any?) { selectNextTab() }
     @objc func previousTab(_ sender: Any?) { selectPreviousTab() }
+
+    @objc func increaseFontSize(_ sender: Any?) { applyFontAction("increase_font_size:1") }
+    @objc func decreaseFontSize(_ sender: Any?) { applyFontAction("decrease_font_size:1") }
+    @objc func resetFontSize(_ sender: Any?) { applyFontAction("reset_font_size") }
+
+    /// Live font-size adjust via libghostty's own binding actions, applied
+    /// to every surface so the whole window scales together (the Settings
+    /// slider sets the default for new panes). (v1.0.)
+    private func applyFontAction(_ action: String) {
+        for tab in tabs {
+            for pane in tab.panes {
+                pane.surfaceView.runBindingActionForHarness(action)
+            }
+        }
+    }
     @objc func splitPaneVertical(_ sender: Any?) { splitActivePane(vertical: true) }
     @objc func splitPaneHorizontal(_ sender: Any?) { splitActivePane(vertical: false) }
 
