@@ -216,4 +216,33 @@ struct WorkspaceTabTests {
         #expect(WorkspaceTab.safeRerunCommand("ssh x\nrm -rf ~") == nil)  // newline smuggle
         #expect(WorkspaceTab.safeRerunCommand("a\u{0}b") == nil)          // NUL
     }
+
+    // MARK: - Pane zoom (v1.0)
+
+    @Test("toggleZoom maximizes the focused pane and restores")
+    func toggleZoomLifecycle() {
+        let tab = WorkspaceTab(app: dummyApp)
+        tab.toggleZoom()                          // single pane → no-op
+        #expect(tab.zoomedPaneID == nil)
+        tab.split(app: dummyApp, vertical: true)  // 2 panes, focus the new one
+        let focused = tab.focusedPane.id
+        tab.toggleZoom()
+        #expect(tab.zoomedPaneID == focused)
+        tab.toggleZoom()
+        #expect(tab.zoomedPaneID == nil)
+    }
+
+    @Test("zoom clears on focus change and on structural change")
+    func zoomClearsOnChange() {
+        let tab = WorkspaceTab(app: dummyApp)
+        tab.split(app: dummyApp, vertical: true)
+        tab.toggleZoom()
+        #expect(tab.isZoomed)
+        tab.focusPane(id: tab.panes[0].id)        // focus change → unzoom
+        #expect(!tab.isZoomed)
+        tab.toggleZoom()
+        #expect(tab.isZoomed)
+        tab.split(app: dummyApp, vertical: false) // structural change → unzoom
+        #expect(!tab.isZoomed)
+    }
 }

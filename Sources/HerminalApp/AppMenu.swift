@@ -142,6 +142,15 @@ enum AppMenu {
             action: #selector(WorkspaceView.resetFontSize(_:)),
             keyEquivalent: "0"
         ))
+        viewMenu.addItem(.separator())
+        // Pane zoom — ⌘⇧Return maximizes the focused pane (iTerm convention).
+        let zoomPane = NSMenuItem(
+            title: "Zoom Pane",
+            action: #selector(WorkspaceView.toggleZoomPane(_:)),
+            keyEquivalent: "\r"
+        )
+        zoomPane.keyEquivalentModifierMask = [.command, .shift]
+        viewMenu.addItem(zoomPane)
 
         // Window menu — tab navigation
         let windowItem = NSMenuItem()

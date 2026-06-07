@@ -23,6 +23,10 @@ final class WorkspaceTab: Identifiable {
     private(set) var root: LayoutNode
     /// The focused leaf's id. Invariant: always a live session.
     private(set) var focusedPaneID: UUID
+    /// When set, this pane is "zoomed" — temporarily filling the whole tab,
+    /// the others hidden. Transient view state (not persisted); cleared by
+    /// any structural or focus change. (v1.0 pane zoom.)
+    private(set) var zoomedPaneID: UUID?
 
     init(app: ghostty_app_t, command: String? = nil,
          title: String = TerminalSession.defaultTitle,
@@ -97,6 +101,7 @@ final class WorkspaceTab: Identifiable {
     /// Splits the focused pane in two along `vertical ? .vertical :
     /// .horizontal`, 50/50, and moves focus to the new pane.
     func split(app: ghostty_app_t, vertical: Bool) {
+        zoomedPaneID = nil  // structure changed — drop any zoom
         // The new pane opens in the same directory as the one being split
         // (OSC 7) — splitting while in ~/proj keeps you in ~/proj.
         let inheritedCwd = focusedPane.surfaceView.currentWorkingDirectory
@@ -120,8 +125,23 @@ final class WorkspaceTab: Identifiable {
     func removePane(id: UUID) { _ = remove(id) }
 
     func focusPane(id: UUID) {
-        if sessions.contains(where: { $0.id == id }) { focusedPaneID = id }
+        if sessions.contains(where: { $0.id == id }) {
+            focusedPaneID = id
+            zoomedPaneID = nil  // moving focus reveals the layout again
+        }
     }
+
+    /// Toggles "zoom" on the focused pane: maximize it to fill the tab, or
+    /// restore the split layout. No-op for a single-pane tab. (v1.0.)
+    func toggleZoom() {
+        if zoomedPaneID != nil {
+            zoomedPaneID = nil
+        } else if sessions.count > 1 {
+            zoomedPaneID = focusedPaneID
+        }
+    }
+
+    var isZoomed: Bool { zoomedPaneID != nil }
 
     /// Sets the ratio of a split node (driven by a divider drag).
     func adjustRatio(splitID: UUID, to ratio: CGFloat) {
@@ -135,6 +155,7 @@ final class WorkspaceTab: Identifiable {
     @discardableResult
     private func remove(_ id: UUID) -> Bool {
         guard sessions.contains(where: { $0.id == id }) else { return sessions.isEmpty }
+        zoomedPaneID = nil  // structure changed — drop any zoom
         // Pick the focus successor (sibling leaf) before we mutate the tree.
         let successor = root.leafToFocusAfterRemoving(id)
         sessions.removeAll { $0.id == id }

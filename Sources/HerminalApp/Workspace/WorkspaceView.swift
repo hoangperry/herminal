@@ -356,6 +356,21 @@ final class WorkspaceView: NSView {
         }
         let bounds = surfaceContainer.bounds
         guard bounds.width > 0, bounds.height > 0 else { return }
+
+        // Zoomed: the focused pane fills the whole tab, the rest hidden, no
+        // dividers and no focus ring (there's only one pane to see). (v1.0.)
+        if let zoomID = tab.zoomedPaneID, tab.panes.count > 1,
+           let zoomed = tab.surfaceView(for: zoomID) {
+            for pane in tab.panes { pane.surfaceView.isHidden = (pane.id != zoomID) }
+            zoomed.frame = bounds
+            splitFrames = [:]
+            syncDividers(specs: [])
+            paneFocusRing.isHidden = true
+            return
+        }
+        // Normal layout — make sure everything's visible again (un-zoom).
+        for pane in tab.panes { pane.surfaceView.isHidden = false }
+
         var specs: [DividerSpec] = []
         var rects: [UUID: NSRect] = [:]
         layoutNode(tab.root, in: bounds, tab: tab, dividers: &specs, splitRects: &rects)
@@ -943,6 +958,14 @@ final class WorkspaceView: NSView {
     @objc func increaseFontSize(_ sender: Any?) { applyFontAction("increase_font_size:1") }
     @objc func decreaseFontSize(_ sender: Any?) { applyFontAction("decrease_font_size:1") }
     @objc func resetFontSize(_ sender: Any?) { applyFontAction("reset_font_size") }
+
+    /// Maximize / restore the focused pane (no-op for a single-pane tab).
+    /// Re-lays out + re-focuses; the tree is untouched. (v1.0 pane zoom.)
+    @objc func toggleZoomPane(_ sender: Any?) {
+        activeTab?.toggleZoom()
+        layoutPanes()
+        focusActivePane()
+    }
 
     /// Live font-size adjust via libghostty's own binding actions, applied
     /// to every surface so the whole window scales together (the Settings
