@@ -1,11 +1,56 @@
-# Review report — M11-A · M13 · C2 · v0.5
+# Review report — M11-A · M13 · C2 · v0.5 · v1.0
 
 Parallel code-reviewer + security-reviewer agents audited the v0.1.0
 codebase before publish (M11-A), again after the M12 polish slices
-landed (M13), a third time over the v0.3.0–v0.4.2 surface (C2), and a
-fourth over the v0.5 recursive-split-tree refactor. This document
-captures what they found, what shipped fixed, and what stays deferred —
-so future reviews start from the right baseline.
+landed (M13), a third time over the v0.3.0–v0.4.2 surface (C2), a fourth
+over the v0.5 recursive-split-tree refactor, and a fifth (pre-1.0) over
+the v1.0 features. This document captures what they found, what shipped
+fixed, and what stays deferred — so future reviews start from the right
+baseline.
+
+---
+
+## v1.0 follow-up (2026-06-06, scope: font-size + pane-zoom features)
+
+The two v1.0 features — live font-size adjust (⌘+/−/0) and pane zoom
+(⌘⇧Return) — got the pre-1.0 review pass. The pattern held: a real HIGH
+interaction bug surfaced.
+
+| Severity | Found | Fixed | Deferred |
+|---|---|---|---|
+| CRITICAL | 0 | — | — |
+| HIGH | 1 | 1 | 0 |
+| MEDIUM | 2 | 1 | 1 (accepted) |
+| LOW | 2 | 1 | 1 (confirmed non-issue) |
+
+**Security:** clean — no findings (font actions are compile-time string
+literals, zoom is pure non-persisted view state; no file/network/exec/
+secret surface). One pre-existing note (`runBindingActionForHarness` is
+public in release; gated by AppDelegate, not visibility) tracked for a
+future App-Store audit, out of scope here.
+
+### v1.0 — Fixed
+
+- **HIGH + MEDIUM — `moveFocus` while zoomed.** Directional nav read the
+  stale full-bounds frames of hidden panes, so `nearestPane` always
+  returned nil → the arrow no-op'd → you couldn't exit zoom by keyboard,
+  and (had it fired) it cleared zoom without re-laying-out, leaving panes
+  hidden + the focus ring mispositioned. Now the first arrow while zoomed
+  **exits zoom** (restores the split, keeps focus, re-lays out) — iTerm
+  convention; subsequent arrows navigate normally.
+- **LOW — `applyFontAction` on inactive-tab surfaces** documented as
+  intentional (whole-window scaling) so it isn't mistaken for dead code.
+
+### v1.0 — Deferred / accepted
+
+- **MEDIUM — `toggleZoomPane` runs a layout pass on a single-pane tab**
+  (toggleZoom no-ops, layout falls through to normal). Harmless wasted
+  pass; accepted.
+- **LOW — does `closeFocusedPane` clear zoom?** Confirmed yes — it routes
+  through `remove()`, which nils `zoomedPaneID`. Non-issue.
+- **Tab-switch + zoom** (the reviewer's initial HIGH) — self-retracted:
+  the zoom branch sets `isHidden` explicitly on every layout pass, so a
+  re-added surface can never stay wrongly hidden. No bug.
 
 ---
 

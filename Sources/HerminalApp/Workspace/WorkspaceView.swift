@@ -968,8 +968,10 @@ final class WorkspaceView: NSView {
     }
 
     /// Live font-size adjust via libghostty's own binding actions, applied
-    /// to every surface so the whole window scales together (the Settings
-    /// slider sets the default for new panes). (v1.0.)
+    /// to every surface (including inactive tabs — intentional, so the
+    /// whole window scales together; libghostty applies the action per
+    /// surface regardless of view-hierarchy membership). The Settings
+    /// slider still sets the default for new panes. (v1.0.)
     private func applyFontAction(_ action: String) {
         for tab in tabs {
             for pane in tab.panes {
@@ -990,6 +992,16 @@ final class WorkspaceView: NSView {
     /// when there's no pane on that side. (v0.5.1 directional nav.)
     func moveFocus(_ direction: PaneDirection) {
         guard let tab = activeTab, tab.panes.count > 1 else { return }
+        // While zoomed only one pane is visible, so the others carry stale
+        // frames and spatial nav can't read real geometry. Treat the first
+        // arrow as "exit zoom" (iTerm convention) — restore the split, keep
+        // focus; subsequent arrows then navigate normally. (v1.0 review.)
+        if tab.isZoomed {
+            tab.focusPane(id: tab.focusedPaneID)  // clears zoom, focus unchanged
+            layoutPanes()                          // bring the split layout back
+            focusActivePane()
+            return
+        }
         let focused = tab.focusedPane
         let candidates = tab.panes
             .filter { $0.id != focused.id }
