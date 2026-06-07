@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-06-06
+
+herminal leaves beta. Everything in the PRD's v1 scope is shipped,
+reviewed (five parallel code + security passes), and regression-guarded
+(143 unit tests + a 9-check dogfood gate, all green). This release also
+adds the last two "every terminal has this" verbs.
+
+### Added
+
+- **Live font size.** `⌘+` / `⌘−` / `⌘0` grow / shrink / reset the font
+  in every pane (libghostty binding actions). New **View** menu + command
+  palette entries. The Settings slider still sets the default for new panes.
+- **Pane zoom.** `⌘⇧Return` maximizes the focused pane to fill the tab and
+  toggles back — the iTerm/tmux staple, now that panes nest recursively.
+  Auto-restores on any split / close / directional-focus move.
+
+### Notes
+
+- This is a milestone tag, not a behavioural reset: it consolidates the
+  MVP + the v0.3 polish wave + the Sessions milestone (v0.4) + the v0.5
+  workspace wave (recursive splits, directional focus, focused-pane
+  outline, cwd-inheriting tabs, opt-in re-run-on-restore, idle-render
+  throttle). See the entries below for the full path from v0.1.0.
+
 ## [0.5.4] - 2026-06-06
 
 Completes the Sessions milestone.

@@ -10,7 +10,7 @@
 [![macOS 14+](https://img.shields.io/badge/macOS-14%2B-black.svg)](https://www.apple.com/macos)
 [![Swift 6](https://img.shields.io/badge/swift-6-orange.svg)](https://swift.org)
 
-**Status:** v0.1.0 beta — M7 of 7 ([CHANGELOG](CHANGELOG.md)).
+**Status:** v1.0.0 — stable ([CHANGELOG](CHANGELOG.md)).
 **Platform:** macOS 14+ Apple Silicon.
 
 > 🇻🇳 Phiên bản tiếng Việt: [`README.vi.md`](README.vi.md)

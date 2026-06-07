@@ -110,6 +110,8 @@ input signal arrives that confirms the work's shape.
   multi-pane tabs, mouse-transparent (v0.5.2).
 - **Shipped:** New tabs + splits inherit the focused pane's cwd; idle
   render throttled when the window is occluded (v0.5.3).
+- **Shipped:** Live font size (⌘+/⌘−/⌘0) + pane zoom (⌘⇧Return) — v1.0.
+  Closes the "every terminal has this" gap; herminal leaves beta at 1.0.
 
 ### Theme H — Sessions (✅ fully closed in v0.4.0-v0.4.2)
 

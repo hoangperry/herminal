@@ -22,10 +22,20 @@ that file; if they ever diverge, the menu source is authoritative.
 | ⌥⌘→ | Focus pane right | Spatial — nearest pane to the right |
 | ⌥⌘↑ | Focus pane up | Spatial — nearest pane above |
 | ⌥⌘↓ | Focus pane down | Spatial — nearest pane below |
+| ⌘⇧↩ | Zoom pane | Maximize the focused pane; toggle to restore (v1.0) |
 
 Since v0.5.0 panes split recursively — any pane can split again along
 either axis, nesting like tmux. Use ⌥⌘+arrow to move focus between
-nested panes by direction (v0.5.1).
+nested panes by direction (v0.5.1); the first arrow while zoomed exits
+zoom. `⌘⇧↩` maximizes the focused pane and toggles back (v1.0).
+
+## Font size
+
+| Shortcut | Action | Notes |
+|---|---|---|
+| ⌘+ | Bigger text | Scales every pane; View menu (v1.0) |
+| ⌘− | Smaller text | Scales every pane |
+| ⌘0 | Actual size | Resets to the Settings default |
 
 ---
 
