@@ -37,20 +37,21 @@ struct WelcomeOverlayView: View {
         VStack(alignment: .leading, spacing: 16) {
             VStack(alignment: .leading, spacing: 6) {
                 Text("Welcome to herminal")
-                    .font(.system(size: 22, weight: .bold))
+                    .font(HerminalDesign.Typography.largeTitle)
                     .foregroundColor(HerminalDesign.Palette.textPrimary)
-                Text("A few shortcuts to get you started.")
-                    .font(.system(size: 13))
+                Text("Press ⌘⇧P any time to search every command. A few to start:")
+                    .font(HerminalDesign.Typography.body)
                     .foregroundColor(HerminalDesign.Palette.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
 
             VStack(alignment: .leading, spacing: 10) {
+                shortcut("⌘⇧P", "Command palette — every action, searchable")
                 shortcut("⌘T", "New tab")
-                shortcut("⌘D", "Split pane right")
-                shortcut("⌘⇧D", "Split pane down")
+                shortcut("⌘D", "Split pane (⌘⇧Return zooms it)")
+                shortcut("⌘⇧C", "Resume a Claude Code session")
                 shortcut("⌘⇧A", "Toggle agent dashboard")
-                shortcut("⌘⇧S", "Toggle SSH hosts")
-                shortcut("⌘⇧N", "Toggle notes")
+                shortcut("⌘⇧N", "Toggle per-session notes")
                 shortcut("⌘,", "Open Settings")
             }
             .padding(.vertical, 4)
@@ -59,7 +60,7 @@ struct WelcomeOverlayView: View {
                 Spacer()
                 Button(action: onDismiss) {
                     Text("Got it")
-                        .font(.system(size: 13, weight: .semibold))
+                        .font(HerminalDesign.Typography.bodyEmphasis)
                         .padding(.horizontal, 16)
                         .padding(.vertical, 7)
                 }
@@ -89,7 +90,7 @@ struct WelcomeOverlayView: View {
                 .background(HerminalDesign.Palette.surfaceOverlay)
                 .clipShape(RoundedRectangle(cornerRadius: 6))
             Text(label)
-                .font(.system(size: 13))
+                .font(HerminalDesign.Typography.body)
                 .foregroundColor(HerminalDesign.Palette.textSecondary)
             Spacer(minLength: 0)
         }

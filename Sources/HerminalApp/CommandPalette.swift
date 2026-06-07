@@ -170,26 +170,46 @@ struct CommandPaletteView: View {
         .padding(.vertical, 14)
     }
 
+    @ViewBuilder
     private var resultList: some View {
-        ScrollViewReader { proxy in
-            ScrollView {
-                LazyVStack(spacing: 2) {
-                    ForEach(Array(filtered.enumerated()), id: \.element.id) { index, action in
-                        row(action: action, isSelected: index == selectedIndex)
-                            .id(action.id)
-                            .onTapGesture { fire(action: action) }
+        if filtered.isEmpty {
+            noResults
+        } else {
+            ScrollViewReader { proxy in
+                ScrollView {
+                    LazyVStack(spacing: 2) {
+                        ForEach(Array(filtered.enumerated()), id: \.element.id) { index, action in
+                            row(action: action, isSelected: index == selectedIndex)
+                                .id(action.id)
+                                .onTapGesture { fire(action: action) }
+                        }
+                    }
+                    .padding(8)
+                }
+                .onChange(of: selectedIndex) { _, newIndex in
+                    guard filtered.indices.contains(newIndex) else { return }
+                    withAnimation(.easeOut(duration: 0.12)) {
+                        proxy.scrollTo(filtered[newIndex].id, anchor: .center)
                     }
                 }
-                .padding(8)
             }
-            .onChange(of: selectedIndex) { _, newIndex in
-                guard filtered.indices.contains(newIndex) else { return }
-                withAnimation(.easeOut(duration: 0.12)) {
-                    proxy.scrollTo(filtered[newIndex].id, anchor: .center)
-                }
-            }
+            .frame(maxHeight: .infinity)
         }
-        .frame(maxHeight: .infinity)
+    }
+
+    /// Shown when the query matches nothing — without it the list area
+    /// just went blank, reading as "broken" rather than "no match".
+    private var noResults: some View {
+        VStack(spacing: 8) {
+            Image(systemName: "magnifyingglass")
+                .font(.system(size: 22))
+                .foregroundColor(HerminalDesign.Palette.textTertiary)
+            Text("No matching commands")
+                .font(.system(size: 13))
+                .foregroundColor(HerminalDesign.Palette.textSecondary)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .padding(.vertical, 32)
     }
 
     private func row(action: CommandPaletteAction, isSelected: Bool) -> some View {
