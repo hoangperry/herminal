@@ -46,7 +46,9 @@ one-at-a-time evidence gate. Vendored Ghostty 1.3.1's production entitlement
 plist also contains none of these exceptions. The four exceptions were therefore
 removed from Herminal's production plist after this evidence was recorded.
 
-A combined no-exception candidate must still pass CI, Developer ID signing,
-notarization, staple, Gatekeeper, app/PTY/Metal smoke, and the live IME gate
-before issue #4 closes. Failed or incomplete checks must not be converted into a
-passing claim.
+The combined no-exception production state then passed 189-test CI, release
+candidate run `31831816811`, checksum verification, Developer ID hardened-runtime
+signing, Apple notarization, staple validation, Gatekeeper assessment, and an
+app/PTY/on-screen-window/Metal-runtime smoke test. Issue #4's entitlement gate is
+therefore complete. The broader public release remains independently blocked by
+the complete live IME and clean-install/Homebrew gates.
