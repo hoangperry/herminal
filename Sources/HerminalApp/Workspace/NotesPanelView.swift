@@ -33,15 +33,11 @@ struct NotesPanelView: View {
         .background(HerminalDesign.Palette.surfaceElevated)
     }
 
-    /// v1.0 polish: the same "quietly confirmed" line the hero mockup
-    /// shows — every edit is already on disk via onSave, this says so.
+    /// Storage context only. Do not claim a successful save here: `onSave`
+    /// has no result channel and the database layer may reject a write.
     private var footer: some View {
         HStack(spacing: HerminalDesign.Spacing.xs) {
-            Circle()
-                .fill(HerminalDesign.Palette.statusDone)
-                .frame(width: 5, height: 5)
-                .accessibilityHidden(true)
-            Text("Autosaved · local SQLite · session-scoped")
+            Text("Local SQLite · session-scoped")
                 .font(HerminalDesign.Typography.caption)
                 .foregroundStyle(HerminalDesign.Palette.textTertiary)
             Spacer(minLength: 0)
