@@ -27,10 +27,12 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Install pinned libghostty toolchain
+      - name: Install verified build toolchain
         run: |
-          brew install zig
-          zig version
+          Scripts/install-zig-ci.sh
+          if ! xcrun -sdk macosx metal --version >/dev/null 2>&1; then
+            xcodebuild -downloadComponent MetalToolchain
+          fi
 
       - name: Build libghostty xcframework
         run: Scripts/bootstrap.sh

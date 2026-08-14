@@ -13,54 +13,24 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # Fast lane: HerminalDB + HerminalAgent are pure Swift with no libghostty
-  # dependency. Their unit tests cover 70%+ of the codebase logic. Running
-  # them in a dedicated job gives PR authors quick feedback (<2 min) before
-  # the slower full-build job finishes.
-  core-libs:
-    name: Core libraries (DB + Agent)
-    runs-on: macos-15
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-        with:
-          submodules: false  # libghostty not needed for these targets
-
-      - name: Cache SPM resolved dependencies
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
-        with:
-          path: |
-            .build
-            ~/Library/Caches/org.swift.swiftpm
-          key: ${{ runner.os }}-spm-corelibs-${{ hashFiles('Package.resolved') }}
-          restore-keys: |
-            ${{ runner.os }}-spm-corelibs-
-
-      - name: Run HerminalDB tests
-        run: swift test --filter "HerminalDBTests"
-
-      - name: Run HerminalAgent tests
-        run: swift test --filter "HerminalAgentTests"
-
-  # Slow lane: builds the full app including the libghostty xcframework via
-  # Zig. Runs the App-layer tests (IME bridge, Workspace, Diary) that need
-  # libghostty to link. Only required for main; PRs can rely on the fast
-  # lane unless they touch HerminalApp / HerminalCore.
+  # SwiftPM validates every local binary target even when a filtered test does
+  # not import it, so a "core-only" lane without GhosttyKit cannot work. Build
+  # the pinned framework once, cache it, then run the complete suite on every PR.
   full-build:
     name: Full build + app tests
     runs-on: macos-15
     timeout-minutes: 45
-    if: github.event_name == 'push' || contains(github.event.pull_request.labels.*.name, 'full-build')
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           submodules: recursive
 
-      - name: Install Zig 0.15.2 + Metal toolchain
+      - name: Install verified build toolchain
         run: |
-          brew install zig
-          # Verify the version libghostty expects.
-          zig version
+          Scripts/install-zig-ci.sh
+          if ! xcrun -sdk macosx metal --version >/dev/null 2>&1; then
+            xcodebuild -downloadComponent MetalToolchain
+          fi
 
       - name: Cache libghostty xcframework
         id: cache-ghostty

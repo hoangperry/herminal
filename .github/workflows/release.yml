@@ -44,8 +44,12 @@ jobs:
           ref: ${{ steps.tag.outputs.tag }}
           submodules: recursive
 
-      - name: Install Zig (libghostty toolchain)
-        run: brew install zig
+      - name: Install verified build toolchain
+        run: |
+          Scripts/install-zig-ci.sh
+          if ! xcrun -sdk macosx metal --version >/dev/null 2>&1; then
+            xcodebuild -downloadComponent MetalToolchain
+          fi
 
       - name: Cache libghostty xcframework
         id: cache-ghostty
