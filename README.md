@@ -189,7 +189,7 @@ herminal/
 │   ├── HerminalAgent/        # process-subtree + CPU-status detection
 │   └── HerminalApp/          # NSApp, WorkspaceView, panels, Diary
 ├── App/                       # Info.plist + entitlements
-├── Tests/                     # 153 Swift Testing tests
+├── Tests/                     # 175 Swift Testing tests
 ├── Scripts/                   # bootstrap, bundle, verify-*, dogfood, sign, release, capture-screenshots
 ├── Vendor/libghostty/         # git submodule (Ghostty v1.3.1)
 └── docs/
