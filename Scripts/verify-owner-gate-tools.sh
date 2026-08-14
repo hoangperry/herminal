@@ -32,14 +32,17 @@ expect_failure \
     "usage: Scripts/run-entitlement-experiment.sh" \
     Scripts/run-entitlement-experiment.sh
 
-# The experiment must operate on copied files only. Guard the production plist
-# contract structurally in addition to the runtime script's copy destination.
+# One-at-a-time signed debug and release experiments proved these exceptions
+# unnecessary. Guard against accidentally restoring the retired permissions.
 for key in \
     com.apple.security.cs.allow-jit \
     com.apple.security.cs.allow-unsigned-executable-memory \
     com.apple.security.cs.allow-dyld-environment-variables \
     com.apple.security.cs.disable-library-validation; do
-    /usr/libexec/PlistBuddy -c "Print :$key" App/herminal.entitlements >/dev/null
+    if /usr/libexec/PlistBuddy -c "Print :$key" App/herminal.entitlements >/dev/null 2>&1; then
+        echo "FAIL: retired hardened-runtime exception was restored: $key" >&2
+        exit 1
+    fi
  done
 
 # shellcheck disable=SC2016 # Match the literal destination variable.

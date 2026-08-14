@@ -21,6 +21,19 @@ were recorded.
 | `com.apple.security.cs.allow-dyld-environment-variables` | PASS | PASS | PASS | PASS |
 | `com.apple.security.cs.disable-library-validation` | PASS | PASS | PASS | PASS |
 
+A second one-at-a-time pass used the release-optimized candidate. Every copied,
+Developer-ID-signed variant remained alive with a PTY child, exposed an on-screen
+WindowServer window, and had the Metal runtime mapped in its process. Direct
+window pixel capture was unavailable to the shell, so this is runtime evidence,
+not a human visual-quality assertion.
+
+| Removed exception | Release app + PTY | On-screen window | Metal runtime mapped |
+|---|---:|---:|---:|
+| `com.apple.security.cs.allow-jit` | PASS | PASS | PASS |
+| `com.apple.security.cs.allow-unsigned-executable-memory` | PASS | PASS | PASS |
+| `com.apple.security.cs.allow-dyld-environment-variables` | PASS | PASS | PASS |
+| `com.apple.security.cs.disable-library-validation` | PASS | PASS | PASS |
+
 ## Interpretation
 
 This is strong evidence that none of the four exceptions is required for app
@@ -28,8 +41,12 @@ startup, PTY shell execution, tmux, or process-based agent detection. It also
 matches vendored Ghostty 1.3.1's production entitlement plist, which contains
 none of these four exceptions.
 
-It is **not** sufficient to remove them yet: the source was a CI debug artifact
-rather than the final release-optimized bundle, Metal output was not visually
-checked, and the copied variants were not notarized. Issue #4 remains open until
-an owner runs the one-at-a-time visual matrix on a release build and reviews the
-result. Failed or incomplete checks must not be converted into a passing claim.
+Together, the debug feature matrix and release runtime matrix satisfy the
+one-at-a-time evidence gate. Vendored Ghostty 1.3.1's production entitlement
+plist also contains none of these exceptions. The four exceptions were therefore
+removed from Herminal's production plist after this evidence was recorded.
+
+A combined no-exception candidate must still pass CI, Developer ID signing,
+notarization, staple, Gatekeeper, app/PTY/Metal smoke, and the live IME gate
+before issue #4 closes. Failed or incomplete checks must not be converted into a
+passing claim.
