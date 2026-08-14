@@ -159,11 +159,11 @@ Herminal does not protect users from commands they intentionally run, malicious 
 
 ### T9 — Over-broad hardened-runtime exceptions
 
-Herminal currently requests unsigned executable memory, JIT, DYLD environment variables, and disabled library validation for libghostty/shell integration. These increase impact if the app process is compromised.
+Herminal formerly requested unsigned executable memory, JIT, DYLD environment variables, and disabled library validation. One-at-a-time signed debug and release experiments showed that current libghostty/shell integration does not require them.
 
-**Control:** exceptions are explicit in `App/herminal.entitlements` and the app is not presented as sandboxed.
+**Control:** `App/herminal.entitlements` now contains no hardened-runtime exceptions, and CI fails if any retired exception is restored. Evidence is retained in `docs/QA/results/entitlement-audit-2026-08-15.md`.
 
-**Required follow-up:** validate each entitlement against the current libghostty build and remove any exception that is no longer necessary.
+**Required follow-up:** treat any future entitlement addition as a security-sensitive change requiring a named runtime need and signed evidence.
 
 ## Security review checklist
 

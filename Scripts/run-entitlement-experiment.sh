@@ -34,6 +34,10 @@ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$REPO_ROOT" || exit 1
 source_app="${2:-.build/release/herminal.app}"
 [ -d "$source_app" ] || { echo "ERROR: source app not found" >&2; exit 1; }
+if ! /usr/libexec/PlistBuddy -c "Print :$key" App/herminal.entitlements >/dev/null 2>&1; then
+    echo "ERROR: selected entitlement is already absent from production" >&2
+    exit 1
+fi
 
 if ! security find-identity -v -p codesigning 2>/dev/null \
     | grep -Fq "\"$HERMINAL_SIGNING_IDENTITY\""; then
