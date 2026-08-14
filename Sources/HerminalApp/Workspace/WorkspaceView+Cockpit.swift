@@ -5,6 +5,14 @@
 
 import AppKit
 
+private enum WorktreeOperationResult: Sendable {
+    case success(String)
+    case notARepo
+    case pathBusy
+    case gitFailed(String)
+    case failed
+}
+
 extension WorkspaceView {
 
     @objc func newAgentPane(_ sender: Any?) {
@@ -24,11 +32,6 @@ extension WorkspaceView {
             presentCockpitError("The current pane has no working directory yet.")
             return
         }
-        guard let _ = try? GitWorktree.resolveContext(cwd: cwd) else {
-            presentCockpitError("The current pane is not inside a git repository.")
-            return
-        }
-
         let alert = NSAlert()
         alert.messageText = "New agent worktree"
         alert.informativeText = "Creates an isolated checkout next to this repo and opens an agent there."
@@ -80,16 +83,28 @@ extension WorkspaceView {
         let alert = NSAlert()
         alert.alertStyle = .warning
         alert.messageText = "Remove worktree “\(tree.label)”?"
-        alert.informativeText = "This deletes the extra checkout. Uncommitted work in that folder will be lost if git refuses a clean remove."
+        alert.informativeText = "Git refuses removal when the checkout has uncommitted changes."
         alert.addButton(withTitle: "Remove")
         alert.addButton(withTitle: "Cancel")
         guard alert.runModal() == .alertFirstButtonReturn else { return }
-        do {
-            try GitWorktree.remove(path: tree.path)
-            Diary.shared.log("worktree removed", category: "worktree")
-            revealAgentDashboard()
-        } catch {
-            presentCockpitError("Could not remove the worktree. Commit or stash changes first.")
+        Task { [weak self] in
+            let removed = await Task.detached(priority: .userInitiated) {
+                do {
+                    try GitWorktree.remove(path: tree.path)
+                    return true
+                } catch {
+                    return false
+                }
+            }.value
+            guard let self else { return }
+            if removed {
+                Diary.shared.log("worktree removed", category: "worktree")
+                self.revealAgentDashboard()
+            } else {
+                self.presentCockpitError(
+                    "Could not remove the worktree. Commit or stash changes first."
+                )
+            }
         }
     }
 
@@ -112,19 +127,43 @@ extension WorkspaceView {
     private func createWorktree(named name: String, kind: AgentLaunch.Kind, cwd: String) {
         do {
             try GitWorktree.validateBranchName(name)
-            let path = try GitWorktree.add(branch: name, cwd: cwd)
-            let command = AgentLaunch.command(for: kind)
-            addTab(command: command ?? "", title: name, workingDirectory: path)
-            Diary.shared.log("worktree created", category: "worktree")
-            revealAgentDashboard()
-        } catch is GitWorktree.ValidationError {
-            presentCockpitError("Use a git-safe branch name (letters, numbers, /, -, _).")
-        } catch GitWorktree.Error.pathBusy {
-            presentCockpitError("That worktree folder is already used by another branch.")
-        } catch let GitWorktree.Error.gitFailed(message) {
-            presentCockpitError(shortGitMessage(message))
         } catch {
-            presentCockpitError("Could not create the worktree.")
+            presentCockpitError("Use a git-safe branch name (letters, numbers, /, -, _).")
+            return
+        }
+
+        Task { [weak self] in
+            let outcome = await Task.detached(priority: .userInitiated) {
+                do {
+                    return WorktreeOperationResult.success(
+                        try GitWorktree.add(branch: name, cwd: cwd)
+                    )
+                } catch GitWorktree.Error.notARepo {
+                    return .notARepo
+                } catch GitWorktree.Error.pathBusy {
+                    return .pathBusy
+                } catch let GitWorktree.Error.gitFailed(message) {
+                    return .gitFailed(message)
+                } catch {
+                    return .failed
+                }
+            }.value
+            guard let self else { return }
+            switch outcome {
+            case let .success(path):
+                let command = AgentLaunch.command(for: kind)
+                self.addTab(command: command ?? "", title: name, workingDirectory: path)
+                Diary.shared.log("worktree created", category: "worktree")
+                self.revealAgentDashboard()
+            case .notARepo:
+                self.presentCockpitError("The current pane is not inside a git repository.")
+            case .pathBusy:
+                self.presentCockpitError("That worktree folder is already used by another branch.")
+            case let .gitFailed(message):
+                self.presentCockpitError(self.shortGitMessage(message))
+            case .failed:
+                self.presentCockpitError("Could not create the worktree.")
+            }
         }
     }
 

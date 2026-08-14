@@ -101,10 +101,9 @@ struct AgentDashboardView: View {
                         .font(HerminalDesign.Typography.bodyEmphasis)
                         .foregroundStyle(HerminalDesign.Palette.textPrimary)
                     if let tab = agent.tabHint {
-                        // M9/A3: pane mapper found a tab — surface it so
-                        // the user knows where to look. Numbered 1-based
-                        // to match the user-visible tab strip.
-                        Text("Tab \(tab + 1)")
+                        // AgentPaneMapper returns a flattened session/pane
+                        // index, not a tab-strip index. Number it 1-based.
+                        Text("Pane \(tab + 1)")
                             .font(HerminalDesign.Typography.caption)
                             .foregroundStyle(HerminalDesign.Palette.accent)
                             .padding(.horizontal, 4)
@@ -206,7 +205,7 @@ struct AgentDashboardView: View {
     private static func a11yLabel(for agent: DetectedAgent) -> String {
         let base = "\(label(for: agent.kind)) agent \(statusText(agent.status)), pid \(agent.pid)"
         if let tab = agent.tabHint {
-            return "\(base), in tab \(tab + 1)"
+            return "\(base), in pane \(tab + 1)"
         }
         return base
     }

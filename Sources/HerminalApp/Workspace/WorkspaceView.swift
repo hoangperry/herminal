@@ -79,12 +79,15 @@ final class WorkspaceView: NSView {
     /// agent poll regardless of whether the dashboard sidebar is open —
     /// the status bar needs it even when the panel is closed.
     private var latestAgentCount: Int = 0
+    private var latestDisplayedAgents: [DetectedAgent] = []
     /// Last `git worktree list` for the focused pane. Refreshed when the
     /// dashboard opens, cwd changes, or the user adds/removes a worktree
     /// — never on the 2s agent poll.
     private var worktreeEntries: [GitWorktree.Entry] = []
     private var worktreesInGitRepo = false
     private var primaryWorktreePath: String?
+    /// Discards stale async git results after focus/cwd changes.
+    private var worktreeRefreshGeneration = 0
     /// Gates session-restore persistence. False during init + restore so
     /// the default/launch tab churn doesn't clobber the saved snapshot;
     /// AppDelegate flips it true once the launch decision is made.
@@ -718,19 +721,44 @@ final class WorkspaceView: NSView {
                 tabHint: agent.tabHint
             )
         }
+        latestDisplayedAgents = final
         dashboardHost.rootView = makeAgentDashboard(agents: final)
     }
 
     func refreshWorktrees() {
-        let cwd = focusedWorkingDirectory()
-        if let cwd, let trees = try? GitWorktree.list(cwd: cwd) {
-            worktreeEntries = trees
-            worktreesInGitRepo = true
-            primaryWorktreePath = (try? GitWorktree.resolveContext(cwd: cwd))?.mainRepoRoot
-        } else {
+        worktreeRefreshGeneration += 1
+        let generation = worktreeRefreshGeneration
+        guard let cwd = focusedWorkingDirectory() else {
             worktreeEntries = []
             worktreesInGitRepo = false
             primaryWorktreePath = nil
+            dashboardHost.rootView = makeAgentDashboard(agents: latestDisplayedAgents)
+            return
+        }
+
+        Task { [weak self] in
+            let snapshot = await Task.detached(priority: .utility) {
+                guard let trees = try? GitWorktree.list(cwd: cwd) else {
+                    return Optional<(entries: [GitWorktree.Entry], primary: String?)>.none
+                }
+                let primary = (try? GitWorktree.resolveContext(cwd: cwd))?.mainRepoRoot
+                return (entries: trees, primary: primary)
+            }.value
+            guard let self, generation == self.worktreeRefreshGeneration else { return }
+            if let snapshot {
+                self.worktreeEntries = snapshot.entries
+                self.worktreesInGitRepo = true
+                self.primaryWorktreePath = snapshot.primary
+            } else {
+                self.worktreeEntries = []
+                self.worktreesInGitRepo = false
+                self.primaryWorktreePath = nil
+            }
+            // refreshAgents will replace this again when lifecycle sampling
+            // finishes; this immediate render keeps the worktree section fresh.
+            self.dashboardHost.rootView = self.makeAgentDashboard(
+                agents: self.latestDisplayedAgents
+            )
         }
     }
 
@@ -1460,7 +1488,7 @@ final class WorkspaceView: NSView {
         // Reset the dashboard if visible so the new palette lands now,
         // not on the next 2s poll.
         if leftSidebar == .agents {
-            dashboardHost.rootView = makeAgentDashboard(agents: [])
+            dashboardHost.rootView = makeAgentDashboard(agents: latestDisplayedAgents)
             refreshAgents()
         }
         Diary.shared.log("toggled to \(HerminalDesign.currentTheme.rawValue) theme",

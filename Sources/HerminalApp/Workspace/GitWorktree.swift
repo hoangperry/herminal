@@ -6,11 +6,12 @@
 // invocations go through `GitRunner` as argv arrays — never a shell
 // string — so a hostile branch name cannot smuggle a second command.
 
+import Darwin
 import Foundation
 
 enum GitWorktree {
 
-    struct Entry: Equatable, Identifiable {
+    struct Entry: Equatable, Identifiable, Sendable {
         let path: String
         let head: String?
         let branch: String?
@@ -25,19 +26,19 @@ enum GitWorktree {
         }
     }
 
-    struct Context: Equatable {
+    struct Context: Equatable, Sendable {
         let worktreeRoot: String
         let gitCommonDir: String
         let mainRepoRoot: String
     }
 
-    enum ValidationError: Swift.Error, Equatable {
+    enum ValidationError: Swift.Error, Equatable, Sendable {
         case empty
         case tooLong
         case invalid
     }
 
-    enum Error: Swift.Error, Equatable {
+    enum Error: Swift.Error, Equatable, Sendable {
         case notARepo
         case gitFailed(String)
         case missingPath
@@ -67,7 +68,9 @@ enum GitWorktree {
         guard trimmed.count <= maxBranchLength else { throw ValidationError.tooLong }
         guard !trimmed.hasPrefix("-"),
               !trimmed.hasPrefix("."),
+              !trimmed.hasPrefix("/"),
               !trimmed.hasSuffix("."),
+              !trimmed.hasSuffix("/"),
               !trimmed.hasSuffix(".lock"),
               !trimmed.contains(".."),
               !trimmed.contains("//"),
@@ -78,6 +81,7 @@ enum GitWorktree {
                       || ch == "_" || ch == "."
               })
         else { throw ValidationError.invalid }
+        guard !slug(trimmed).isEmpty else { throw ValidationError.invalid }
     }
 
     static func worktreePath(mainRepoRoot: String, branch: String) -> String {
@@ -251,27 +255,64 @@ struct GitRunner: Sendable {
         process.arguments = args
         process.currentDirectoryURL = URL(fileURLWithPath: cwd, isDirectory: true)
         process.standardInput = FileHandle.nullDevice
-        let out = Pipe()
-        let err = Pipe()
-        process.standardOutput = out
-        process.standardError = err
+
+        // Pipes can deadlock when git emits more than their kernel buffer while
+        // this thread waits for exit. File-backed capture stays bounded by disk
+        // and lets us enforce the timeout before reading output.
+        let captureRoot = FileManager.default.temporaryDirectory
+            .appendingPathComponent("herminal-git-\(UUID().uuidString)", isDirectory: true)
+        let stdoutURL = captureRoot.appendingPathComponent("stdout")
+        let stderrURL = captureRoot.appendingPathComponent("stderr")
         do {
+            try FileManager.default.createDirectory(
+                at: captureRoot, withIntermediateDirectories: true
+            )
+            _ = FileManager.default.createFile(atPath: stdoutURL.path, contents: nil)
+            _ = FileManager.default.createFile(atPath: stderrURL.path, contents: nil)
+            let stdoutHandle = try FileHandle(forWritingTo: stdoutURL)
+            let stderrHandle = try FileHandle(forWritingTo: stderrURL)
+            defer {
+                try? stdoutHandle.close()
+                try? stderrHandle.close()
+                try? FileManager.default.removeItem(at: captureRoot)
+            }
+            process.standardOutput = stdoutHandle
+            process.standardError = stderrHandle
             try process.run()
+
+            let deadline = Date().addingTimeInterval(8)
+            while process.isRunning && Date() < deadline {
+                Thread.sleep(forTimeInterval: 0.05)
+            }
+            let timedOut = process.isRunning
+            if timedOut {
+                process.terminate()
+                Thread.sleep(forTimeInterval: 0.2)
+                if process.isRunning {
+                    Darwin.kill(process.processIdentifier, SIGKILL)
+                }
+            }
+            process.waitUntilExit()
+            try? stdoutHandle.synchronize()
+            try? stderrHandle.synchronize()
+            func readPrefix(_ url: URL) -> String {
+                guard let handle = try? FileHandle(forReadingFrom: url) else { return "" }
+                defer { try? handle.close() }
+                let data: Data
+                do {
+                    data = try handle.read(upToCount: 1_048_576) ?? Data()
+                } catch {
+                    return ""
+                }
+                return String(data: data, encoding: .utf8) ?? ""
+            }
+            let stdout = readPrefix(stdoutURL)
+            let stderr = readPrefix(stderrURL)
+            if timedOut { return (124, stdout, "git timed out") }
+            return (process.terminationStatus, stdout, stderr)
         } catch {
-            return (127, "", error.localizedDescription)
+            try? FileManager.default.removeItem(at: captureRoot)
+            return (127, "", "git could not start")
         }
-        let deadline = Date().addingTimeInterval(8)
-        while process.isRunning && Date() < deadline {
-            Thread.sleep(forTimeInterval: 0.05)
-        }
-        if process.isRunning {
-            process.terminate()
-            Thread.sleep(forTimeInterval: 0.2)
-            if process.isRunning { process.interrupt() }
-            return (124, "", "git timed out")
-        }
-        let stdout = String(data: out.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
-        let stderr = String(data: err.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
-        return (process.terminationStatus, stdout, stderr)
     }
 }

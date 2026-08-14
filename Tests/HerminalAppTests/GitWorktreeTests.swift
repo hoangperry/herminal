@@ -16,7 +16,7 @@ struct GitWorktreeBranchTests {
     func rejectsUnsafeNames() {
         let bad = [
             "", " ", "-dash", "has space", "foo..bar", "foo//bar",
-            "evil;rm", "foo$(hi)", "foo`hi`", "../escape", "foo~1",
+            "evil;rm", "foo$(hi)", "foo`hi`", "../escape", "foo~1", "/", "/foo", "foo/",
             "foo^2", "foo:bar", "ends.", "foo.lock", "@{u}", "a" + String(repeating: "b", count: 200),
         ]
         for name in bad {
@@ -172,6 +172,18 @@ struct GitWorktreeLiveTests {
             #expect(throws: GitWorktree.Error.self) {
                 try GitWorktree.add(branch: "stale", cwd: repo)
             }
+        }
+    }
+
+    @Test("git runner captures output larger than a pipe buffer")
+    func capturesLargeOutput() throws {
+        try GitWorktreeLive.withTempRepo { repo in
+            let payload = String(repeating: "0123456789abcdef", count: 16_384)
+            let path = (repo as NSString).appendingPathComponent("large.txt")
+            try payload.write(toFile: path, atomically: true, encoding: .utf8)
+            let result = GitRunner.live.run(["diff", "--no-index", "/dev/null", "large.txt"], in: repo)
+            #expect(result.status == 1) // git diff uses 1 when differences exist.
+            #expect(result.stdout.count > 200_000)
         }
     }
 
