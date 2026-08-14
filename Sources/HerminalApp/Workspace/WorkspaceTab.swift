@@ -100,12 +100,20 @@ final class WorkspaceTab: Identifiable {
 
     /// Splits the focused pane in two along `vertical ? .vertical :
     /// .horizontal`, 50/50, and moves focus to the new pane.
-    func split(app: ghostty_app_t, vertical: Bool) {
+    /// `command` / `title` let the cockpit spawn an agent or lazygit in
+    /// the new pane instead of a plain shell.
+    func split(app: ghostty_app_t, vertical: Bool,
+               command: String? = nil, title: String? = nil) {
         zoomedPaneID = nil  // structure changed — drop any zoom
         // The new pane opens in the same directory as the one being split
         // (OSC 7) — splitting while in ~/proj keeps you in ~/proj.
         let inheritedCwd = focusedPane.surfaceView.currentWorkingDirectory
-        let new = TerminalSession(app: app, workingDirectory: inheritedCwd)
+        let new = TerminalSession(
+            app: app,
+            title: title ?? TerminalSession.defaultTitle,
+            command: command,
+            workingDirectory: inheritedCwd
+        )
         sessions.append(new)
         let axis: SplitAxis = vertical ? .vertical : .horizontal
         let replacement = LayoutNode.split(SplitInfo(

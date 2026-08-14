@@ -202,6 +202,51 @@ enum AppMenu {
         }
 
         windowMenu.addItem(.separator())
+        let newAgentPane = NSMenuItem(
+            title: "New Agent Pane",
+            action: #selector(WorkspaceView.newAgentPane(_:)),
+            keyEquivalent: "a"
+        )
+        newAgentPane.keyEquivalentModifierMask = [.command, .option]
+        windowMenu.addItem(newAgentPane)
+
+        let newAgentTab = NSMenuItem(
+            title: "New Agent Tab",
+            action: #selector(WorkspaceView.newAgentTab(_:)),
+            keyEquivalent: "t"
+        )
+        newAgentTab.keyEquivalentModifierMask = [.command, .option]
+        windowMenu.addItem(newAgentTab)
+
+        let newWorktree = NSMenuItem(
+            title: "New Agent Worktree…",
+            action: #selector(WorkspaceView.newAgentWorktree(_:)),
+            keyEquivalent: "w"
+        )
+        newWorktree.keyEquivalentModifierMask = [.command, .option]
+        windowMenu.addItem(newWorktree)
+
+        let lazygit = NSMenuItem(
+            title: "Open Lazygit",
+            action: #selector(WorkspaceView.openLazygit(_:)),
+            keyEquivalent: "g"
+        )
+        lazygit.keyEquivalentModifierMask = [.command, .option]
+        windowMenu.addItem(lazygit)
+
+        windowMenu.addItem(.separator())
+        for n in 1...9 {
+            let title = n == 9 ? "Select Last Tab" : "Select Tab \(n)"
+            let item = NSMenuItem(
+                title: title,
+                action: #selector(WorkspaceView.selectTabByNumber(_:)),
+                keyEquivalent: String(n)
+            )
+            item.tag = n
+            windowMenu.addItem(item)
+        }
+
+        windowMenu.addItem(.separator())
         let toggleDashboard = NSMenuItem(
             title: "Toggle Agent Dashboard",
             action: #selector(WorkspaceView.toggleAgentDashboard(_:)),

@@ -173,6 +173,7 @@ Retro: `docs/backlog/v0.4-sessions-retrospective.md`.
 - ✅ Node-wrapped detection (Q3-002)
 - ✅ BEL / OSC 9 needs-input (Q6-001)
 - ✅ Agent ↔ pane attribution
+- ✅ FlightDeck cockpit: isolated worktrees (`wt`), new agent pane/tab, lazygit, ⌘1–⌘9
 
 ---
 

@@ -39,7 +39,7 @@ Herminal does not protect users from commands they intentionally run, malicious 
 2. **Repository/shell output → terminal renderer.** Displayed bytes are untrusted and must not trigger host actions except intentionally supported terminal protocols with explicit policy.
 3. **Local files → decoders/parsers.** Workspace JSON, SSH config, SQLite files, and imported Markdown can be malformed or attacker-controlled.
 4. **Process table → agent dashboard.** Process names and argv are untrusted and potentially secret-bearing.
-5. **Herminal UI → command spawn.** SSH connections, session resumes, and restored commands cross into arbitrary code execution.
+5. **Herminal UI → command spawn.** SSH connections, session resumes, restored commands, and agent/worktree launches cross into arbitrary code execution. Worktree branch names are validated and git is invoked as argv (never a shell string). Spawned agent commands are a fixed whitelist (`claude` / `codex` / `aider` / `lazygit`).
 6. **Source/dependencies → CI → signed artifact → GitHub/Homebrew → user.** A compromise anywhere in this chain can ship executable code.
 7. **Test harness environment → production binary.** `HERMINAL_TEST_*` controls must not become an arbitrary production write/execute interface.
 

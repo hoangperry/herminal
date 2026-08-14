@@ -16,6 +16,8 @@ that file; if they ever diverge, the menu source is authoritative.
 | ⌘W | Close pane | Closes the tab when the last pane goes |
 | ⌘⇧] | Next tab | Wraps at the end of the strip |
 | ⌘⇧[ | Previous tab | Wraps at the beginning |
+| ⌘1…⌘8 | Select tab N | No-op when that tab does not exist |
+| ⌘9 | Select last tab | FlightDeck / Ghostty convention |
 | ⌘D | Split pane vertically | Side-by-side (left/right) |
 | ⌘⇧D | Split pane horizontally | Stacked (top/bottom) |
 | ⌥⌘← | Focus pane left | Spatial — nearest pane to the left |
@@ -38,6 +40,19 @@ zoom. `⌘⇧↩` maximizes the focused pane and toggles back (v1.0).
 | ⌘0 | Actual size | Resets to the Settings default |
 
 ---
+
+## Agents + worktrees
+
+FlightDeck-style cockpit. Agents are detected automatically; these
+shortcuts *launch* them.
+
+| Shortcut | Action | Notes |
+|---|---|---|
+| ⌘⌥A | New agent pane | Vertical split running `claude` in the current cwd |
+| ⌘⌥T | New agent tab | New tab running `claude` in the current cwd |
+| ⌘⌥W | New agent worktree… | Isolated `../<repo>.worktrees/<branch>` + agent |
+| ⌘⌥G | Open lazygit | New tab at the current cwd |
+| ⌘⇧A | Toggle agent dashboard | Live agents + worktree list |
 
 ## Sidebars
 
