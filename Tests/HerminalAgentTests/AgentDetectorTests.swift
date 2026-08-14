@@ -61,20 +61,31 @@ struct AgentDetectorTests {
         }
     }
 
-    @Test("detect(interpreterArgv:) catches npm-package agent CLIs", arguments: [
-        (["node", "/Users/x/.npm/_npx/abc/@anthropic-ai/claude-code/cli.js"], AgentKind.claudeCode),
-        (["node", "/usr/local/bin/.bin/claude", "--help"], AgentKind.claudeCode),
-        (["node", "/opt/homebrew/lib/node_modules/@openai/codex/dist/cli.js"], AgentKind.codex),
+    @Test("detect(interpreterArgv:) catches synthetic package-wrapper fixtures", arguments: [
+        (["node", "/synthetic/npm/@anthropic-ai/claude-code/cli.js"], AgentKind.claudeCode),
+        (["node", "/synthetic/bin/claude", "--help"], AgentKind.claudeCode),
+        (["node", "/synthetic/npm/@openai/codex/bin/codex.js"], AgentKind.codex),
+        (["bun", "/synthetic/bun/@openai/codex/bin/codex.js"], AgentKind.codex),
+        (["deno", "run", "npm:@openai/codex@1.2.3"], AgentKind.codex),
         (["python3", "-m", "aider"], AgentKind.aider),
-        (["python", "/Users/x/.local/bin/aider"], AgentKind.aider),
-        (["node", "/path/to/claude-code/index.js"], AgentKind.claudeCode),
+        (["python", "/synthetic/bin/aider"], AgentKind.aider),
+        (["node", "/synthetic/claude-code/index.js"], AgentKind.claudeCode),
     ])
     func interpreterArgvDetects(argv: [String], expected: AgentKind) {
         #expect(AgentKind.detect(interpreterArgv: argv) == expected)
     }
 
-    @Test("detect(interpreterArgv:) returns nil for non-agent scripts", arguments: [
-        ["node", "/Users/x/my-app/server.js"],
+    @Test("direct Codex binary fixture classifies without argv inspection")
+    func directCodexFixture() {
+        #expect(AgentKind.detect(processName: "codex") == .codex)
+        #expect(AgentKind.detect(processName: "Codex") == .codex)
+    }
+
+    @Test("detect(interpreterArgv:) returns nil for malformed or unknown wrappers", arguments: [
+        ["node", "/synthetic/app/server.js"],
+        ["node", "/synthetic/npm/@openai/codex-malware/bin.js"],
+        ["node", "/synthetic/npm/@openai/codex_tools/bin.js"],
+        ["deno", "run", "npm:@openai/codex-malware@1.0.0"],
         ["python3", "manage.py", "runserver"],
         ["node"],  // bare interpreter — argv[1] missing
         [],        // empty — never happens in practice but must not crash
