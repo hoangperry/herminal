@@ -36,6 +36,15 @@ struct WorkspaceTabTests {
         #expect(rootSplit(tab)?.axis == .vertical)
     }
 
+    @Test("split can spawn a whitelisted agent command in the new pane")
+    func splitWithCommand() {
+        let tab = WorkspaceTab(app: dummyApp)
+        tab.split(app: dummyApp, vertical: true, command: "claude", title: "claude")
+        #expect(tab.panes.count == 2)
+        #expect(tab.focusedPane.command == "claude")
+        #expect(tab.focusedPane.title == "claude")
+    }
+
     @Test("the first split sets the tab axis")
     func firstSplitSetsAxis() {
         let tab = WorkspaceTab(app: dummyApp)

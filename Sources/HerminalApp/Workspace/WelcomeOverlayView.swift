@@ -50,6 +50,8 @@ struct WelcomeOverlayView: View {
                 shortcut("⌘T", "New tab")
                 shortcut("⌘D", "Split pane (⌘⇧Return zooms it)")
                 shortcut("⌘⇧C", "Resume a Claude Code session")
+                shortcut("⌘⌥A", "New agent pane — Claude in a split")
+                shortcut("⌘⌥W", "New agent worktree — isolated branch")
                 shortcut("⌘⇧A", "Toggle agent dashboard")
                 shortcut("⌘⇧N", "Toggle per-session notes")
                 shortcut("⌘,", "Open Settings")

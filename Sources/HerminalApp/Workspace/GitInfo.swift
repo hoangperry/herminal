@@ -5,8 +5,9 @@
 // bounded handful of stats + one small file read per `cd`, never a hot
 // loop. Returns nil for non-repos (degrades to just the path).
 //
-// `parseHead` is pure so it unit-tests without a real repo; the walk is
-// FileManager-injectable for the same reason.
+// Linked worktrees use a `.git` *file* (`gitdir: …`); we follow that
+// pointer and read HEAD from the linked gitdir. `parseHead` is pure so
+// it unit-tests without a real repo; the walk is FileManager-injectable.
 
 import Foundation
 
@@ -16,10 +17,10 @@ enum GitInfo {
     /// unbounded stat storm.
     private static let maxDepth = 32
 
-    /// Walks up from `directory` looking for a `.git` directory and
-    /// returns the checked-out branch (or "detached" for a bare-SHA HEAD).
-    /// nil when `directory` isn't inside a git repo, or the repo uses a
-    /// `.git` *file* (submodule / linked worktree) — which we don't follow.
+    /// Walks up from `directory` looking for a `.git` directory *or* a
+    /// `.git` file (linked worktree / submodule pointer) and returns the
+    /// checked-out branch (or "detached" for a bare-SHA HEAD).
+    /// nil when `directory` isn't inside a git repo.
     static func branch(forDirectory directory: String,
                        fileManager: FileManager = .default) -> String? {
         var dir = (directory as NSString).standardizingPath
@@ -27,8 +28,19 @@ enum GitInfo {
             let gitPath = (dir as NSString).appendingPathComponent(".git")
             var isDir: ObjCBool = false
             if fileManager.fileExists(atPath: gitPath, isDirectory: &isDir) {
-                guard isDir.boolValue else { return nil } // .git file → skip
-                let headPath = (gitPath as NSString).appendingPathComponent("HEAD")
+                let headPath: String
+                if isDir.boolValue {
+                    headPath = (gitPath as NSString).appendingPathComponent("HEAD")
+                } else {
+                    guard let pointer = try? String(contentsOfFile: gitPath, encoding: .utf8),
+                          let gitDir = GitWorktree.parseGitDirFile(pointer) else {
+                        return nil
+                    }
+                    let resolved = gitDir.hasPrefix("/")
+                        ? gitDir
+                        : ((dir as NSString).appendingPathComponent(gitDir) as NSString).standardizingPath
+                    headPath = (resolved as NSString).appendingPathComponent("HEAD")
+                }
                 guard let head = try? String(contentsOfFile: headPath, encoding: .utf8) else {
                     return nil
                 }

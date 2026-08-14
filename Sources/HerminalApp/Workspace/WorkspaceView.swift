@@ -14,7 +14,7 @@ import os
 final class WorkspaceView: NSView {
     /// Hairline gap between panes; the dark container shows through as a divider.
     private static let paneGap: CGFloat = 1
-    private static let dashboardWidth: CGFloat = 220
+    private static let dashboardWidth: CGFloat = 268
     private static let sshPanelWidth: CGFloat = 280
     private static let claudePanelWidth: CGFloat = 300
     private static let notesWidth: CGFloat = 280
@@ -79,6 +79,12 @@ final class WorkspaceView: NSView {
     /// agent poll regardless of whether the dashboard sidebar is open —
     /// the status bar needs it even when the panel is closed.
     private var latestAgentCount: Int = 0
+    /// Last `git worktree list` for the focused pane. Refreshed when the
+    /// dashboard opens, cwd changes, or the user adds/removes a worktree
+    /// — never on the 2s agent poll.
+    private var worktreeEntries: [GitWorktree.Entry] = []
+    private var worktreesInGitRepo = false
+    private var primaryWorktreePath: String?
     /// Gates session-restore persistence. False during init + restore so
     /// the default/launch tab churn doesn't clobber the saved snapshot;
     /// AppDelegate flips it true once the launch decision is made.
@@ -603,12 +609,44 @@ final class WorkspaceView: NSView {
 
     /// Splits the active pane. If it is the only pane in the tab it also sets
     /// the tab's split axis.
-    func splitActivePane(vertical: Bool) {
-        activeTab?.split(app: app, vertical: vertical)
-        Diary.shared.log("splitActivePane vertical=\(vertical)", category: "panes")
+    func splitActivePane(vertical: Bool, command: String? = nil, title: String? = nil) {
+        activeTab?.split(app: app, vertical: vertical, command: command, title: title)
+        Diary.shared.log(
+            "splitActivePane vertical=\(vertical) customCommand=\(command != nil)",
+            category: "panes"
+        )
         refresh()
         persistWorkspaceIfReady()
     }
+
+    func focusedWorkingDirectory() -> String? {
+        activeTab?.focusedPane.surfaceView.currentWorkingDirectory
+    }
+
+    func selectTab(at index: Int) {
+        guard tabs.indices.contains(index) else { return }
+        activeTabIndex = index
+        refresh()
+    }
+
+    /// `tabHint` from AgentPaneMapper is a flattened pane index
+    /// (`tabs.flatMap(\.panes)`), not a tab strip index.
+    func focusSession(flatIndex: Int) {
+        var i = 0
+        for (tabIndex, tab) in tabs.enumerated() {
+            for pane in tab.panes {
+                if i == flatIndex {
+                    activeTabIndex = tabIndex
+                    tab.focusPane(id: pane.id)
+                    refresh()
+                    return
+                }
+                i += 1
+            }
+        }
+    }
+
+    var tabCount: Int { tabs.count }
 
     /// Closes the focused pane — or the whole tab if it was the last pane.
     func closeActivePane() {
@@ -642,7 +680,7 @@ final class WorkspaceView: NSView {
         }
     }
 
-    private func refreshAgents() {
+    func refreshAgents() {
         // Always refresh the cached count so the status bar (M12-P2) sees
         // the latest agent total even when the dashboard sidebar is closed.
         // The full annotation pipeline only runs when the sidebar is open
@@ -680,7 +718,38 @@ final class WorkspaceView: NSView {
                 tabHint: agent.tabHint
             )
         }
-        dashboardHost.rootView = AgentDashboardView(agents: final)
+        dashboardHost.rootView = makeAgentDashboard(agents: final)
+    }
+
+    func refreshWorktrees() {
+        let cwd = focusedWorkingDirectory()
+        if let cwd, let trees = try? GitWorktree.list(cwd: cwd) {
+            worktreeEntries = trees
+            worktreesInGitRepo = true
+            primaryWorktreePath = (try? GitWorktree.resolveContext(cwd: cwd))?.mainRepoRoot
+        } else {
+            worktreeEntries = []
+            worktreesInGitRepo = false
+            primaryWorktreePath = nil
+        }
+    }
+
+    func makeAgentDashboard(agents: [DetectedAgent]) -> AgentDashboardView {
+        return AgentDashboardView(
+            agents: agents,
+            worktrees: worktreeEntries,
+            inGitRepo: worktreesInGitRepo,
+            primaryWorktreePath: primaryWorktreePath,
+            onSelectAgent: { [weak self] agent in
+                if let hint = agent.tabHint { self?.focusSession(flatIndex: hint) }
+            },
+            onNewAgent: { [weak self] in self?.newAgentPane(nil) },
+            onNewWorktree: { [weak self] in self?.newAgentWorktree(nil) },
+            onOpenLazygit: { [weak self] in self?.openLazygit(nil) },
+            onOpenWorktree: { [weak self] tree in self?.openWorktree(tree, kind: .shell) },
+            onAgentInWorktree: { [weak self] tree in self?.openWorktree(tree, kind: .claude) },
+            onRemoveWorktree: { [weak self] tree in self?.confirmRemoveWorktree(tree) }
+        )
     }
 
     /// All libghostty surface addresses across every tab + every pane.
@@ -1020,9 +1089,22 @@ final class WorkspaceView: NSView {
 
     @objc func toggleAgentDashboard(_ sender: Any?) {
         leftSidebar = (leftSidebar == .agents) ? .none : .agents
-        if leftSidebar == .agents { refreshAgents() }
+        if leftSidebar == .agents {
+            refreshWorktrees()
+            refreshAgents()
+        }
         persistSidebarState()
         animateSidebarChange()
+    }
+
+    func revealAgentDashboard() {
+        if leftSidebar != .agents {
+            leftSidebar = .agents
+            persistSidebarState()
+            animateSidebarChange()
+        }
+        refreshWorktrees()
+        refreshAgents()
     }
 
     @objc func toggleSSHHosts(_ sender: Any?) {
@@ -1058,7 +1140,10 @@ final class WorkspaceView: NSView {
         case .claude: leftSidebar = .claude
         }
         isNotesVisible = snapshot.notesVisible
-        if leftSidebar == .agents { refreshAgents() }
+        if leftSidebar == .agents {
+            refreshWorktrees()
+            refreshAgents()
+        }
         if leftSidebar == .ssh { refreshSSHPanel() }
         if leftSidebar == .claude { refreshClaudePanel() }
         if isNotesVisible { updateNotesPanel() }
@@ -1292,6 +1377,10 @@ final class WorkspaceView: NSView {
         // tracks `cd` immediately; the status bar picks it up on its next
         // 1 Hz tick. (v0.4.4 live-cwd surfacing.)
         tabHost.rootView = makeTabBar()
+        if leftSidebar == .agents {
+            refreshWorktrees()
+            refreshAgents()
+        }
     }
 
     @objc func surfaceDidClose(_ note: Notification) {
@@ -1349,6 +1438,14 @@ final class WorkspaceView: NSView {
         needsLayout = true
     }
 
+    func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
+        if menuItem.action == #selector(selectTabByNumber(_:)) {
+            if menuItem.tag == 9 { return tabCount > 0 }
+            return menuItem.tag >= 1 && menuItem.tag <= tabCount
+        }
+        return true
+    }
+
     @objc func toggleTheme(_ sender: Any?) {
         HerminalDesign.currentTheme = HerminalDesign.currentTheme == .dark ? .light : .dark
         // Refresh AppKit-resolved colours.
@@ -1363,7 +1460,7 @@ final class WorkspaceView: NSView {
         // Reset the dashboard if visible so the new palette lands now,
         // not on the next 2s poll.
         if leftSidebar == .agents {
-            dashboardHost.rootView = AgentDashboardView(agents: [])
+            dashboardHost.rootView = makeAgentDashboard(agents: [])
             refreshAgents()
         }
         Diary.shared.log("toggled to \(HerminalDesign.currentTheme.rawValue) theme",
