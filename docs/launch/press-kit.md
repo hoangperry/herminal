@@ -59,6 +59,10 @@ sources:
 - `docs/assets/agent-lifecycle.svg` — one agent poll, end to end.
 - `docs/assets/ime-composition.svg` — Vietnamese, Korean, Japanese and
   Chinese composition on the same bridge.
+- `docs/assets/social-preview.png` — 2560×1280 social card (og:image on
+  the landing page; upload the same file at repo Settings → Social
+  preview). Each diagram also has a `-light` variant; the READMEs pick
+  dark/light via `<picture>`.
 
 **Captures of the running app** — produced by
 `Scripts/capture-screenshots.sh`, which needs Accessibility and Screen

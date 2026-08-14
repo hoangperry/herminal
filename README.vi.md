@@ -19,7 +19,10 @@ Xem [CHANGELOG](CHANGELOG.md).
 
 > 🇬🇧 English version: [`README.md`](README.md)
 
-![Workspace herminal — agent dashboard ở slot trái, split terminal panes ở giữa, notes per-session bên phải, status bar dưới cùng](docs/assets/window-anatomy.png)
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/window-anatomy.png">
+  <img alt="Workspace herminal — agent dashboard ở slot trái, split terminal panes ở giữa, notes per-session bên phải, status bar dưới cùng" src="docs/assets/window-anatomy-light.png">
+</picture>
 
 *Agent đang chạy và worktree bên trái, split ở giữa, notes per-session bên
 phải. Slot trái chỉ có một chỗ: agent dashboard và SSH manager thay nhau
@@ -56,7 +59,10 @@ herminal pair engine [libghostty](https://github.com/ghostty-org/ghostty)
 lý IME và chrome. Lưu trữ dùng SQLite cho cả per-session notes lẫn
 saved SSH hosts. Không cloud, không telemetry, không cần account.
 
-![Một bridge NSTextInputClient phục vụ Telex tiếng Việt, Hangul 2-Set, romaji sang kanji tiếng Nhật và Pinyin tiếng Trung, cùng case Tab-khi-đang-preedit mà cả bốn đều gặp](docs/assets/ime-composition.png)
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/ime-composition.png">
+  <img alt="Một bridge NSTextInputClient phục vụ Telex tiếng Việt, Hangul 2-Set, romaji sang kanji tiếng Nhật và Pinyin tiếng Trung, cùng case Tab-khi-đang-preedit mà cả bốn đều gặp" src="docs/assets/ime-composition-light.png">
+</picture>
 
 *Các API composition nằm ngay trên terminal surface, không giả lập trong
 một text field bọc ngoài — nên một bridge phục vụ mọi input method macOS
@@ -165,7 +171,10 @@ sẽ xuất hiện trong dashboard trong ~2 giây với badge
 `running` / `idle` / `starting` (tracking qua CPU sampling) + label
 `Tab N` (tab mà PTY đang ở).
 
-![Năm bước của một lần poll agent: timer, snapshot process qua sysctl, classify theo tên hoặc argv, annotate bằng CPU delta và tab hint, render](docs/assets/agent-lifecycle.png)
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/agent-lifecycle.png">
+  <img alt="Năm bước của một lần poll agent: timer, snapshot process qua sysctl, classify theo tên hoặc argv, annotate bằng CPU delta và tab hint, render" src="docs/assets/agent-lifecycle-light.png">
+</picture>
 
 *Không agent nào phải hợp tác và không cần API key — signal được suy ra
 hoàn toàn từ process tree. `argv` chỉ được đọc để nhận ra wrapper `node` /
@@ -183,7 +192,10 @@ hoàn toàn từ process tree. `argv` chỉ được đọc để nhận ra wrap
 | Storage | SQLite WAL (notes + SSH hosts) | Local-only, atomic, indexable |
 | Distribution | DMG/zip ký Developer ID, notarized + Homebrew cask | Sandbox App Store incompatible |
 
-![Năm layer dependency: HerminalApp, HerminalAgent, HerminalDB, HerminalCore, GhosttyKit.xcframework](docs/assets/architecture.png)
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/architecture.png">
+  <img alt="Năm layer dependency: HerminalApp, HerminalAgent, HerminalDB, HerminalCore, GhosttyKit.xcframework" src="docs/assets/architecture-light.png">
+</picture>
 
 *libghostty được dùng như một upstream release qua C ABI công bố sẵn —
 không fork, không vendor thủ công. Bản đầy đủ ở

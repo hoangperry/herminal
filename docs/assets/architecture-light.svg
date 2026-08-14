@@ -1,0 +1,141 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 760" width="1080" height="760" role="img" aria-label="herminal module stack: HerminalApp, HerminalAgent, HerminalDB, HerminalCore, GhosttyKit.xcframework">
+  <title>herminal module stack</title>
+  <desc>Five dependency layers, top to bottom. HerminalApp owns the AppKit chrome and SwiftUI panels. HerminalAgent derives agent lifecycle from the process tree. HerminalDB persists notes and SSH hosts in SQLite WAL. HerminalCore bridges libghostty's C ABI. GhosttyKit.xcframework is libghostty 1.3.1, statically linked, owning the Metal layer, the PTY and the VT parser.</desc>
+
+  <style>
+    .ui   { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, system-ui, sans-serif; }
+    .mono { font-family: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace; }
+    .t1 { fill: #212429; }
+    .t2 { fill: #5C616E; }
+    .t3 { fill: #8C919E; }
+    .ac { fill: #298C82; }
+    .layer  { fill: #F5F5F7; stroke: #000000; stroke-opacity: 0.08; }
+    .vendor { fill: #E9F4F2; stroke: #298C82; stroke-opacity: 0.28; }
+    .chip   { fill: #EDEDF2; }
+    .chip-ac{ fill: #298C82; fill-opacity: 0.12; }
+    .name  { font-size: 15px; font-weight: 700; }
+    .badge { font-size: 10.5px; }
+    .cn    { font-size: 10.5px; font-weight: 500; }
+    .note  { font-size: 10.5px; }
+  </style>
+
+  <defs>
+    <marker id="arw" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" fill="#8C919E"/>
+    </marker>
+  </defs>
+
+  <rect width="1080" height="760" fill="#FAFAFC"/>
+
+  <!-- ============ 1. HerminalApp ============ -->
+  <rect x="40" y="40" width="1000" height="160" rx="10" class="layer"/>
+  <text x="62" y="66" class="ui t1 name">HerminalApp</text>
+  <text x="1018" y="65" text-anchor="end" class="ui t3 badge">Swift 6 · AppKit chrome + SwiftUI panels · @MainActor</text>
+
+  <rect x="62" y="80" width="104" height="23" rx="5" class="chip"/>
+  <text x="114" y="95" text-anchor="middle" class="ui t2 cn">TabBarView</text>
+  <rect x="176" y="80" width="116" height="23" rx="5" class="chip"/>
+  <text x="234" y="95" text-anchor="middle" class="ui t2 cn">StatusBarView</text>
+  <rect x="302" y="80" width="150" height="23" rx="5" class="chip"/>
+  <text x="377" y="95" text-anchor="middle" class="ui t2 cn">Diary · crash log</text>
+  <rect x="462" y="80" width="162" height="23" rx="5" class="chip"/>
+  <text x="543" y="95" text-anchor="middle" class="ui t2 cn">Updater · Sparkle stub</text>
+  <text x="638" y="95" class="ui t3 note">Telemetry-free. Nothing here opens a socket.</text>
+
+  <rect x="62" y="112" width="146" height="23" rx="5" class="chip"/>
+  <text x="135" y="127" text-anchor="middle" class="ui t2 cn">AgentDashboardView</text>
+  <text x="216" y="127" class="ui t3" font-size="12">⇄</text>
+  <rect x="232" y="112" width="122" height="23" rx="5" class="chip"/>
+  <text x="293" y="127" text-anchor="middle" class="ui t2 cn">SSHHostsPanel</text>
+  <text x="362" y="127" class="ui t3 note">left slot · mutually exclusive</text>
+  <rect x="536" y="112" width="122" height="23" rx="5" class="chip"/>
+  <text x="597" y="127" text-anchor="middle" class="ui t2 cn">NotesPanelView</text>
+  <text x="666" y="127" class="ui t3 note">right slot</text>
+  <rect x="726" y="110" width="1" height="27" fill="#000000" fill-opacity="0.08"/>
+  <rect x="740" y="112" width="100" height="23" rx="5" class="chip"/>
+  <text x="790" y="127" text-anchor="middle" class="ui t2 cn">AgentLaunch</text>
+  <rect x="850" y="112" width="100" height="23" rx="5" class="chip"/>
+  <text x="900" y="127" text-anchor="middle" class="ui t2 cn">GitWorktree</text>
+  <text x="958" y="127" class="ui t3 note">cockpit</text>
+
+  <rect x="62" y="146" width="126" height="26" rx="5" class="chip"/>
+  <text x="125" y="163" text-anchor="middle" class="ui t2 cn">WorkspaceTab[ ]</text>
+  <line x1="192" y1="159" x2="206" y2="159" stroke="#8C919E" stroke-width="1.2" marker-end="url(#arw)"/>
+  <rect x="212" y="146" width="140" height="26" rx="5" class="chip"/>
+  <text x="282" y="163" text-anchor="middle" class="ui t2 cn">TerminalSession[ ]</text>
+  <line x1="356" y1="159" x2="370" y2="159" stroke="#8C919E" stroke-width="1.2" marker-end="url(#arw)"/>
+  <rect x="376" y="146" width="300" height="26" rx="5" class="chip-ac"/>
+  <text x="526" y="163" text-anchor="middle" class="ui ac cn">HerminalSurfaceView · NSView + NSTextInputClient</text>
+  <text x="690" y="163" class="ui t3 note">the IME lives here</text>
+
+  <line x1="540" y1="200" x2="540" y2="230" stroke="#8C919E" stroke-width="1.4" marker-end="url(#arw)"/>
+
+  <!-- ============ 2. HerminalAgent ============ -->
+  <rect x="40" y="232" width="1000" height="104" rx="10" class="layer"/>
+  <text x="62" y="258" class="ui t1 name">HerminalAgent</text>
+  <text x="1018" y="257" text-anchor="end" class="ui t3 badge">process tree → lifecycle signal · no argv retained</text>
+
+  <rect x="62" y="272" width="100" height="23" rx="5" class="chip"/>
+  <text x="112" y="287" text-anchor="middle" class="ui t2 cn">AgentDetector</text>
+  <rect x="172" y="272" width="112" height="23" rx="5" class="chip"/>
+  <text x="228" y="287" text-anchor="middle" class="ui t2 cn">ProcessSnapshot</text>
+  <rect x="294" y="272" width="124" height="23" rx="5" class="chip"/>
+  <text x="356" y="287" text-anchor="middle" class="ui t2 cn">ProcessArgvReader</text>
+  <rect x="428" y="272" width="130" height="23" rx="5" class="chip"/>
+  <text x="493" y="287" text-anchor="middle" class="ui t2 cn">AgentStatusTracker</text>
+  <rect x="568" y="272" width="118" height="23" rx="5" class="chip"/>
+  <text x="627" y="287" text-anchor="middle" class="ui t2 cn">AgentPaneMapper</text>
+  <rect x="696" y="272" width="98" height="23" rx="5" class="chip"/>
+  <text x="745" y="287" text-anchor="middle" class="ui t2 cn">AgentEvent</text>
+
+  <text x="62" y="318" class="ui t3 note"><tspan class="mono">AgentEvent</tspan> is the vendor-neutral contract — lifecycle metadata only. Never prompts, output, argv or environment.</text>
+
+  <line x1="540" y1="336" x2="540" y2="366" stroke="#8C919E" stroke-width="1.4" marker-end="url(#arw)"/>
+
+  <!-- ============ 3. HerminalDB ============ -->
+  <rect x="40" y="368" width="1000" height="104" rx="10" class="layer"/>
+  <text x="62" y="394" class="ui t1 name">HerminalDB</text>
+  <text x="1018" y="393" text-anchor="end" class="ui t3 badge">SQLite WAL · atomic writes, non-blocking reads</text>
+
+  <rect x="62" y="408" width="94" height="23" rx="5" class="chip"/>
+  <text x="109" y="423" text-anchor="middle" class="ui t2 cn">NotesStore</text>
+  <rect x="166" y="408" width="110" height="23" rx="5" class="chip"/>
+  <text x="221" y="423" text-anchor="middle" class="ui t2 cn">NotesExporter</text>
+  <rect x="286" y="408" width="112" height="23" rx="5" class="chip"/>
+  <text x="342" y="423" text-anchor="middle" class="ui t2 cn">SSHHostsStore</text>
+  <rect x="408" y="408" width="130" height="23" rx="5" class="chip"/>
+  <text x="473" y="423" text-anchor="middle" class="ui t2 cn">SSHConfigImporter</text>
+
+  <text x="62" y="454" class="mono t3 note">~/Library/Application Support/herminal/ → notes.db · ssh-hosts.db · diary.log</text>
+  <text x="1018" y="454" text-anchor="end" class="ui t3 note">No DB touches the network.</text>
+
+  <line x1="540" y1="472" x2="540" y2="502" stroke="#8C919E" stroke-width="1.4" marker-end="url(#arw)"/>
+
+  <!-- ============ 4. HerminalCore ============ -->
+  <rect x="40" y="504" width="1000" height="84" rx="10" class="layer"/>
+  <text x="62" y="530" class="ui t1 name">HerminalCore</text>
+  <text x="1018" y="529" text-anchor="end" class="ui t3 badge">libghostty C ABI bridge</text>
+
+  <rect x="62" y="544" width="94" height="23" rx="5" class="chip"/>
+  <text x="109" y="559" text-anchor="middle" class="ui t2 cn">GhosttyApp</text>
+  <rect x="166" y="544" width="100" height="23" rx="5" class="chip"/>
+  <text x="216" y="559" text-anchor="middle" class="ui t2 cn">BellRegistry</text>
+  <text x="280" y="559" class="ui t3 note">init · runtime config · action dispatch · <tspan class="mono">RING_BELL</tspan> → needs-input</text>
+
+  <line x1="540" y1="588" x2="540" y2="618" stroke="#8C919E" stroke-width="1.4" marker-end="url(#arw)"/>
+
+  <!-- ============ 5. GhosttyKit ============ -->
+  <rect x="40" y="620" width="1000" height="88" rx="10" class="vendor"/>
+  <text x="62" y="646" class="ui ac name">GhosttyKit.xcframework</text>
+  <text x="1018" y="645" text-anchor="end" class="ui t3 badge">libghostty 1.3.1 · Zig · statically linked</text>
+
+  <rect x="62" y="662" width="118" height="23" rx="5" class="chip"/>
+  <text x="121" y="677" text-anchor="middle" class="ui t2 cn">Metal renderer</text>
+  <rect x="190" y="662" width="132" height="23" rx="5" class="chip"/>
+  <text x="256" y="677" text-anchor="middle" class="ui t2 cn">PTY master / slave</text>
+  <rect x="332" y="662" width="90" height="23" rx="5" class="chip"/>
+  <text x="377" y="677" text-anchor="middle" class="ui t2 cn">VT parser</text>
+  <text x="436" y="677" class="ui t3 note">Not a fork — an upstream release consumed through its published C ABI.</text>
+
+  <text x="40" y="738" class="ui t3 note">Everything app-side is <tspan class="mono">@MainActor</tspan>. libghostty's renderer, IO and runtime callbacks arrive on arbitrary threads and are wrapped at the bridge — see <tspan class="mono">docs/PATTERNS.md</tspan>.</text>
+</svg>

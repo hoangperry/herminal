@@ -1,0 +1,76 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 640" width="1280" height="640" role="img" aria-label="herminal — AI-native macOS terminal">
+  <title>herminal social preview</title>
+  <style>
+    .ui   { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, system-ui, sans-serif; }
+    .mono { font-family: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace; }
+  </style>
+  <defs>
+    <radialGradient id="glow" cx="30%" cy="0%" r="90%">
+      <stop offset="0%"   stop-color="#52C7BD" stop-opacity="0.14"/>
+      <stop offset="100%" stop-color="#52C7BD" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <rect width="1280" height="640" fill="#0B0C0E"/>
+  <rect width="1280" height="640" fill="url(#glow)"/>
+
+  <!-- ===== left: wordmark + pitch ===== -->
+  <text x="84" y="196" class="ui" font-size="92" font-weight="800" fill="#EDF0F5">herminal<tspan fill="#52C7BD">_</tspan></text>
+
+  <text x="86" y="258" class="ui" font-size="30" font-weight="500" fill="#9EA3B0">AI-native macOS terminal.</text>
+  <text x="86" y="304" class="ui" font-size="30" font-weight="500" fill="#9EA3B0">Agents observed. IME done right.</text>
+
+  <!-- chips -->
+  <g class="ui" font-size="19" font-weight="600">
+    <rect x="84" y="352" width="140" height="42" rx="10" fill="#1F2124"/>
+    <text x="154" y="379" text-anchor="middle" fill="#EDF0F5">macOS 14+</text>
+    <rect x="238" y="352" width="112" height="42" rx="10" fill="#1F2124"/>
+    <text x="294" y="379" text-anchor="middle" fill="#EDF0F5">Swift 6</text>
+    <rect x="364" y="352" width="142" height="42" rx="10" fill="#1F2124"/>
+    <text x="435" y="379" text-anchor="middle" fill="#52C7BD">libghostty</text>
+    <rect x="520" y="352" width="86" height="42" rx="10" fill="#1F2124"/>
+    <text x="563" y="379" text-anchor="middle" fill="#EDF0F5">MIT</text>
+  </g>
+
+  <text x="86" y="556" class="mono" font-size="23" fill="#666B78">github.com/hoangperry/herminal</text>
+  <text x="86" y="592" class="ui" font-size="19" fill="#666B78">No cloud · no telemetry · no account</text>
+
+  <!-- ===== right: mini window ===== -->
+  <g>
+    <rect x="700" y="118" width="496" height="404" rx="14" fill="#101114" stroke="#FFFFFF" stroke-opacity="0.10"/>
+    <!-- titlebar -->
+    <rect x="700" y="118" width="496" height="40" rx="14" fill="#17181B"/>
+    <rect x="700" y="144" width="496" height="14" fill="#17181B"/>
+    <circle cx="726" cy="138" r="6" fill="#F2736B" fill-opacity="0.9"/>
+    <circle cx="746" cy="138" r="6" fill="#E3B341" fill-opacity="0.9"/>
+    <circle cx="766" cy="138" r="6" fill="#66CC85" fill-opacity="0.9"/>
+    <rect x="700" y="158" width="496" height="1" fill="#FFFFFF" fill-opacity="0.08"/>
+
+    <!-- agent rows -->
+    <text x="726" y="192" class="ui" font-size="14" font-weight="700" fill="#9EA3B0" letter-spacing="1.5">AGENTS</text>
+    <circle cx="732" cy="222" r="5.5" fill="#5CB8FF"/>
+    <text x="748" y="228" class="ui" font-size="19" font-weight="600" fill="#EDF0F5">Claude Code</text>
+    <rect x="1094" y="208" width="76" height="28" rx="7" fill="#1F2124"/>
+    <text x="1132" y="227" text-anchor="middle" class="ui" font-size="15" fill="#9EA3B0">Tab 1</text>
+
+    <circle cx="732" cy="262" r="5.5" fill="#8C919E"/>
+    <text x="748" y="268" class="ui" font-size="19" font-weight="600" fill="#EDF0F5">Codex</text>
+    <rect x="1094" y="248" width="76" height="28" rx="7" fill="#1F2124"/>
+    <text x="1132" y="267" text-anchor="middle" class="ui" font-size="15" fill="#9EA3B0">Tab 2</text>
+
+    <circle cx="732" cy="302" r="5.5" fill="#66CC85"/>
+    <text x="748" y="308" class="ui" font-size="19" font-weight="600" fill="#EDF0F5">Aider</text>
+    <rect x="1094" y="288" width="76" height="28" rx="7" fill="#1F2124"/>
+    <text x="1132" y="307" text-anchor="middle" class="ui" font-size="15" fill="#9EA3B0">Tab 2</text>
+
+    <rect x="726" y="330" width="444" height="1" fill="#FFFFFF" fill-opacity="0.06"/>
+
+    <!-- terminal lines -->
+    <text x="726" y="372" class="mono" font-size="20"><tspan fill="#52C7BD">❯</tspan><tspan fill="#EDF0F5"> git commit -m "tiếng Việt"</tspan></text>
+    <text x="726" y="408" class="mono" font-size="20" fill="#9EA3B0">[main a91f3c2] tiếng Việt</text>
+    <text x="726" y="444" class="mono" font-size="20"><tspan fill="#52C7BD">❯</tspan><tspan fill="#EDF0F5"> tiế</tspan></text>
+    <rect x="761" y="449" width="34" height="3" fill="#52C7BD"/>
+    <rect x="800" y="428" width="12" height="22" fill="#52C7BD" fill-opacity="0.85"/>
+    <text x="726" y="492" class="ui" font-size="15" fill="#666B78">preedit đang sống — Tab sẽ commit đúng một lần</text>
+  </g>
+</svg>

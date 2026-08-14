@@ -362,3 +362,26 @@ code.hl.accent { color: var(--accent); border-color: color-mix(in oklab, var(--a
 }
 
 ::selection { background: color-mix(in oklab, var(--accent) 40%, transparent); color: var(--text-primary); }
+
+/* Hero product shot — the window-anatomy schematic under the hero copy.
+   The PNG carries its own dark background + rounded window, so the frame
+   here is just width discipline + a hairline border to lift it off the
+   page. */
+.hero-shot {
+  margin: 3.5rem auto 0;
+  max-width: 1060px;
+  padding: 0 1.5rem;
+}
+.hero-shot img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+}
+.hero-shot figcaption {
+  margin-top: 0.75rem;
+  text-align: center;
+  font-size: 0.85rem;
+  color: var(--text-tertiary);
+}
