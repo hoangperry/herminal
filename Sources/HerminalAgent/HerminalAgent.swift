@@ -4,14 +4,14 @@
 
 import Foundation
 
-public enum AgentKind: String, Sendable {
+public enum AgentKind: String, Sendable, Hashable {
     case claudeCode = "claude"
     case codex = "codex"
     case aider = "aider"
     case unknown
 }
 
-public enum AgentStatus: String, Sendable {
+public enum AgentStatus: String, Sendable, Hashable {
     case running
     case idle
     case needsInput
