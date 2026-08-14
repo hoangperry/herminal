@@ -655,7 +655,11 @@ final class HerminalSurfaceView: NSView, ClipboardOwner, NSUserInterfaceValidati
 
 // MARK: - NSTextInputClient (IME / Vietnamese Telex & VNI)
 
-extension HerminalSurfaceView: @MainActor NSTextInputClient {
+// AppKit delivers NSTextInputClient callbacks on the main thread, while the
+// imported Objective-C protocol is not concurrency-annotated. Defer the
+// protocol isolation check to that runtime contract; NSView and all mutable
+// composition state remain main-actor isolated.
+extension HerminalSurfaceView: @preconcurrency NSTextInputClient {
     func hasMarkedText() -> Bool {
         markedText.length > 0
     }
