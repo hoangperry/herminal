@@ -67,8 +67,8 @@
   <circle cx="68" cy="540" r="13" fill="#52C7BD" fill-opacity="0.14"/>
   <text x="68" y="544" text-anchor="middle" class="ui ac num">5</text>
   <text x="94" y="530" class="ui t1 st">Render</text>
-  <text x="94" y="549" class="ui t2 dt"><tspan class="mono">AgentDashboardView</tspan> is a value view over <tspan class="mono">[DetectedAgent]</tspan>.</text>
-  <text x="94" y="566" class="ui t3 dt">It inspects no processes and owns no polling state — status dot, kind, pid, Tab N.</text>
+  <text x="94" y="549" class="ui t2 dt"><tspan class="mono">AgentDashboardView</tspan> is a value view over <tspan class="mono">[DetectedAgent]</tspan> — status dot, kind, pid, Tab N.</text>
+  <text x="94" y="566" class="ui t3 dt">It inspects no processes and owns no polling state. The worktree cockpit below it is a separate <tspan class="mono">GitWorktree</tspan> read.</text>
 
   <!-- ===================== rail: status vocabulary ===================== -->
   <rect x="630" y="56" width="340" height="256" rx="9" class="card"/>

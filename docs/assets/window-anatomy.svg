@@ -89,7 +89,37 @@
     <text x="301" y="296" text-anchor="middle" class="ui t2 chip-t">Tab 2</text>
     <rect x="76" y="326" width="248" height="1" class="dv"/>
 
-    <text x="76" y="546" class="ui t3" font-size="10">Process subtree only · polled every 2 s</text>
+    <text x="76" y="352" class="ui t2 hdr">WORKTREES</text>
+    <rect x="278" y="340" width="48" height="18" rx="5" class="surface-ov"/>
+    <text x="302" y="353" text-anchor="middle" class="ui t2 chip-t">⌘⌥W</text>
+    <rect x="60" y="366" width="280" height="1" class="dv"/>
+
+    <g stroke="#52C7BD" stroke-width="1.1" fill="none">
+      <circle cx="84" cy="386" r="2"/>
+      <circle cx="94" cy="386" r="2"/>
+      <circle cx="84" cy="394" r="2"/>
+      <path d="M84 388v4M86 386h6"/>
+    </g>
+    <text x="104" y="388" class="ui t1 row-name">feat/ime-tab-fix</text>
+    <text x="104" y="405" class="mono t3 row-sub">api.worktrees/ime-tab-fix</text>
+    <rect x="282" y="378" width="44" height="18" rx="5" class="surface-ov"/>
+    <text x="304" y="391" text-anchor="middle" class="ui t2 chip-t">Open</text>
+    <rect x="76" y="422" width="248" height="1" class="dv"/>
+
+    <g stroke="#52C7BD" stroke-width="1.1" fill="none">
+      <circle cx="84" cy="442" r="2"/>
+      <circle cx="94" cy="442" r="2"/>
+      <circle cx="84" cy="450" r="2"/>
+      <path d="M84 444v4M86 442h6"/>
+    </g>
+    <text x="104" y="444" class="ui t1 row-name">fix/pane-mapping</text>
+    <text x="104" y="461" class="mono t3 row-sub">api.worktrees/pane-mapping</text>
+    <rect x="282" y="434" width="44" height="18" rx="5" class="surface-ov"/>
+    <text x="304" y="447" text-anchor="middle" class="ui t2 chip-t">Open</text>
+    <rect x="76" y="478" width="248" height="1" class="dv"/>
+
+    <text x="76" y="532" class="ui t3" font-size="10">Agents: process subtree only, polled every 2 s</text>
+    <text x="76" y="546" class="ui t3" font-size="10">Worktrees: git worktree list --porcelain</text>
     <text x="76" y="560" class="ui t3" font-size="10">Mutex with ⌘⇧S — the SSH host manager</text>
     <rect x="339" y="112" width="1" height="450" class="bd"/>
 
@@ -167,23 +197,23 @@
     </g>
     <g>
       <rect x="434" y="632" width="54" height="22" rx="6" class="surface-ov"/>
-      <text x="461" y="647" text-anchor="middle" class="t1" font-size="11" font-weight="600">⌘⇧A</text>
-      <text x="496" y="647" class="t2" font-size="11.5">agents</text>
+      <text x="461" y="647" text-anchor="middle" class="t1" font-size="11" font-weight="600">⌘⌥A</text>
+      <text x="496" y="647" class="t2" font-size="11.5">agent pane</text>
     </g>
     <g>
       <rect x="621" y="632" width="54" height="22" rx="6" class="surface-ov"/>
-      <text x="648" y="647" text-anchor="middle" class="t1" font-size="11" font-weight="600">⌘⇧S</text>
-      <text x="683" y="647" class="t2" font-size="11.5">ssh hosts</text>
+      <text x="648" y="647" text-anchor="middle" class="t1" font-size="11" font-weight="600">⌘⌥W</text>
+      <text x="683" y="647" class="t2" font-size="11.5">agent worktree</text>
     </g>
     <g>
       <rect x="808" y="632" width="54" height="22" rx="6" class="surface-ov"/>
-      <text x="835" y="647" text-anchor="middle" class="t1" font-size="11" font-weight="600">⌘⇧N</text>
-      <text x="870" y="647" class="t2" font-size="11.5">notes</text>
+      <text x="835" y="647" text-anchor="middle" class="t1" font-size="11" font-weight="600">⌘⇧A</text>
+      <text x="870" y="647" class="t2" font-size="11.5">dashboard</text>
     </g>
     <g>
       <rect x="995" y="632" width="54" height="22" rx="6" class="surface-ov"/>
-      <text x="1022" y="647" text-anchor="middle" class="t1" font-size="11" font-weight="600">⌥⌘←</text>
-      <text x="1057" y="647" class="t2" font-size="11.5">focus pane</text>
+      <text x="1022" y="647" text-anchor="middle" class="t1" font-size="11" font-weight="600">⌘⇧N</text>
+      <text x="1057" y="647" class="t2" font-size="11.5">notes</text>
     </g>
   </g>
 </svg>

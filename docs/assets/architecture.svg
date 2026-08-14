@@ -51,6 +51,12 @@
   <rect x="536" y="112" width="122" height="23" rx="5" class="chip"/>
   <text x="597" y="127" text-anchor="middle" class="ui t2 cn">NotesPanelView</text>
   <text x="666" y="127" class="ui t3 note">right slot</text>
+  <rect x="726" y="110" width="1" height="27" fill="#FFFFFF" fill-opacity="0.08"/>
+  <rect x="740" y="112" width="100" height="23" rx="5" class="chip"/>
+  <text x="790" y="127" text-anchor="middle" class="ui t2 cn">AgentLaunch</text>
+  <rect x="850" y="112" width="100" height="23" rx="5" class="chip"/>
+  <text x="900" y="127" text-anchor="middle" class="ui t2 cn">GitWorktree</text>
+  <text x="958" y="127" class="ui t3 note">cockpit</text>
 
   <rect x="62" y="146" width="126" height="26" rx="5" class="chip"/>
   <text x="125" y="163" text-anchor="middle" class="ui t2 cn">WorkspaceTab[ ]</text>

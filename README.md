@@ -19,9 +19,9 @@ See [CHANGELOG](CHANGELOG.md).
 
 ![The herminal workspace — agent dashboard in the left slot, split terminal panes in the center, per-session notes on the right, status bar along the bottom](docs/assets/window-anatomy.svg)
 
-*Agents on the left, splits in the middle, per-session notes on the right.
-The left slot is one slot: the agent dashboard and the SSH manager take
-turns in it.*
+*Live agents and worktrees on the left, splits in the middle, per-session
+notes on the right. The left slot is one slot: the agent dashboard and the
+SSH manager take turns in it.*
 
 <!-- Screenshots of the running app land here. Run
      Scripts/capture-screenshots.sh (needs Screen Recording + Accessibility

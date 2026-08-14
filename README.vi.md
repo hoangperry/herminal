@@ -17,8 +17,9 @@ Xem [CHANGELOG](CHANGELOG.md).
 
 ![Workspace herminal — agent dashboard ở slot trái, split terminal panes ở giữa, notes per-session bên phải, status bar dưới cùng](docs/assets/window-anatomy.svg)
 
-*Agent bên trái, split ở giữa, notes per-session bên phải. Slot trái chỉ
-có một chỗ: agent dashboard và SSH manager thay nhau chiếm nó.*
+*Agent đang chạy và worktree bên trái, split ở giữa, notes per-session bên
+phải. Slot trái chỉ có một chỗ: agent dashboard và SSH manager thay nhau
+chiếm nó.*
 
 <!-- Screenshot app thật sẽ nằm ở đây. Chạy
      Scripts/capture-screenshots.sh (cần cấp Screen Recording +
