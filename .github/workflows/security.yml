@@ -3,16 +3,22 @@ name: Security
 on:
   push:
     branches: [main]
-    paths-ignore:
-      - "**/*.md"
-      - "docs/**"
-      - "plans/**"
+    paths:
+      - "Sources/**"
+      - "Package.swift"
+      - "Package.resolved"
+      - ".gitmodules"
+      - "Vendor/libghostty"
+      - ".github/workflows/security.yml"
   pull_request:
     branches: [main]
-    paths-ignore:
-      - "**/*.md"
-      - "docs/**"
-      - "plans/**"
+    paths:
+      - "Sources/**"
+      - "Package.swift"
+      - "Package.resolved"
+      - ".gitmodules"
+      - "Vendor/libghostty"
+      - ".github/workflows/security.yml"
   schedule:
     - cron: '23 3 * * 1'
   workflow_dispatch:

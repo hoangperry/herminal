@@ -3,16 +3,30 @@ name: CI
 on:
   push:
     branches: [main]
-    paths-ignore:
-      - "**/*.md"
-      - "docs/**"
-      - "plans/**"
+    paths:
+      - "Sources/**"
+      - "Tests/**"
+      - "Package.swift"
+      - "Package.resolved"
+      - "App/**"
+      - "Scripts/**"
+      - ".gitmodules"
+      - "Vendor/libghostty"
+      - ".github/workflows/ci.yml"
+      - ".github/workflows/release.yml"
   pull_request:
     branches: [main]
-    paths-ignore:
-      - "**/*.md"
-      - "docs/**"
-      - "plans/**"
+    paths:
+      - "Sources/**"
+      - "Tests/**"
+      - "Package.swift"
+      - "Package.resolved"
+      - "App/**"
+      - "Scripts/**"
+      - ".gitmodules"
+      - "Vendor/libghostty"
+      - ".github/workflows/ci.yml"
+      - ".github/workflows/release.yml"
 
 # Cancel any in-flight run for the same PR / branch when a new commit lands.
 # Saves runner minutes and avoids redundant work on rapid iterations.
