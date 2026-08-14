@@ -41,7 +41,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
         do {
             ghostty = try GhosttyApp()
         } catch {
-            Diary.shared.log("GhosttyApp startup failed: \(error)", category: "lifecycle")
+            Diary.shared.log("GhosttyApp startup failed", category: "lifecycle")
             NSApp.terminate(nil)
             return
         }
@@ -206,11 +206,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
     /// state so `verify-session-restore.sh` can assert the crafted
     /// snapshot was rebuilt. Pure read — no mutation.
     private func scheduleRestoreDump(into workspace: WorkspaceView, dumpPath: String?) {
-        NSLog("herminal: restore-dump armed (dump=\(dumpPath ?? "<unset>"))")
+        NSLog("herminal: restore-dump armed")
         Task { @MainActor in
             try? await Task.sleep(nanoseconds: 3_000_000_000)
             let state = workspace.dumpState()
-            NSLog("herminal: restore-dump state\n\(state)")
+            NSLog("herminal: restore-dump state captured")
             if let dumpPath {
                 try? state.write(toFile: dumpPath, atomically: true, encoding: .utf8)
             }
@@ -224,7 +224,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
     /// script asserts the title matches the marker.
     private func scheduleTitleSmoke(into workspace: WorkspaceView, dumpPath: String?) {
         let marker = "TITLE_REGRESSION_MARKER_42"
-        NSLog("herminal: title smoke armed (dump=\(dumpPath ?? "<unset>"))")
+        NSLog("herminal: title smoke armed")
         Task { @MainActor in
             try? await Task.sleep(nanoseconds: 8_000_000_000)
             NSLog("herminal: title smoke — injecting OSC 0 with marker")
@@ -248,7 +248,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
                 active_title=\(title)
                 title_contains_marker=\(containsMarker)
                 """
-            NSLog("herminal: title smoke result:\n\(result)")
+            NSLog("herminal: title smoke completed success=\(containsMarker)")
             if let dumpPath {
                 try? result.write(toFile: dumpPath, atomically: true, encoding: .utf8)
             }
@@ -264,7 +264,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
     /// the binding-action plumbing land bytes where they should.
     private func scheduleClipboardSmoke(into workspace: WorkspaceView, dumpPath: String?) {
         let marker = "CLIPBOARD_REGRESSION_MARKER_42"
-        NSLog("herminal: clipboard smoke armed (dump=\(dumpPath ?? "<unset>"))")
+        NSLog("herminal: clipboard smoke armed")
         Task { @MainActor in
             // 8 s gives the shell + .zshrc time to render its first prompt.
             try? await Task.sleep(nanoseconds: 8_000_000_000)
@@ -290,10 +290,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
                 pasteboard_contains_marker=\(containsMarker)
                 pasteboard_len=\(pb.count)
                 """
-            NSLog("herminal: clipboard smoke result:\n\(result)")
+            NSLog("herminal: clipboard smoke completed success=\(containsMarker)")
             if let dumpPath {
                 try? result.write(toFile: dumpPath, atomically: true, encoding: .utf8)
-                NSLog("herminal: clipboard smoke result written to \(dumpPath)")
+                NSLog("herminal: clipboard smoke result written")
             }
         }
     }
@@ -312,7 +312,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
         if allowedPrefixes.contains(where: { absolute.hasPrefix($0) }) {
             return absolute
         }
-        NSLog("herminal: HERMINAL_TEST_STATE_DUMP rejected (must live under a temp dir): %@", raw)
+        NSLog("herminal: test dump path rejected (must live under a temp dir)")
         return nil
     }
     #endif
@@ -322,7 +322,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
     /// harness can prove menus + toggles + splits + tabs all work. Spaced
     /// 0.5s apart to give libghostty time to react between actions.
     private func scheduleSmokePlan(into workspace: WorkspaceView, dumpPath: String?) {
-        NSLog("herminal: smoke plan armed (dump=\(dumpPath ?? "<unset>"))")
+        NSLog("herminal: smoke plan armed")
         Task { @MainActor in
             try? await Task.sleep(nanoseconds: 2_000_000_000)
             NSLog("herminal: smoke: addTab x2")
@@ -356,10 +356,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
             workspace.closeActivePane()
             try? await Task.sleep(nanoseconds: 500_000_000)
             let state = workspace.dumpState()
-            NSLog("herminal: smoke: final state\n\(state)")
+            NSLog("herminal: smoke: final state captured")
             if let dumpPath {
                 try? state.write(toFile: dumpPath, atomically: true, encoding: .utf8)
-                NSLog("herminal: smoke: state written to \(dumpPath)")
+                NSLog("herminal: smoke: state written")
             }
         }
     }
@@ -369,7 +369,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
     /// the focused pane becomes index 0; if it no-ops, it stays 1 — so the
     /// dumped `focused_pane` distinguishes working from broken.
     private func scheduleNavSmoke(into workspace: WorkspaceView, dumpPath: String?) {
-        NSLog("herminal: nav smoke armed (dump=\(dumpPath ?? "<unset>"))")
+        NSLog("herminal: nav smoke armed")
         Task { @MainActor in
             try? await Task.sleep(nanoseconds: 2_000_000_000)
             workspace.splitActivePane(vertical: true)
@@ -377,10 +377,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
             workspace.moveFocus(.left)
             try? await Task.sleep(nanoseconds: 300_000_000)
             let state = workspace.dumpState()
-            NSLog("herminal: nav smoke: final state\n\(state)")
+            NSLog("herminal: nav smoke: final state captured")
             if let dumpPath {
                 try? state.write(toFile: dumpPath, atomically: true, encoding: .utf8)
-                NSLog("herminal: nav smoke: written to \(dumpPath)")
+                NSLog("herminal: nav smoke: result written")
             }
         }
     }
@@ -417,7 +417,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
                 }
                 let dump = lines.joined(separator: "\n")
                 try? dump.write(toFile: agentDumpPath, atomically: true, encoding: .utf8)
-                NSLog("herminal: dumped \(agents.count) agents to \(agentDumpPath)")
+                NSLog("herminal: dumped \(agents.count) agents to test output")
             }
             // The harness script controls lifecycle (polls for the expected
             // side-effect, then pkill). Self-terminating here would close the
@@ -486,7 +486,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
             let dbPath = try appSupportFile("notes.db")
             return try NotesStore(.uri(dbPath))
         } catch {
-            NSLog("herminal: notes DB unavailable (\(error)) — using in-memory store")
+            NSLog("herminal: notes DB unavailable — using in-memory store")
             // In-memory SQLite effectively never fails to open.
             return try! NotesStore(.inMemory)
         }
@@ -499,7 +499,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
             let dbPath = try appSupportFile("ssh-hosts.db")
             return try SSHHostsStore(.uri(dbPath))
         } catch {
-            NSLog("herminal: ssh hosts DB unavailable (\(error)) — using in-memory store")
+            NSLog("herminal: ssh hosts DB unavailable — using in-memory store")
             return try! SSHHostsStore(.inMemory)
         }
     }
@@ -561,7 +561,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
         guard WorkspacesStore.save(name: field.stringValue, snapshot: workspace.snapshotWorkspace()) else {
             return
         }
-        Diary.shared.log("saved workspace '\(field.stringValue)'", category: "session")
+        Diary.shared.log("saved named workspace", category: "session")
     }
 
     /// Opens a saved workspace, identified by the menu item's
@@ -570,14 +570,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
         guard let name = sender.representedObject as? String,
               let saved = WorkspacesStore.workspace(named: name) else { return }
         workspace?.restoreWorkspace(saved.snapshot)
-        Diary.shared.log("opened workspace '\(name)'", category: "session")
+        Diary.shared.log("opened named workspace", category: "session")
     }
 
     /// Deletes a saved workspace (Option-click alternate in the menu).
     @objc func deleteWorkspaceMenuAction(_ sender: NSMenuItem) {
         guard let name = sender.representedObject as? String else { return }
         WorkspacesStore.delete(name: name)
-        Diary.shared.log("deleted workspace '\(name)'", category: "session")
+        Diary.shared.log("deleted named workspace", category: "session")
     }
 
     // MARK: - NSMenuDelegate (dynamic "Open Workspace" submenu)

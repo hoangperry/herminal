@@ -91,7 +91,7 @@ enum WorkspaceStore {
             let data = try encoder.encode(snapshot)
             try data.write(to: fileURL, options: .atomic)
         } catch {
-            NSLog("herminal: workspace snapshot save failed: \(error)")
+            NSLog("herminal: workspace snapshot save failed")
         }
     }
 

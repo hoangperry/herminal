@@ -472,14 +472,19 @@ extension AgentKind {
     public static func detect(interpreterArgv argv: [String]) -> AgentKind? {
         guard !argv.isEmpty else { return nil }
         // 2. Package-name substring is the highest-confidence signal.
-        let joined = argv.joined(separator: " ").lowercased()
-        if joined.contains("@anthropic-ai/claude") || joined.contains("claude-code") {
+        let lowered = argv.map { $0.lowercased() }
+        if lowered.contains(where: {
+            isPackageReference("@anthropic-ai/claude-code", in: $0) ||
+            isPackageReference("claude-code", in: $0)
+        }) {
             return .claudeCode
         }
-        if joined.contains("@openai/codex") {
+        if lowered.contains(where: { isPackageReference("@openai/codex", in: $0) }) {
             return .codex
         }
-        if joined.contains("aider-chat") || joined.contains("/aider/") {
+        if lowered.contains(where: {
+            isPackageReference("aider-chat", in: $0) || $0.contains("/aider/")
+        }) {
             return .aider
         }
         // 1. Basename match. Skip argv[0] — it's the interpreter itself.
@@ -495,5 +500,22 @@ extension AgentKind {
             }
         }
         return nil
+    }
+
+    /// Matches a package token or package path while requiring boundaries.
+    /// This avoids classifying lookalikes such as `@openai/codex-malware`.
+    private static func isPackageReference(_ package: String, in argument: String) -> Bool {
+        var searchStart = argument.startIndex
+        while let range = argument.range(of: package, range: searchStart..<argument.endIndex) {
+            let before = range.lowerBound == argument.startIndex
+                ? nil : argument[argument.index(before: range.lowerBound)]
+            let after = range.upperBound == argument.endIndex
+                ? nil : argument[range.upperBound]
+            let validBefore = before == nil || "/:= ".contains(before!)
+            let validAfter = after == nil || "/@ ".contains(after!)
+            if validBefore && validAfter { return true }
+            searchStart = range.upperBound
+        }
+        return false
     }
 }

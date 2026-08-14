@@ -54,6 +54,11 @@ runs the complete Swift suite.
 Never paste terminal contents, process arguments, tokens, SSH hostnames, or note
 bodies into an issue. Share only the redacted diary export you have reviewed.
 
+For a concrete first change, follow the
+[agent lifecycle signal tour](docs/CONTRIBUTOR-TOUR-AGENT-SIGNAL.md). It shows
+where classification, main-actor UI refresh, privacy boundaries, and fixture
+tests live without duplicating the full architecture guide.
+
 ## Full development setup
 
 ```bash
@@ -88,6 +93,19 @@ the integration scripts use.
   the running app, libghostty, the kernel, or shell IO.
 - Coverage isn't enforced numerically but every public type should
   have at least one assertion.
+
+## Diagnostics and logging
+
+Run `Scripts/check-diagnostics-privacy.py` after changing `Diary` or `Logger`
+calls. Raw commands, argv, session IDs, workspace names, SSH identity, paths,
+and note bodies do not belong in diagnostics. Prefer event names, booleans, and
+counts. A necessary OSLog value must mark the exact interpolation `.private`
+and receive explicit privacy review; `Diary` has no private interpolation
+escape hatch because users can export it.
+
+The guard uses allowed/forbidden fixtures under
+`Tests/Fixtures/DiagnosticsPrivacy/`. Extend both fixtures when introducing a
+new reviewed logging pattern.
 
 ## Filing issues
 
