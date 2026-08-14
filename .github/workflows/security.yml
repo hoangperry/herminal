@@ -62,6 +62,6 @@ jobs:
           swift build --target HerminalAgent
 
       - name: Analyze
-        uses: github/codeql-action/analyze@f3712979fa5f215279b101dd0a2e3bdfb4353324 # v3
+        uses: github/codeql-action/analyze@5595ccaf912efad79be6eef63a5619ff05969be3 # v4.37.6
         with:
           category: /language:swift
