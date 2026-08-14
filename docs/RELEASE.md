@@ -1,7 +1,9 @@
 # Release pipeline — herminal
 
-Steps to ship a Gatekeeper-clean, notarized `.app` that users can
-double-click without the "downloaded from the internet" warning.
+Steps to ship a Developer-ID signed, notarized, and stapled `.app`, ZIP, and
+DMG that Gatekeeper accepts. Public release paths fail closed when signing or
+notarization configuration is absent; ad-hoc bundles are development artifacts
+only.
 
 ## One-time setup
 
@@ -46,35 +48,52 @@ Add the two `export` lines to `~/.zshrc` or a `.env.local` you source
 before running the release script. Don't commit them — the team id is
 benign but the convention is to keep signing config out of the repo.
 
-## Cutting a release
+## Verify the release guards
 
 ```sh
-Scripts/sign-and-notarize.sh
+Scripts/verify-release-guards.sh
 ```
 
-The script:
+This check proves the local release driver refuses missing signing/notary
+configuration and that pretty-printed notarytool JSON is parsed correctly. CI
+runs it before the expensive native build.
 
-1. Runs `Scripts/make-app-bundle.sh release` for a release build.
-2. Copies the result into `.build/release/herminal.app`.
-3. `codesign` with hardened runtime + `App/herminal.entitlements`.
-4. `codesign --verify` + `spctl --assess` sanity check.
-5. Zips + submits to `notarytool` with `--wait`.
-6. Parses the JSON result — fails loudly if Apple rejected.
-7. Staples the ticket back onto the `.app`.
+## Cutting a release locally
 
-End result: `.build/release/herminal.app` is ready to ship.
-
-## Distribution
-
-Easiest: zip the stapled `.app` and put it behind a download link.
+Prepare the changelog, export both owner-held variables, and run:
 
 ```sh
-cd .build/release
-ditto -c -k --keepParent herminal.app herminal-$(git rev-parse --short HEAD).zip
+Scripts/release.sh 1.0.0
 ```
 
-DMG creation (nicer UX) and Sparkle auto-update are deferred to
-post-MVP.
+The driver runs the dogfood gate, builds through
+`Scripts/sign-and-notarize.sh`, then independently verifies the Developer ID
+signature, stapled ticket, and Gatekeeper assessment before creating a local
+annotated tag. It never pushes the tag or publishes a release.
+
+`Scripts/sign-and-notarize.sh` supports ad-hoc output for developer smoke tests;
+that output cannot pass `Scripts/release.sh` and must never be uploaded as a
+public release.
+
+## GitHub Actions release
+
+Pushing an existing `vX.Y.Z` tag (or manually dispatching the Release workflow
+for one) checks out that exact tag, imports the certificate into an ephemeral
+keychain, signs, notarizes, staples, packages ZIP + DMG, generates
+`SHA256SUMS` and `dependency-manifest.txt`, and creates or refreshes a **draft**
+GitHub release. A maintainer reviews and publishes the draft.
+
+Required repository secrets:
+
+- `APPLE_DEVELOPER_CERT_P12`
+- `APPLE_CERT_PASSWORD`
+- `APPLE_SIGNING_IDENTITY`
+- `APPLE_ID`
+- `APPLE_TEAM_ID`
+- `APPLE_APP_SPECIFIC_PASSWORD`
+
+Missing values stop the workflow; it does not fall back to an ad-hoc artifact.
+Homebrew is updated only after the final public DMG URL and SHA-256 exist.
 
 ## Troubleshooting
 
@@ -90,15 +109,15 @@ post-MVP.
   at signing doesn't match the install location. Don't move or rename
   the `.app` between signing and notarization; if you must rename, re-sign.
 
-## CI / GitHub Actions (post-MVP)
+## Final owner checklist
 
-For automated releases we'd want:
+```sh
+codesign --verify --deep --strict .build/release/herminal.app
+xcrun stapler validate .build/release/herminal.app
+spctl --assess --type execute --verbose=4 .build/release/herminal.app
+shasum -a 256 .build/release/herminal-v1.0.0.dmg
+```
 
-- Secrets: `APPLE_DEVELOPER_CERT_P12` (base64 of the exported cert +
-  private key), `APPLE_CERT_PASSWORD`, `APPLE_ID`, `APPLE_TEAM_ID`,
-  `APPLE_APP_SPECIFIC_PASSWORD`.
-- The runner imports the cert into a temporary keychain, stores
-  notarytool credentials, runs this script, uploads the signed `.app`.
-- Suggested workflow: `.github/workflows/release.yml` triggered on tags
-  matching `v*`. Not wired in M5 — owner will add when the project has
-  contributors needing pre-built releases.
+Also verify a clean DMG install and Homebrew installation on a machine/account
+that did not build the artifact. Keep credentials and complete command output
+containing local paths out of issues and agent prompts.

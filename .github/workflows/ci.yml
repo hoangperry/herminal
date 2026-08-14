@@ -33,6 +33,9 @@ jobs:
         with:
           submodules: recursive
 
+      - name: Verify fail-closed release guards
+        run: Scripts/verify-release-guards.sh
+
       - name: Install verified build toolchain
         run: |
           Scripts/install-zig-ci.sh

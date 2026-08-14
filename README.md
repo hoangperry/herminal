@@ -81,15 +81,16 @@ dividers, light theme, group/search in SSH manager.
 brew install --cask hoangperry/herminal/herminal
 ```
 
-`brew upgrade --cask herminal` keeps it current. The cask installs a
-signed + notarized build, so Gatekeeper accepts it silently.
+`brew upgrade --cask herminal` keeps it current. Public artifacts must be
+Developer-ID signed, notarized, and stapled so Gatekeeper can validate them;
+macOS may still show its standard first-open confirmation.
 
 ### Direct download
 
 1. Grab `herminal-vX.Y.Z.dmg` from the
    [Releases](https://github.com/hoangperry/herminal/releases/latest) page.
 2. Open the DMG → drag `herminal.app` into `/Applications`.
-3. Launch — first run is silent (the build is notarized + stapled).
+3. Launch. Verify the publisher in the standard macOS first-open confirmation.
 
 ### From source
 

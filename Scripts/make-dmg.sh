@@ -28,10 +28,12 @@
 # - hdiutil not available? Should never happen on macOS; the failure
 #   message points at the wrong-platform case.
 
-set -uo pipefail
+set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-cd "$REPO_ROOT"
+cd "$REPO_ROOT" || exit 1
+# shellcheck disable=SC1091 # Path is resolved from this script's repo root.
+source "$REPO_ROOT/Scripts/release-common.sh"
 
 VERSION="${1:-}"
 if [ -z "$VERSION" ]; then
@@ -40,9 +42,10 @@ if [ -z "$VERSION" ]; then
         echo "ERROR: no git tags exist — cut one first or pass version explicitly" >&2
         exit 2
     fi
-    # Strip leading 'v' if present so we accept both forms.
-    VERSION="${LATEST_TAG#v}"
+    VERSION="$LATEST_TAG"
 fi
+# Accept `1.2.3` and `v1.2.3` without producing a `vv1.2.3` artifact.
+VERSION="$(normalize_release_version "$VERSION")"
 
 APP="$REPO_ROOT/.build/release/herminal.app"
 if [ ! -d "$APP" ]; then

@@ -128,8 +128,16 @@ jobs:
           fi
           Scripts/sign-and-notarize.sh
 
-      - name: Package as DMG
-        run: Scripts/make-dmg.sh "${{ steps.tag.outputs.tag }}"
+      - name: Package release assets
+        env:
+          TAG: ${{ steps.tag.outputs.tag }}
+        run: |
+          ZIP=".build/release/herminal-$TAG.zip"
+          rm -f "$ZIP"
+          # Re-zip after stapling; herminal.zip was the pre-staple notary
+          # submission and must never be published as the final asset.
+          ditto -c -k --keepParent .build/release/herminal.app "$ZIP"
+          Scripts/make-dmg.sh "$TAG"
 
       - name: Generate release integrity metadata
         id: integrity

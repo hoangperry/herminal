@@ -3,9 +3,8 @@
 #
 # Builds the release .app, signs it with the Developer ID Application
 # identity in the keychain, submits to Apple's notary service, and
-# staples the resulting ticket. The output is a Gatekeeper-clean
-# bundle that double-click users can launch without the
-# "downloaded from the internet" prompt.
+# staples the resulting ticket. Gatekeeper can validate the output as a known
+# developer build; macOS may still show its standard first-open confirmation.
 #
 # Required env vars (one-time setup at the bottom of this file):
 #   HERMINAL_SIGNING_IDENTITY   — Common name of your Developer ID cert.
@@ -22,14 +21,16 @@
 # when neither variable is set — useful in CI smoke runs that can't
 # touch the keychain.
 
-set -uo pipefail
+set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-cd "$REPO_ROOT"
+cd "$REPO_ROOT" || exit 1
 
 OUTPUT_DIR="${HERMINAL_OUTPUT_DIR:-$REPO_ROOT/.build/release}"
 APP_NAME="herminal"
 ENTITLEMENTS="$REPO_ROOT/App/herminal.entitlements"
+# shellcheck disable=SC1091 # Path is resolved from this script's repo root.
+source "$REPO_ROOT/Scripts/release-common.sh"
 
 # 1. Release build via the shared bundle script (gives us .build/herminal.app
 #    with Info.plist + ad-hoc signature). We re-sign over the ad-hoc id.
@@ -86,13 +87,17 @@ xcrun notarytool submit "$ZIP" \
     --wait \
     --output-format json | tee "$OUTPUT_DIR/notary-result.json"
 
-# notarytool exits 0 even when Apple says "Invalid", so check the JSON.
-status=$(grep -o '"status":"[^"]*"' "$OUTPUT_DIR/notary-result.json" | head -1 | cut -d\" -f4)
+# notarytool exits 0 even when Apple says "Invalid", so parse the JSON. Use
+# plutil rather than whitespace-sensitive grep: notarytool may pretty-print
+# `"status": "Accepted"` or emit compact JSON depending on Xcode version.
+status=$(notary_json_value "$OUTPUT_DIR/notary-result.json" status || true)
 if [ "$status" != "Accepted" ]; then
-    echo "==> Notarization FAILED (status=$status)" >&2
-    echo "Fetch the log with:" >&2
-    submission_id=$(grep -o '"id":"[^"]*"' "$OUTPUT_DIR/notary-result.json" | head -1 | cut -d\" -f4)
-    echo "  xcrun notarytool log $submission_id --keychain-profile $HERMINAL_NOTARY_PROFILE" >&2
+    echo "==> Notarization FAILED (status=${status:-unparseable})" >&2
+    submission_id=$(notary_json_value "$OUTPUT_DIR/notary-result.json" id || true)
+    if [ -n "$submission_id" ]; then
+        echo "Fetch the log with:" >&2
+        echo "  xcrun notarytool log $submission_id --keychain-profile $HERMINAL_NOTARY_PROFILE" >&2
+    fi
     exit 1
 fi
 
@@ -100,7 +105,11 @@ echo "==> Stapling notarization ticket"
 xcrun stapler staple "$APP"
 xcrun stapler validate "$APP"
 
+echo "==> Verifying notarized release"
+codesign --verify --deep --strict --verbose=2 "$APP"
+spctl --assess --type execute --verbose=4 "$APP"
+
 echo ""
 echo "==> Done. Notarized bundle: $APP"
-echo "Distribute the .app (or re-zip it). Users can open it without the"
-echo "Gatekeeper unknown-developer prompt."
+echo "Distribute the .app (or re-zip it). Gatekeeper can validate the"
+echo "Developer ID and stapled notarization ticket."

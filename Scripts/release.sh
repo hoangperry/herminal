@@ -12,7 +12,7 @@
 #      CHANGELOG.md (so the changelog and the tag never drift).
 #   3. Run the full integration suite — release tagging anything red
 #      ships a known-bad build, hard fail.
-#   4. Build + sign (+ optionally notarize) via sign-and-notarize.sh.
+#   4. Build, Developer-ID sign, notarize, and staple via sign-and-notarize.sh.
 #   5. Create an annotated git tag `vX.Y.Z`.
 #   6. Zip the signed bundle as `herminal-vX.Y.Z.zip`.
 #   7. Emit a `gh release create` command for the owner to run
@@ -21,14 +21,15 @@
 #
 # Usage: Scripts/release.sh 0.1.0
 #
-# Env vars (forwarded to sign-and-notarize.sh):
-#   HERMINAL_SIGNING_IDENTITY  — for Developer-ID signing
-#   HERMINAL_NOTARY_PROFILE    — for notarytool submission
+# Required env vars (forwarded to sign-and-notarize.sh):
+#   HERMINAL_SIGNING_IDENTITY  — Developer-ID signing identity
+#   HERMINAL_NOTARY_PROFILE    — notarytool keychain profile
+# Public release preparation fails closed when either is absent.
 
-set -uo pipefail
+set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-cd "$REPO_ROOT"
+cd "$REPO_ROOT" || exit 1
 
 if [ "$#" -ne 1 ]; then
     echo "usage: $0 <version>   (e.g. 0.1.0 or 1.2.3-beta.1)" >&2
@@ -36,6 +37,18 @@ if [ "$#" -ne 1 ]; then
 fi
 VERSION="$1"
 TAG="v$VERSION"
+
+# A release tag must never point at an ad-hoc or merely signed artifact.
+# sign-and-notarize.sh intentionally supports ad-hoc developer smoke builds,
+# so the public release driver enforces the stronger contract up front.
+if [ -z "${HERMINAL_SIGNING_IDENTITY:-}" ]; then
+    echo "ERROR: HERMINAL_SIGNING_IDENTITY is required; refusing an ad-hoc release" >&2
+    exit 1
+fi
+if [ -z "${HERMINAL_NOTARY_PROFILE:-}" ]; then
+    echo "ERROR: HERMINAL_NOTARY_PROFILE is required; refusing an unnotarized release" >&2
+    exit 1
+fi
 
 # Reject the common typo: a leading 'v' on the version arg.
 if [[ "$VERSION" == v* ]]; then
@@ -77,14 +90,32 @@ if ! Scripts/dogfood-daily.sh; then
     exit 1
 fi
 
-# 5. Signed release build (uses HERMINAL_SIGNING_IDENTITY +
-#    HERMINAL_NOTARY_PROFILE if exported; falls back to ad-hoc otherwise).
+# 5. Signed + notarized release build.
 echo "==> Building release"
 HERMINAL_OUTPUT_DIR="$REPO_ROOT/.build/release" Scripts/sign-and-notarize.sh
 
 APP="$REPO_ROOT/.build/release/herminal.app"
 if [ ! -d "$APP" ]; then
     echo "ERROR: signed release bundle not found at $APP" >&2
+    exit 1
+fi
+
+# Do not create a tag unless the output still satisfies the public release
+# contract after the signing script returns.
+if ! codesign --verify --deep --strict "$APP"; then
+    echo "ERROR: release signature verification failed" >&2
+    exit 1
+fi
+if ! codesign -d --verbose=4 "$APP" 2>&1 | grep -q '^Authority=Developer ID Application:'; then
+    echo "ERROR: release is not signed by a Developer ID Application identity" >&2
+    exit 1
+fi
+if ! xcrun stapler validate "$APP"; then
+    echo "ERROR: release has no valid stapled notarization ticket" >&2
+    exit 1
+fi
+if ! spctl --assess --type execute --verbose=4 "$APP"; then
+    echo "ERROR: Gatekeeper assessment failed" >&2
     exit 1
 fi
 

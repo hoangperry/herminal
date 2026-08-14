@@ -13,8 +13,9 @@ Terminal/IME input, command spawn and restore, SSH import, diagnostics, workspac
 - Pinned third-party Actions to reviewed commit SHAs and enabled Dependabot.
 - Added verified Zig download/checksum for CI.
 - Repaired previously nonfunctional full CI; build and 152 tests pass on run `31812947567`.
-- Added CodeQL for independently analyzable DB/agent targets; run `31812947548` passes.
+- Added CodeQL for independently analyzable DB/agent targets; runs `31812947548` and `31814582462` pass.
 - Added release SHA-256/dependency manifests and made missing signing/notary credentials fatal.
+- Made the local release driver fail closed, replaced whitespace-sensitive notary JSON parsing, verified post-staple Gatekeeper state, and package the stapled app—not the pre-staple submission ZIP—as the final workflow asset.
 
 ## Accepted or deferred risks
 
