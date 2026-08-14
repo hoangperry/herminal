@@ -102,7 +102,7 @@ Runs every 2s on the main actor while the agent dashboard is open
 5. `BellRegistry.hasRecentBell(forSurfaceAddress:)` per surface;
    any recent bell → promote running/idle agents to `.needsInput`.
 6. `AgentDashboardView` renders the annotated list with status
-   color dot + "Tab N" chip, plus the worktree cockpit (list / spawn /
+   color dot + flattened "Pane N" chip, plus the worktree cockpit (list / spawn /
    remove) driven by `GitWorktree`.
 
 ---
@@ -110,15 +110,17 @@ Runs every 2s on the main actor while the agent dashboard is open
 ## Data flow — agent worktree (`wt`)
 
 1. User hits ⌘⌥W or the dashboard "new worktree" button.
-2. `GitWorktree.resolveContext` runs `git rev-parse` (argv-only) in the
-   focused pane's OSC 7 cwd to find the main repo root.
+2. A utility-priority task runs `GitWorktree.resolveContext` with argv-only
+   `git rev-parse` in the focused pane's OSC 7 cwd. Git never blocks MainActor,
+   and generation tokens discard results made stale by later cwd/focus changes.
 3. `GitWorktree.add` creates `../<repo>.worktrees/<slug>` via
    `git worktree add` (existing branch) or `git worktree add -b`
    (new branch). Branch names are validated first.
 4. `WorkspaceView.addTab` opens the new checkout with a whitelisted
    command (`claude` / `codex` / `aider`) or a plain shell.
 5. The agent dashboard lists `git worktree list --porcelain` and can
-   open or remove an entry. Remove confirms and never uses `--force`.
+   open or remove an entry. Remove confirms and never uses `--force`. Git output
+   is file-backed and read with a 1 MiB cap to avoid pipe deadlocks/unbounded memory.
 
 ---
 
@@ -194,7 +196,7 @@ never branch on them.
 ```
 Scripts/bootstrap.sh        → Vendor/libghostty → GhosttyKit.xcframework  (~5-15 min cold)
 swift build                 → SPM core libraries
-swift test                  → 153 tests
+swift test                  → 175 tests
 Scripts/make-app-bundle.sh  → .build/herminal.app (ad-hoc signed)
 Scripts/sign-and-notarize.sh→ .build/release/herminal.app (Developer-ID + notarytool)
 Scripts/make-dmg.sh         → .build/release/herminal-vX.Y.Z.dmg
