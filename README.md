@@ -21,7 +21,10 @@ See [CHANGELOG](CHANGELOG.md).
 
 > 🇻🇳 Phiên bản tiếng Việt: [`README.vi.md`](README.vi.md)
 
-![The herminal workspace — agent dashboard in the left slot, split terminal panes in the center, per-session notes on the right, status bar along the bottom](docs/assets/window-anatomy.png)
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/window-anatomy.png">
+  <img alt="The herminal workspace — agent dashboard in the left slot, split terminal panes in the center, per-session notes on the right, status bar along the bottom" src="docs/assets/window-anatomy-light.png">
+</picture>
 
 *Live agents and worktrees on the left, splits in the middle, per-session
 notes on the right. The left slot is one slot: the agent dashboard and the
@@ -58,7 +61,10 @@ engine (Zig, mature, native performance) with a Swift / AppKit shell that
 owns the IME and the chrome. Storage is SQLite for both per-session notes
 and saved SSH hosts. No cloud, no telemetry, no account.
 
-![One NSTextInputClient bridge serving Vietnamese Telex, Korean 2-Set Hangul, Japanese romaji-to-kanji and Chinese Pinyin, plus the Tab-while-preedit case they all share](docs/assets/ime-composition.png)
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/ime-composition.png">
+  <img alt="One NSTextInputClient bridge serving Vietnamese Telex, Korean 2-Set Hangul, Japanese romaji-to-kanji and Chinese Pinyin, plus the Tab-while-preedit case they all share" src="docs/assets/ime-composition-light.png">
+</picture>
 
 *The composition APIs live on the terminal surface itself, not in a
 wrapper text field — so one bridge serves every input method macOS
@@ -175,7 +181,10 @@ Agents are detected by walking herminal's process subtree — start
 dashboard within ~2 seconds with a `running` / `idle` / `starting`
 badge tracked via CPU sampling.
 
-![The five stages of one agent poll: timer, sysctl process snapshot, classify by name or argv, annotate with CPU delta and tab hint, render](docs/assets/agent-lifecycle.png)
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/agent-lifecycle.png">
+  <img alt="The five stages of one agent poll: timer, sysctl process snapshot, classify by name or argv, annotate with CPU delta and tab hint, render" src="docs/assets/agent-lifecycle-light.png">
+</picture>
 
 *No agent has to cooperate and no API key is involved — the signal is
 derived entirely from the process tree. `argv` is read only to recognise
@@ -193,7 +202,10 @@ to follow one signal end to end.*
 | Storage | SQLite WAL (notes + SSH hosts) | Local-only, atomic, indexable |
 | Distribution | Developer-ID signed + notarized DMG/zip and Homebrew cask | App Store sandbox is incompatible |
 
-![The five dependency layers: HerminalApp, HerminalAgent, HerminalDB, HerminalCore, GhosttyKit.xcframework](docs/assets/architecture.png)
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/architecture.png">
+  <img alt="The five dependency layers: HerminalApp, HerminalAgent, HerminalDB, HerminalCore, GhosttyKit.xcframework" src="docs/assets/architecture-light.png">
+</picture>
 
 *libghostty is consumed as an upstream release through its published C
 ABI — not vendored as a fork. Full write-up in
