@@ -136,7 +136,8 @@ Herminal does not protect users from commands they intentionally run, malicious 
 
 **Required follow-up:**
 
-- Dependabot for SwiftPM and Actions;
+- Dependabot for grouped minor/patch Action updates;
+- maintainer review of `Package.resolved` updates (Swift Dependabot cannot parse the local GhosttyKit binary target);
 - pin Actions to reviewed commit SHAs;
 - document libghostty update/review procedure;
 - generate dependency manifest/SBOM and checksums for every release;

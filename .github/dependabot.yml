@@ -1,16 +1,9 @@
 version: 2
 updates:
-  - package-ecosystem: swift
-    directory: /
-    schedule:
-      interval: weekly
-      day: monday
-    open-pull-requests-limit: 5
-    labels:
-      - dependencies
-      - swift
-    commit-message:
-      prefix: chore(deps)
+  # Swift Dependabot executes `swift package` before submodules/toolchains are
+  # available and cannot parse this package's local GhosttyKit binary target.
+  # Package.resolved changes therefore stay maintainer-reviewed; GitHub Actions
+  # updates remain automated below.
 
   - package-ecosystem: github-actions
     directory: /

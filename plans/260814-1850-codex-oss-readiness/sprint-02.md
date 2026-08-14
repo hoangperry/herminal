@@ -14,7 +14,7 @@ Completed in first pass:
 - Added code-grounded `docs/THREAT-MODEL.md`.
 - Enabled and verified GitHub private vulnerability reporting.
 - Updated `SECURITY.md` to use the private advisory path.
-- Added Dependabot for SwiftPM and GitHub Actions.
+- Added grouped minor/patch Dependabot updates for GitHub Actions. Swift updates remain manual because Dependabot cannot parse the local GhosttyKit binary target.
 - Pinned all third-party Actions in CI, Pages, and Release workflows to reviewed commit SHAs.
 - Added a pinned CodeQL Swift workflow (execution still requires CI verification).
 - Added release SHA-256 and dependency-manifest generation/upload.
@@ -29,7 +29,7 @@ correctly deferred as public issue #4 because it requires signed runtime tests.
 
 1. `docs/THREAT-MODEL.md` grounded in actual code and trust boundaries.
 2. GitHub private vulnerability reporting enabled and `SECURITY.md` updated.
-3. Dependabot coverage for SwiftPM and GitHub Actions.
+3. Dependabot coverage for GitHub Actions plus a documented manual SwiftPM update policy.
 4. CodeQL Swift workflow if it works with the supported macOS runner; otherwise a documented replacement.
 5. Third-party GitHub Actions pinned to reviewed commit SHAs.
 6. Release SHA-256 manifest and SBOM/dependency manifest uploaded with draft releases.
