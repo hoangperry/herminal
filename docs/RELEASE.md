@@ -59,8 +59,14 @@ Scripts/check-release-readiness.sh --online-notary-check
 ```
 
 The checker prints capability outcomes only—not identity/profile values. It
-signs a temporary copy of `/usr/bin/true` to catch locked or unusable private
-keys before an expensive build.
+requires full Xcode's license and first-launch setup to be complete, then signs
+a temporary copy of `/usr/bin/true` to catch locked or unusable private keys
+before an expensive build. A newly installed Xcode may require:
+
+```sh
+sudo xcodebuild -license accept
+sudo xcodebuild -runFirstLaunch
+```
 
 ## Verify the release guards
 
