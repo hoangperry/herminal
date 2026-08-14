@@ -63,9 +63,36 @@ If the result is ❌, note in the **defect** column whether the issue is:
 | 19 | (mix latin + vi) `git commit -m "thay ddooir font tieesng vieejt"` | `git commit -m "thay đổi font tiếng việt"` | | |
 | 20 | (rapid type) `aaa bbb ccc ddd` then immediately `eeef ffff gggj` | `aaa bbb ccc ddd êê ff ggg` | | |
 
+## Shell completion while preedit is active (release blocker)
+
+Run these cases in an empty temporary directory whose filenames make the
+expected completion unambiguous. Confirm the partial Vietnamese text is still
+underlined immediately before pressing Tab.
+
+```sh
+mkdir -p /tmp/herminal-ime-tab && cd /tmp/herminal-ime-tab
+mkdir 'tiếng-việt-project'
+touch 'kiểm-thử.txt'
+```
+
+| # | Input source / shell | Action | Expected | Result | Defect |
+|---|---|---|---|---|---|
+| T1 | Telex / zsh | Type an underlined unique prefix of `tiếng-việt-project`, then press Tab once | Preedit commits once and path completes | | |
+| T2 | VNI / zsh | Same as T1 using VNI | Preedit commits once and path completes | | |
+| T3 | Telex / bash | Same as T1 | Preedit commits once and path completes | | |
+| T4 | Telex / fish (if installed) | Same as T1 | Preedit commits once and path completes | | |
+| T5 | Telex / zsh | With underlined preedit, press Shift-Tab | Text commits once; terminal receives Shift-Tab without duplicated text | | |
+| T6 | US input / zsh | Type an ordinary ASCII unique prefix, press Tab | Existing non-IME completion remains unchanged | | |
+| T7 | Telex / zsh | Repeat T1 rapidly 10 times on fresh prompts | No dropped or duplicated characters | | |
+
+If T1 or T2 fails, the build is not eligible for release. Record whether the
+underlined text remained visible, committed without completion, disappeared,
+or duplicated.
+
 ## Pass criteria
 
-- **≥18/20 phrases ✅** for the matrix to count as a pass.
+- **≥18/20 phrases ✅** for the phrase matrix to count as a pass.
+- **T1, T2, T5, T6, and T7 must pass**; T3/T4 pass when those shells are available.
 - **0 ❌** of severity **DROP** or **DUP** (those are data-loss class).
 - Any **CURSOR** defect documented for a follow-up bug.
 

@@ -44,6 +44,17 @@ final class HerminalSurfaceView: NSView, ClipboardOwner, NSUserInterfaceValidati
     /// IME's committed text instead of sending it straight to the PTY.
     private var keyTextAccumulator: [String]?
 
+    /// Physical macOS key code for Tab. Kept local instead of importing Carbon
+    /// solely for one constant.
+    private static let tabKeyCode: UInt16 = 48
+
+    enum IMEKeyRoutingDecision: Equatable {
+        case standard
+        /// AppKit used the key to commit the preedit. Emit that committed text
+        /// separately, then replay the original key so the shell also sees it.
+        case commitThenReplay
+    }
+
     /// NSCursor shown when the mouse is inside this view's bounds.
     /// Defaults to I-beam — that's what a terminal IS. libghostty's
     /// MOUSE_SHAPE action overrides it (vim mouse mode, URL hover,
@@ -291,7 +302,25 @@ final class HerminalSurfaceView: NSView, ClipboardOwner, NSUserInterfaceValidati
         // Push the (possibly updated) composition state to libghostty.
         syncPreedit()
 
-        if let accumulated, !accumulated.isEmpty {
+        let routing = Self.imeKeyRoutingDecision(
+            keyCode: event.keyCode,
+            hadMarkedText: hadMarkedText,
+            hasMarkedText: markedText.length > 0,
+            committedTextCount: accumulated?.count ?? 0
+        )
+
+        if routing == .commitThenReplay, let accumulated {
+            // Vietnamese IMEs use Tab to commit the underlined preedit. If the
+            // committed text is attached to the Tab event, libghostty writes the
+            // text but intentionally does not encode a second Tab. Send the text
+            // as a keyless commit, then replay the real key so zsh/bash/fish can
+            // perform completion in the same keystroke. Shift is preserved on
+            // the replay, so Shift-Tab keeps its normal terminal meaning.
+            for text in accumulated {
+                sendCommittedPreeditText(text, action: action)
+            }
+            sendKey(event, action: action, text: nil, composing: false)
+        } else if let accumulated, !accumulated.isEmpty {
             // The IME committed one or more strings (e.g. a composed "ế").
             for text in accumulated {
                 sendKey(event, action: action, text: text, composing: false)
@@ -309,6 +338,43 @@ final class HerminalSurfaceView: NSView, ClipboardOwner, NSUserInterfaceValidati
 
     override func keyUp(with event: NSEvent) {
         sendKey(event, action: GHOSTTY_ACTION_RELEASE, text: nil, composing: false)
+    }
+
+    static func imeKeyRoutingDecision(
+        keyCode: UInt16,
+        hadMarkedText: Bool,
+        hasMarkedText: Bool,
+        committedTextCount: Int
+    ) -> IMEKeyRoutingDecision {
+        guard keyCode == tabKeyCode,
+              hadMarkedText,
+              !hasMarkedText,
+              committedTextCount > 0 else {
+            return .standard
+        }
+        return .commitThenReplay
+    }
+
+    /// Emits text committed by an IME without associating it with the physical
+    /// key that caused the commit. This lets that key be replayed independently.
+    /// Mirrors Ghostty's upstream handling for navigation keys after preedit.
+    private func sendCommittedPreeditText(
+        _ text: String,
+        action: ghostty_input_action_e
+    ) {
+        guard let surface, !text.isEmpty else { return }
+
+        var keyEvent = ghostty_input_key_s()
+        keyEvent.action = action
+        keyEvent.keycode = 0
+        keyEvent.mods = GHOSTTY_MODS_NONE
+        keyEvent.consumed_mods = GHOSTTY_MODS_NONE
+        keyEvent.composing = false
+        keyEvent.unshifted_codepoint = 0
+        text.withCString { ptr in
+            keyEvent.text = ptr
+            _ = ghostty_surface_key(surface, keyEvent)
+        }
     }
 
     /// Translates an NSEvent key event into a libghostty key event.

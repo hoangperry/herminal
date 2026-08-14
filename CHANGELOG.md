@@ -7,12 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [1.0.0] - 2026-06-06
+## [1.0.0] - Unreleased
 
 herminal leaves beta. Everything in the PRD's v1 scope is shipped,
-reviewed (five parallel code + security passes), and regression-guarded
-(143 unit tests + a 9-check dogfood gate, all green). This release also
-adds the last two "every terminal has this" verbs.
+reviewed (five parallel code + security passes), and regression-guarded.
+This release also adds the last two "every terminal has this" verbs and
+closes a Vietnamese-first input blocker before the first public v1 build.
 
 ### Added
 
@@ -22,6 +22,14 @@ adds the last two "every terminal has this" verbs.
 - **Pane zoom.** `⌘⇧Return` maximizes the focused pane to fill the tab and
   toggles back — the iTerm/tmux staple, now that panes nest recursively.
   Auto-restores on any split / close / directional-focus move.
+
+### Fixed
+
+- **Vietnamese IME shell completion.** Pressing Tab while Telex/VNI text is
+  still underlined now commits the preedit exactly once and forwards the same
+  Tab to the shell, so zsh/bash/fish completion works without first pressing
+  Space or Escape. Shift-Tab and ordinary non-IME Tab retain their existing
+  behavior.
 
 ### Notes
 
