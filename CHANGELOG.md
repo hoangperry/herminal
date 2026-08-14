@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Agent cockpit (FlightDeck `wt`).** Isolated git worktrees next to the
+  repo (`../<repo>.worktrees/<branch>`), spawned from ⌘⌥W or the agent
+  dashboard. Each worktree opens a tab running Claude / Codex / Aider /
+  a plain shell. List + remove live in the agent sidebar.
+- **New Agent Pane / Tab.** ⌘⌥A splits a `claude` pane; ⌘⌥T opens a
+  `claude` tab in the current directory.
+- **Lazygit.** ⌘⌥G opens `lazygit` in a new tab at the focused cwd.
+- **Tab jump.** ⌘1…⌘8 select that tab; ⌘9 selects the last tab.
+- **Worktree-aware git branch.** The status bar follows a `.git` *file*
+  (linked worktree), not only a `.git` directory.
+
 ## [1.0.0] - Unreleased
 
 herminal leaves beta. Everything in the PRD's v1 scope is shipped,

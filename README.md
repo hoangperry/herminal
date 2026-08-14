@@ -142,7 +142,10 @@ integration scripts.
 - **⌘T / ⌘W** — new tab / close current pane (closes tab when last)
 - **⌘D / ⌘⇧D** — split vertical / horizontal
 - **⌘⇧] / ⌘⇧[** — next / previous tab
-- **⌘⇧A** — toggle agent dashboard
+- **⌘⌥A** — new Claude pane (split)
+- **⌘⌥W** — new isolated agent worktree
+- **⌘⇧A** — toggle agent dashboard (live agents + worktrees)
+- **⌘1…⌘9** — jump to tab N / last tab
 - **⌘⇧S** — toggle SSH host manager (mutex with the agent dashboard
   in the left slot)
 - **⌘⇧N** — toggle the per-session notes panel on the right

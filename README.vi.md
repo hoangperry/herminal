@@ -132,7 +132,10 @@ Yêu cầu: Xcode 26+, Swift 6.2+, [Zig](https://ziglang.org) 0.15.2+
 - **⌘T / ⌘W** — tab mới / đóng pane đang focus (đóng tab khi pane cuối)
 - **⌘D / ⌘⇧D** — split dọc / ngang
 - **⌘⇧] / ⌘⇧[** — tab kế / tab trước
-- **⌘⇧A** — toggle agent dashboard
+- **⌘⌥A** — pane Claude mới (split)
+- **⌘⌥W** — worktree agent cô lập
+- **⌘⇧A** — toggle agent dashboard (agent đang chạy + worktrees)
+- **⌘1…⌘9** — nhảy tới tab N / tab cuối
 - **⌘⇧S** — toggle SSH host manager (mutex với agent dashboard ở slot trái)
 - **⌘⇧N** — toggle notes panel bên phải
 - **⌘⇧L** — toggle theme dark / light

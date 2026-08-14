@@ -102,7 +102,23 @@ Runs every 2s on the main actor while the agent dashboard is open
 5. `BellRegistry.hasRecentBell(forSurfaceAddress:)` per surface;
    any recent bell → promote running/idle agents to `.needsInput`.
 6. `AgentDashboardView` renders the annotated list with status
-   color dot + "Tab N" chip.
+   color dot + "Tab N" chip, plus the worktree cockpit (list / spawn /
+   remove) driven by `GitWorktree`.
+
+---
+
+## Data flow — agent worktree (`wt`)
+
+1. User hits ⌘⌥W or the dashboard "new worktree" button.
+2. `GitWorktree.resolveContext` runs `git rev-parse` (argv-only) in the
+   focused pane's OSC 7 cwd to find the main repo root.
+3. `GitWorktree.add` creates `../<repo>.worktrees/<slug>` via
+   `git worktree add` (existing branch) or `git worktree add -b`
+   (new branch). Branch names are validated first.
+4. `WorkspaceView.addTab` opens the new checkout with a whitelisted
+   command (`claude` / `codex` / `aider`) or a plain shell.
+5. The agent dashboard lists `git worktree list --porcelain` and can
+   open or remove an entry. Remove confirms and never uses `--force`.
 
 ---
 

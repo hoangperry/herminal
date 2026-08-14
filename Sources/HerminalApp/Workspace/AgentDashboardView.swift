@@ -1,5 +1,6 @@
 // AgentDashboardView — sidebar panel listing the agent CLIs running under
-// herminal. SwiftUI chrome styled from design tokens.
+// herminal, plus the worktree cockpit (new agent pane, isolated
+// worktrees, lazygit).
 //
 // Lifecycle status is inferred outside the view from CPU deltas and recent
 // terminal bells. This view only renders privacy-minimized DetectedAgent values.
@@ -9,50 +10,83 @@ import HerminalAgent
 
 struct AgentDashboardView: View {
     let agents: [DetectedAgent]
+    var worktrees: [GitWorktree.Entry] = []
+    var inGitRepo: Bool = false
+    var primaryWorktreePath: String? = nil
+    var onSelectAgent: ((DetectedAgent) -> Void)?
+    var onNewAgent: (() -> Void)?
+    var onNewWorktree: (() -> Void)?
+    var onOpenLazygit: (() -> Void)?
+    var onOpenWorktree: ((GitWorktree.Entry) -> Void)?
+    var onAgentInWorktree: ((GitWorktree.Entry) -> Void)?
+    var onRemoveWorktree: ((GitWorktree.Entry) -> Void)?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             header
             Divider().overlay(HerminalDesign.Palette.divider)
-            if agents.isEmpty {
-                emptyState
-            } else {
-                ScrollView {
-                    VStack(alignment: .leading, spacing: HerminalDesign.Spacing.xxs) {
-                        ForEach(agents) { agent in
-                            agentRow(agent)
+            ScrollView {
+                VStack(alignment: .leading, spacing: HerminalDesign.Spacing.sm) {
+                    if agents.isEmpty {
+                        emptyState
+                    } else {
+                        VStack(alignment: .leading, spacing: HerminalDesign.Spacing.xxs) {
+                            ForEach(agents) { agent in
+                                agentRow(agent)
+                            }
                         }
                     }
-                    .padding(HerminalDesign.Spacing.sm)
+                    worktreeSection
                 }
+                .padding(HerminalDesign.Spacing.sm)
             }
-            Spacer(minLength: 0)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .background(HerminalDesign.Palette.surfaceElevated)
     }
 
     private var header: some View {
-        HStack {
+        HStack(spacing: HerminalDesign.Spacing.xs) {
             Text("AGENTS")
                 .font(HerminalDesign.Typography.caption)
                 .foregroundStyle(HerminalDesign.Palette.textTertiary)
                 .accessibilityAddTraits(.isHeader)
-            Spacer()
             Text("\(agents.count)")
                 .font(HerminalDesign.Typography.caption)
                 .foregroundStyle(HerminalDesign.Palette.textSecondary)
                 .accessibilityLabel("\(agents.count) agent\(agents.count == 1 ? "" : "s") running")
+            Spacer(minLength: 0)
+            headerButton("plus", label: "New agent pane", action: onNewAgent)
+            headerButton("square.stack.3d.up", label: "New agent worktree", action: onNewWorktree)
+            headerButton("arrow.triangle.branch", label: "Open lazygit", action: onOpenLazygit)
         }
-        .padding(.horizontal, HerminalDesign.Spacing.md)
+        .padding(.horizontal, HerminalDesign.Spacing.sm)
         .frame(height: TabBarView.barHeight)
     }
 
+    private func headerButton(_ systemName: String, label: String, action: (() -> Void)?) -> some View {
+        Button(action: { action?() }) {
+            Image(systemName: systemName)
+                .font(.system(size: 10, weight: .semibold))
+                .foregroundStyle(HerminalDesign.Palette.textSecondary)
+                .frame(width: 18, height: 18)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .disabled(action == nil)
+        .accessibilityLabel(label)
+    }
+
     private var emptyState: some View {
-        Text("No agents running")
-            .font(HerminalDesign.Typography.caption)
-            .foregroundStyle(HerminalDesign.Palette.textTertiary)
-            .padding(HerminalDesign.Spacing.md)
+        VStack(alignment: .leading, spacing: HerminalDesign.Spacing.xs) {
+            Text("No agents running")
+                .font(HerminalDesign.Typography.caption)
+                .foregroundStyle(HerminalDesign.Palette.textTertiary)
+            Text("⌘⌥A splits a Claude pane. ⌘⌥W spins an isolated worktree.")
+                .font(HerminalDesign.Typography.caption)
+                .foregroundStyle(HerminalDesign.Palette.textTertiary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
     }
 
     private func agentRow(_ agent: DetectedAgent) -> some View {
@@ -67,10 +101,9 @@ struct AgentDashboardView: View {
                         .font(HerminalDesign.Typography.bodyEmphasis)
                         .foregroundStyle(HerminalDesign.Palette.textPrimary)
                     if let tab = agent.tabHint {
-                        // M9/A3: pane mapper found a tab — surface it so
-                        // the user knows where to look. Numbered 1-based
-                        // to match the user-visible tab strip.
-                        Text("Tab \(tab + 1)")
+                        // AgentPaneMapper returns a flattened session/pane
+                        // index, not a tab-strip index. Number it 1-based.
+                        Text("Pane \(tab + 1)")
                             .font(HerminalDesign.Typography.caption)
                             .foregroundStyle(HerminalDesign.Palette.accent)
                             .padding(.horizontal, 4)
@@ -93,14 +126,86 @@ struct AgentDashboardView: View {
             RoundedRectangle(cornerRadius: HerminalDesign.Radius.sm)
                 .fill(HerminalDesign.Palette.surfaceOverlay)
         )
+        .contentShape(Rectangle())
+        .onTapGesture { onSelectAgent?(agent) }
         .accessibilityElement(children: .combine)
         .accessibilityLabel(Self.a11yLabel(for: agent))
+        .accessibilityAddTraits(.isButton)
+    }
+
+    private var worktreeSection: some View {
+        VStack(alignment: .leading, spacing: HerminalDesign.Spacing.xxs) {
+            Text("WORKTREES")
+                .font(HerminalDesign.Typography.caption)
+                .foregroundStyle(HerminalDesign.Palette.textTertiary)
+                .padding(.top, HerminalDesign.Spacing.xs)
+            if !inGitRepo {
+                Text("Current pane is not a git repo")
+                    .font(HerminalDesign.Typography.caption)
+                    .foregroundStyle(HerminalDesign.Palette.textTertiary)
+            } else if worktrees.isEmpty {
+                Text("No worktrees")
+                    .font(HerminalDesign.Typography.caption)
+                    .foregroundStyle(HerminalDesign.Palette.textTertiary)
+            } else {
+                ForEach(worktrees) { tree in
+                    worktreeRow(tree)
+                }
+            }
+        }
+    }
+
+    private func worktreeRow(_ tree: GitWorktree.Entry) -> some View {
+        HStack(spacing: HerminalDesign.Spacing.xs) {
+            Button { onOpenWorktree?(tree) } label: {
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(tree.label)
+                        .font(HerminalDesign.Typography.bodyEmphasis)
+                        .foregroundStyle(HerminalDesign.Palette.textPrimary)
+                        .lineLimit(1)
+                    Text((tree.path as NSString).lastPathComponent)
+                        .font(HerminalDesign.Typography.caption)
+                        .foregroundStyle(HerminalDesign.Palette.textTertiary)
+                        .lineLimit(1)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Open worktree \(tree.label)")
+            tinyButton("sparkles", label: "Open Claude in \(tree.label)") {
+                onAgentInWorktree?(tree)
+            }
+            if !GitWorktree.pathsEqual(tree.path, primaryWorktreePath) {
+                tinyButton("trash", label: "Remove worktree \(tree.label)") {
+                    onRemoveWorktree?(tree)
+                }
+            }
+        }
+        .padding(.horizontal, HerminalDesign.Spacing.sm)
+        .padding(.vertical, HerminalDesign.Spacing.xs)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: HerminalDesign.Radius.sm)
+                .fill(HerminalDesign.Palette.surfaceOverlay)
+        )
+    }
+
+    private func tinyButton(_ systemName: String, label: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: systemName)
+                .font(.system(size: 10, weight: .semibold))
+                .foregroundStyle(HerminalDesign.Palette.textSecondary)
+                .frame(width: 16, height: 16)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(label)
     }
 
     private static func a11yLabel(for agent: DetectedAgent) -> String {
         let base = "\(label(for: agent.kind)) agent \(statusText(agent.status)), pid \(agent.pid)"
         if let tab = agent.tabHint {
-            return "\(base), in tab \(tab + 1)"
+            return "\(base), in pane \(tab + 1)"
         }
         return base
     }

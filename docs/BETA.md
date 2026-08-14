@@ -8,8 +8,8 @@ Engineering gates are green: CI build, 153 tests, and targeted CodeQL. Distribut
 
 ## Current distribution blockers
 
-- Real Telex/VNI marked-text cases still require human keyboard verification.
-- Repository Actions secrets are not configured for Developer ID/notarization.
+- Real Telex/VNI marked-text cases still require human keyboard verification via `Scripts/record-vietnamese-ime-gate.sh`.
+- Repository Actions secrets are not configured for Developer ID/notarization; `Scripts/check-release-readiness.sh` verifies local prerequisites without printing their values.
 - A local Developer ID identity is visible, but non-interactive signing currently returns `errSecInternalComponent`; no notarytool profile is configured. Credential repair stays an owner-only action and no password/key material belongs in the repository.
 
 ## Tester commitment
