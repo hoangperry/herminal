@@ -69,11 +69,14 @@ jobs:
             ${{ runner.os }}-spm-release-
 
       - name: Import Developer-ID signing certificate
-        if: ${{ secrets.APPLE_DEVELOPER_CERT_P12 != '' }}
         env:
           CERT_P12_BASE64: ${{ secrets.APPLE_DEVELOPER_CERT_P12 }}
           CERT_PASSWORD: ${{ secrets.APPLE_CERT_PASSWORD }}
         run: |
+          if [ -z "$CERT_P12_BASE64" ]; then
+            echo "No Developer ID certificate configured; skipping import"
+            exit 0
+          fi
           # Create a temporary keychain that the run owns; gets torn
           # down with the runner so secrets never leak into a cached
           # login keychain.
@@ -88,6 +91,7 @@ jobs:
             -P "$CERT_PASSWORD" \
             -A -t cert -f pkcs12 \
             -k "$KEYCHAIN_PATH"
+          # shellcheck disable=SC2046 # security expects the existing paths as separate args.
           security list-keychains -d user -s "$KEYCHAIN_PATH" $(security list-keychains -d user | tr -d '"')
           security set-key-partition-list \
             -S apple-tool:,apple:,codesign: \
@@ -95,12 +99,15 @@ jobs:
           rm -f "$RUNNER_TEMP/cert.p12"
 
       - name: Store notarytool credentials
-        if: ${{ secrets.APPLE_ID != '' }}
         env:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
         run: |
+          if [ -z "$APPLE_ID" ]; then
+            echo "No notary credentials configured; skipping profile setup"
+            exit 0
+          fi
           xcrun notarytool store-credentials herminal-notarize \
             --apple-id "$APPLE_ID" \
             --team-id "$APPLE_TEAM_ID" \
