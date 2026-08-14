@@ -50,6 +50,9 @@ jobs:
       - name: Verify fail-closed release guards
         run: Scripts/verify-release-guards.sh
 
+      - name: Check diagnostics privacy
+        run: Scripts/check-diagnostics-privacy.py
+
       - name: Install verified build toolchain
         run: |
           Scripts/install-zig-ci.sh
@@ -79,6 +82,9 @@ jobs:
       - name: Build libghostty xcframework (if not cached)
         if: steps.cache-ghostty.outputs.cache-hit != 'true'
         run: Scripts/bootstrap.sh
+
+      - name: Validate package manifest
+        run: swift package dump-package > /dev/null
 
       - name: swift build
         run: swift build

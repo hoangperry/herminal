@@ -561,7 +561,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
         guard WorkspacesStore.save(name: field.stringValue, snapshot: workspace.snapshotWorkspace()) else {
             return
         }
-        Diary.shared.log("saved workspace '\(field.stringValue)'", category: "session")
+        Diary.shared.log("saved named workspace", category: "session")
     }
 
     /// Opens a saved workspace, identified by the menu item's
@@ -570,14 +570,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
         guard let name = sender.representedObject as? String,
               let saved = WorkspacesStore.workspace(named: name) else { return }
         workspace?.restoreWorkspace(saved.snapshot)
-        Diary.shared.log("opened workspace '\(name)'", category: "session")
+        Diary.shared.log("opened named workspace", category: "session")
     }
 
     /// Deletes a saved workspace (Option-click alternate in the menu).
     @objc func deleteWorkspaceMenuAction(_ sender: NSMenuItem) {
         guard let name = sender.representedObject as? String else { return }
         WorkspacesStore.delete(name: name)
-        Diary.shared.log("deleted workspace '\(name)'", category: "session")
+        Diary.shared.log("deleted named workspace", category: "session")
     }
 
     // MARK: - NSMenuDelegate (dynamic "Open Workspace" submenu)

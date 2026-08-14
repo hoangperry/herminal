@@ -622,7 +622,7 @@ final class WorkspaceView: NSView {
         let focusedID = tab.focusedPane.id
         guard confirmCloseIfNoteExists(forSessionIDs: [focusedID]) else { return }
         if tab.closeFocusedPane() {
-            Diary.shared.log("closeActivePane → tab \(tab.id) empty, closing tab", category: "panes")
+            Diary.shared.log("closeActivePane → active tab empty, closing tab", category: "panes")
             guard let index = tabs.firstIndex(where: { $0.id == tab.id }) else { return }
             closeTabImmediately(at: index)
         } else {
@@ -1304,7 +1304,7 @@ final class WorkspaceView: NSView {
             // shell exited on its own, prompting the user "are you
             // sure?" right after they typed `exit` would be silly.
             tab.removePane(id: pane.id)
-            Diary.shared.log("surfaceDidClose tab=\(tabIndex) pane=\(pane.id)", category: "panes")
+            Diary.shared.log("surfaceDidClose tab=\(tabIndex)", category: "panes")
             if tab.panes.isEmpty {
                 closeTabImmediately(at: tabIndex)
             } else {
