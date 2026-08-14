@@ -77,9 +77,9 @@ jobs:
           CERT_P12_BASE64: ${{ secrets.APPLE_DEVELOPER_CERT_P12 }}
           CERT_PASSWORD: ${{ secrets.APPLE_CERT_PASSWORD }}
         run: |
-          if [ -z "$CERT_P12_BASE64" ]; then
-            echo "No Developer ID certificate configured; skipping import"
-            exit 0
+          if [ -z "$CERT_P12_BASE64" ] || [ -z "$CERT_PASSWORD" ]; then
+            echo "ERROR: Developer ID certificate secrets are required for a release" >&2
+            exit 1
           fi
           # Create a temporary keychain that the run owns; gets torn
           # down with the runner so secrets never leak into a cached
@@ -108,9 +108,9 @@ jobs:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
         run: |
-          if [ -z "$APPLE_ID" ]; then
-            echo "No notary credentials configured; skipping profile setup"
-            exit 0
+          if [ -z "$APPLE_ID" ] || [ -z "$APPLE_TEAM_ID" ] || [ -z "$APPLE_APP_SPECIFIC_PASSWORD" ]; then
+            echo "ERROR: Apple notarization secrets are required for a release" >&2
+            exit 1
           fi
           xcrun notarytool store-credentials herminal-notarize \
             --apple-id "$APPLE_ID" \
@@ -121,7 +121,12 @@ jobs:
         env:
           HERMINAL_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
           HERMINAL_NOTARY_PROFILE: herminal-notarize
-        run: Scripts/sign-and-notarize.sh
+        run: |
+          if [ -z "$HERMINAL_SIGNING_IDENTITY" ]; then
+            echo "ERROR: APPLE_SIGNING_IDENTITY is required; refusing an ad-hoc release" >&2
+            exit 1
+          fi
+          Scripts/sign-and-notarize.sh
 
       - name: Package as DMG
         run: Scripts/make-dmg.sh "${{ steps.tag.outputs.tag }}"
