@@ -1,0 +1,172 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1120 720" width="1120" height="720" role="img" aria-label="One NSTextInputClient bridge serving Vietnamese Telex, Korean 2-Set Hangul, Japanese romaji-to-kanji and Chinese Pinyin input methods">
+  <title>Input-method composition in herminal</title>
+  <desc>herminal implements a real NSTextInputClient on the terminal surface, so every macOS input method with a composition phase works: Vietnamese Telex and VNI, Korean 2-Set Hangul, Japanese romaji to kanji, and Chinese Pinyin. Each language stresses a different part of the same bridge. The release-blocking case is pressing Tab while a preedit is still live, which must commit the composition exactly once before shell completion runs.</desc>
+
+  <style>
+    .ui   { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, system-ui, sans-serif; }
+    .mono { font-family: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace; }
+    .cjk  { font-family: "Hiragino Sans", "Apple SD Gothic Neo", "PingFang SC", "Noto Sans CJK JP", "Yu Gothic", "Malgun Gothic", "Microsoft YaHei", sans-serif; }
+    .t1 { fill: #EDF0F5; }
+    .t2 { fill: #9EA3B0; }
+    .t3 { fill: #666B78; }
+    .ac { fill: #52C7BD; }
+    .card { fill: #17181B; stroke: #FFFFFF; stroke-opacity: 0.08; }
+    .chip { fill: #1F2124; }
+    .hdr  { font-size: 10px; font-weight: 700; letter-spacing: 1.2px; }
+    .cn   { font-size: 10.5px; font-weight: 500; }
+    .lang { font-size: 12.5px; font-weight: 700; }
+    .kicker { font-size: 8.5px; font-weight: 700; letter-spacing: 1.1px; }
+    .dt   { font-size: 10px; }
+  </style>
+
+  <defs>
+    <marker id="a3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" fill="#666B78"/>
+    </marker>
+  </defs>
+
+  <rect width="1120" height="720" fill="#0B0C0E"/>
+
+  <!-- ============================================================ -->
+  <!-- 1. the shared path                                            -->
+  <!-- ============================================================ -->
+  <text x="40" y="46" class="ui t2 hdr">THE SHARED PATH — ONE BRIDGE, EVERY INPUT METHOD</text>
+
+  <rect x="40" y="62" width="92" height="30" rx="6" class="chip"/>
+  <text x="86" y="81" text-anchor="middle" class="mono t2 cn">keyDown</text>
+  <line x1="138" y1="77" x2="164" y2="77" stroke="#666B78" stroke-width="1.2" marker-end="url(#a3)"/>
+
+  <rect x="170" y="62" width="150" height="30" rx="6" fill="#52C7BD" fill-opacity="0.12" stroke="#52C7BD" stroke-opacity="0.3"/>
+  <text x="245" y="81" text-anchor="middle" class="mono ac cn">NSTextInputClient</text>
+  <line x1="326" y1="77" x2="352" y2="77" stroke="#666B78" stroke-width="1.2" marker-end="url(#a3)"/>
+
+  <rect x="358" y="62" width="168" height="30" rx="6" class="chip"/>
+  <text x="442" y="81" text-anchor="middle" class="mono t2 cn">HerminalSurfaceView</text>
+  <line x1="532" y1="77" x2="558" y2="77" stroke="#666B78" stroke-width="1.2" marker-end="url(#a3)"/>
+
+  <rect x="564" y="62" width="176" height="30" rx="6" class="chip"/>
+  <text x="652" y="81" text-anchor="middle" class="mono t2 cn">ghostty_surface_key()</text>
+  <line x1="746" y1="77" x2="772" y2="77" stroke="#666B78" stroke-width="1.2" marker-end="url(#a3)"/>
+
+  <rect x="778" y="62" width="116" height="30" rx="6" class="chip"/>
+  <text x="836" y="81" text-anchor="middle" class="mono t2 cn">PTY master</text>
+  <line x1="900" y1="77" x2="926" y2="77" stroke="#666B78" stroke-width="1.2" marker-end="url(#a3)"/>
+
+  <rect x="932" y="62" width="148" height="30" rx="6" class="chip"/>
+  <text x="1006" y="81" text-anchor="middle" class="mono t2 cn">zsh · vim · tmux</text>
+
+  <text x="40" y="112" class="ui t3 dt">The composition APIs — <tspan class="mono">setMarkedText</tspan>, <tspan class="mono">insertText</tspan>, <tspan class="mono">firstRect(forCharacterRange:)</tspan> — are implemented on the terminal surface itself, not faked in a wrapper text field.</text>
+  <text x="40" y="128" class="ui t3 dt">That is why one bridge serves every language below, and why a fix for one of them is a fix for all of them.</text>
+
+  <!-- ============================================================ -->
+  <!-- 2. four lanes                                                 -->
+  <!-- ============================================================ -->
+  <text x="40" y="152" class="ui t2 hdr">WHAT EACH INPUT METHOD STRESSES</text>
+
+  <!-- lane 1: Vietnamese -->
+  <rect x="40" y="166" width="250" height="278" rx="9" fill="#131A1A" stroke="#52C7BD" stroke-opacity="0.28"/>
+  <text x="58" y="192" class="ui ac lang">Vietnamese</text>
+  <text x="58" y="209" class="ui t3 dt">Telex / VNI · pure preedit</text>
+  <rect x="58" y="220" width="214" height="1" fill="#FFFFFF" fill-opacity="0.06"/>
+
+  <text x="58" y="242" class="ui t3 kicker">TYPE</text>
+  <text x="58" y="262" class="mono t2" font-size="12">tieesng Vieejt</text>
+  <text x="58" y="288" class="ui t3 kicker">PREEDIT</text>
+  <text x="58" y="308" class="mono t1" font-size="13">tiếng Vi</text>
+  <rect x="58" y="313" width="52" height="1.5" class="ac"/>
+  <text x="58" y="334" class="ui t3 kicker">COMMITS</text>
+  <text x="58" y="356" class="ui ac" font-size="16" font-weight="700">tiếng Việt</text>
+  <rect x="58" y="374" width="214" height="1" fill="#FFFFFF" fill-opacity="0.06"/>
+  <text x="58" y="394" class="ui t3 dt">Diacritics rewrite letters you</text>
+  <text x="58" y="409" class="ui t3 dt">already typed, so every update</text>
+  <text x="58" y="424" class="ui t3 dt">must replace the whole preview —</text>
+  <text x="58" y="439" class="ui t3 dt">append once and you get doubles.</text>
+
+  <!-- lane 2: Korean -->
+  <rect x="303" y="166" width="250" height="278" rx="9" class="card"/>
+  <text x="321" y="192" class="ui t1 lang">Korean</text>
+  <text x="321" y="209" class="ui t3 dt">2-Set Hangul · pure preedit</text>
+  <rect x="321" y="220" width="214" height="1" fill="#FFFFFF" fill-opacity="0.06"/>
+
+  <text x="321" y="242" class="ui t3 kicker">TYPE</text>
+  <text x="321" y="262" class="mono t2" font-size="12">dkssudgktpdy</text>
+  <text x="321" y="288" class="ui t3 kicker">PREEDIT</text>
+  <text x="321" y="308" class="cjk t1" font-size="14">안녕하세</text>
+  <rect x="321" y="313" width="58" height="1.5" class="ac"/>
+  <text x="321" y="334" class="ui t3 kicker">COMMITS</text>
+  <text x="321" y="357" class="cjk ac" font-size="17" font-weight="700">안녕하세요</text>
+  <rect x="321" y="374" width="214" height="1" fill="#FFFFFF" fill-opacity="0.06"/>
+  <text x="321" y="394" class="ui t3 dt">Consonants and vowels fuse into</text>
+  <text x="321" y="409" class="ui t3 dt">one syllable with no candidate</text>
+  <text x="321" y="424" class="ui t3 dt">window at all — the hardest test</text>
+  <text x="321" y="439" class="ui t3 dt">of <tspan class="mono">setMarkedText</tspan> replacement.</text>
+
+  <!-- lane 3: Japanese -->
+  <rect x="566" y="166" width="250" height="278" rx="9" class="card"/>
+  <text x="584" y="192" class="ui t1 lang">Japanese</text>
+  <text x="584" y="209" class="ui t3 dt">Romaji → Kanji · candidate window</text>
+  <rect x="584" y="220" width="214" height="1" fill="#FFFFFF" fill-opacity="0.06"/>
+
+  <text x="584" y="242" class="ui t3 kicker">TYPE</text>
+  <text x="584" y="262" class="mono t2" font-size="12">konnichiwa</text>
+  <text x="584" y="288" class="ui t3 kicker">PREEDIT + SPACE</text>
+  <text x="584" y="308" class="cjk t1" font-size="14">こんにちは</text>
+  <rect x="584" y="313" width="72" height="1.5" class="ac"/>
+  <text x="584" y="334" class="ui t3 kicker">COMMITS</text>
+  <text x="584" y="357" class="cjk ac" font-size="17" font-weight="700">今日は</text>
+  <rect x="584" y="374" width="214" height="1" fill="#FFFFFF" fill-opacity="0.06"/>
+  <text x="584" y="394" class="ui t3 dt">The IME asks the surface for</text>
+  <text x="584" y="409" class="ui t3 dt"><tspan class="mono">firstRect(forCharacterRange:)</tspan></text>
+  <text x="584" y="424" class="ui t3 dt">to place its popup. Return a bad</text>
+  <text x="584" y="439" class="ui t3 dt">rect and it lands screen-corner.</text>
+
+  <!-- lane 4: Chinese -->
+  <rect x="829" y="166" width="250" height="278" rx="9" class="card"/>
+  <text x="847" y="192" class="ui t1 lang">Chinese</text>
+  <text x="847" y="209" class="ui t3 dt">Pinyin · candidate window</text>
+  <rect x="847" y="220" width="214" height="1" fill="#FFFFFF" fill-opacity="0.06"/>
+
+  <text x="847" y="242" class="ui t3 kicker">TYPE</text>
+  <text x="847" y="262" class="mono t2" font-size="12">pinyin</text>
+  <text x="847" y="288" class="ui t3 kicker">PREEDIT + SPACE</text>
+  <text x="847" y="308" class="mono t1" font-size="13">pinyin</text>
+  <rect x="847" y="313" width="43" height="1.5" class="ac"/>
+  <text x="847" y="334" class="ui t3 kicker">COMMITS</text>
+  <text x="847" y="357" class="cjk ac" font-size="17" font-weight="700">拼音</text>
+  <rect x="847" y="374" width="214" height="1" fill="#FFFFFF" fill-opacity="0.06"/>
+  <text x="847" y="394" class="ui t3 dt">Number keys pick a candidate and</text>
+  <text x="847" y="409" class="ui t3 dt">arrive as ordinary <tspan class="mono">keyDown</tspan>. Ours</text>
+  <text x="847" y="424" class="ui t3 dt">must not swallow them while a</text>
+  <text x="847" y="439" class="ui t3 dt">composition is still open.</text>
+
+  <!-- ============================================================ -->
+  <!-- 3. the shared hard case                                       -->
+  <!-- ============================================================ -->
+  <text x="40" y="480" class="ui t2 hdr">THE HARD CASE EVERY IME SHARES — TAB WHILE A PREEDIT IS LIVE</text>
+
+  <rect x="40" y="494" width="620" height="164" rx="9" fill="#101114" stroke="#FFFFFF" stroke-opacity="0.08"/>
+  <text x="62" y="524" class="mono" font-size="12"><tspan class="ac">~/projects ❯</tspan><tspan class="t1"> cd tiếng-vi</tspan></text>
+  <rect x="171" y="529" width="52" height="1.5" class="ac"/>
+  <text x="240" y="524" class="ui t3 dt">← composition still open, underlined</text>
+
+  <rect x="62" y="540" width="46" height="22" rx="5" class="chip"/>
+  <text x="85" y="555" text-anchor="middle" class="ui t1" font-size="11" font-weight="600">Tab</text>
+  <line x1="118" y1="551" x2="140" y2="551" stroke="#666B78" stroke-width="1.2" marker-end="url(#a3)"/>
+  <text x="150" y="555" class="ui t2 dt">commit the preedit exactly once, then let the shell complete</text>
+
+  <text x="62" y="588" class="mono" font-size="12"><tspan class="ac">~/projects ❯</tspan><tspan class="t1"> cd tiếng-việt-project/</tspan></text>
+  <rect x="62" y="606" width="576" height="1" fill="#FFFFFF" fill-opacity="0.06"/>
+  <text x="62" y="628" class="ui t3 dt">Commit twice and the path doubles. Commit zero times and Tab is swallowed. Both are</text>
+  <text x="62" y="643" class="ui t3 dt">release blockers, and both are the same code path for all four languages above.</text>
+
+  <rect x="676" y="494" width="404" height="164" rx="9" class="card"/>
+  <text x="698" y="518" class="ui t2 hdr">WHERE THIS IS PROVEN</text>
+  <text x="698" y="542" class="mono t1 dt">Tests/HerminalAppTests/IMEBridgeTests.swift</text>
+  <text x="698" y="557" class="ui t3 dt">State-machine regressions for preedit and Tab — automated, in CI.</text>
+  <text x="698" y="583" class="mono t1 dt">docs/QA/vietnamese-ime-checklist.md</text>
+  <text x="698" y="598" class="ui t3 dt">20 Telex/VNI phrases plus the Tab matrix across zsh, bash and fish.</text>
+  <text x="698" y="624" class="mono t1 dt">docs/QA/cjk-ime-checklist.md</text>
+  <text x="698" y="639" class="ui t3 dt">20 rows each for Korean, Japanese and Chinese.</text>
+
+  <text x="40" y="694" class="ui t3 dt">Vietnamese is the priority gate because it is the PRD's headline persona. It is not a special case in the code — the bridge is generic, and the CJK checklists exist to prove it.</text>
+</svg>

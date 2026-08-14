@@ -1,0 +1,122 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1010 640" width="1010" height="640" role="img" aria-label="How herminal derives an agent lifecycle signal: poll, snapshot, classify, annotate, render">
+  <title>Agent lifecycle signal pipeline</title>
+  <desc>Five stages run every two seconds while the agent dashboard is open. A sysctl snapshot of all processes is walked by parent PID inside herminal's own subtree; each child is classified by executable name or, for node/python/bun/deno wrappers, by argv. CPU deltas separate running from idle, kernel start-time pairs each agent to a tab, and a recent terminal bell promotes an agent to needs-input. The dashboard renders the annotated rows.</desc>
+
+  <style>
+    .ui   { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, system-ui, sans-serif; }
+    .mono { font-family: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace; }
+    .t1 { fill: #EDF0F5; }
+    .t2 { fill: #9EA3B0; }
+    .t3 { fill: #666B78; }
+    .ac { fill: #52C7BD; }
+    .card { fill: #17181B; stroke: #FFFFFF; stroke-opacity: 0.08; }
+    .hdr  { font-size: 10px; font-weight: 700; letter-spacing: 1.2px; }
+    .st   { font-size: 13px; font-weight: 600; }
+    .dt   { font-size: 10.5px; }
+    .num  { font-size: 11px; font-weight: 700; }
+  </style>
+
+  <defs>
+    <marker id="a2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" fill="#52C7BD" fill-opacity="0.7"/>
+    </marker>
+  </defs>
+
+  <rect width="1010" height="640" fill="#0B0C0E"/>
+
+  <!-- ===================== stage 1 ===================== -->
+  <rect x="40" y="56" width="560" height="80" rx="9" class="card"/>
+  <circle cx="68" cy="96" r="13" fill="#52C7BD" fill-opacity="0.14"/>
+  <text x="68" y="100" text-anchor="middle" class="ui ac num">1</text>
+  <text x="94" y="86" class="ui t1 st">Poll</text>
+  <text x="94" y="105" class="ui t2 dt">A 2-second <tspan class="mono">Timer</tspan> that enters <tspan class="mono">MainActor</tspan> before it touches state.</text>
+  <text x="94" y="122" class="ui t3 dt">Runs only while the dashboard is open — closed panel, no sampling.</text>
+  <line x1="320" y1="136" x2="320" y2="158" stroke="#52C7BD" stroke-opacity="0.5" stroke-width="1.4" marker-end="url(#a2)"/>
+
+  <!-- ===================== stage 2 ===================== -->
+  <rect x="40" y="160" width="560" height="80" rx="9" class="card"/>
+  <circle cx="68" cy="200" r="13" fill="#52C7BD" fill-opacity="0.14"/>
+  <text x="68" y="204" text-anchor="middle" class="ui ac num">2</text>
+  <text x="94" y="190" class="ui t1 st">Snapshot</text>
+  <text x="94" y="209" class="ui t2 dt">One <tspan class="mono">sysctl(KERN_PROC_ALL)</tspan> call builds a fresh process table.</text>
+  <text x="94" y="226" class="ui t3 dt">Walked by PPID — herminal's own subtree only, never the whole machine.</text>
+  <line x1="320" y1="240" x2="320" y2="262" stroke="#52C7BD" stroke-opacity="0.5" stroke-width="1.4" marker-end="url(#a2)"/>
+
+  <!-- ===================== stage 3 ===================== -->
+  <rect x="40" y="264" width="560" height="88" rx="9" class="card"/>
+  <circle cx="68" cy="308" r="13" fill="#52C7BD" fill-opacity="0.14"/>
+  <text x="68" y="312" text-anchor="middle" class="ui ac num">3</text>
+  <text x="94" y="292" class="ui t1 st">Classify</text>
+  <text x="94" y="311" class="ui t2 dt">Direct hit: <tspan class="mono">p_comm</tspan> matches <tspan class="mono">claude</tspan> / <tspan class="mono">codex</tspan> / <tspan class="mono">aider</tspan>.</text>
+  <text x="94" y="328" class="ui t2 dt">Wrapper: <tspan class="mono">node</tspan> / <tspan class="mono">python</tspan> / <tspan class="mono">bun</tspan> / <tspan class="mono">deno</tspan> → read argv via <tspan class="mono">KERN_PROCARGS2</tspan>.</text>
+  <text x="94" y="345" class="ui t3 dt">argv is used to classify and then dropped. It never reaches a struct, a log or the UI.</text>
+  <line x1="320" y1="352" x2="320" y2="374" stroke="#52C7BD" stroke-opacity="0.5" stroke-width="1.4" marker-end="url(#a2)"/>
+
+  <!-- ===================== stage 4 ===================== -->
+  <rect x="40" y="376" width="560" height="100" rx="9" class="card"/>
+  <circle cx="68" cy="426" r="13" fill="#52C7BD" fill-opacity="0.14"/>
+  <text x="68" y="430" text-anchor="middle" class="ui ac num">4</text>
+  <text x="94" y="404" class="ui t1 st">Annotate</text>
+  <text x="94" y="423" class="ui t2 dt"><tspan class="mono">AgentStatusTracker</tspan> — per-PID CPU delta via <tspan class="mono">proc_pid_rusage</tspan>.</text>
+  <text x="94" y="441" class="ui t2 dt"><tspan class="mono">AgentPaneMapper</tspan> — nth-oldest <tspan class="mono">login</tspan> paired to nth-oldest session.</text>
+  <text x="94" y="459" class="ui t2 dt"><tspan class="mono">BellRegistry</tspan> — a recent <tspan class="mono">RING_BELL</tspan> promotes the row to needs-input.</text>
+  <line x1="320" y1="476" x2="320" y2="498" stroke="#52C7BD" stroke-opacity="0.5" stroke-width="1.4" marker-end="url(#a2)"/>
+
+  <!-- ===================== stage 5 ===================== -->
+  <rect x="40" y="500" width="560" height="80" rx="9" class="card"/>
+  <circle cx="68" cy="540" r="13" fill="#52C7BD" fill-opacity="0.14"/>
+  <text x="68" y="544" text-anchor="middle" class="ui ac num">5</text>
+  <text x="94" y="530" class="ui t1 st">Render</text>
+  <text x="94" y="549" class="ui t2 dt"><tspan class="mono">AgentDashboardView</tspan> is a value view over <tspan class="mono">[DetectedAgent]</tspan>.</text>
+  <text x="94" y="566" class="ui t3 dt">It inspects no processes and owns no polling state — status dot, kind, pid, Tab N.</text>
+
+  <!-- ===================== rail: status vocabulary ===================== -->
+  <rect x="630" y="56" width="340" height="256" rx="9" class="card"/>
+  <text x="652" y="80" class="ui t2 hdr">STATUS VOCABULARY</text>
+
+  <circle cx="656" cy="102" r="4" fill="#5CB8FF"/>
+  <text x="670" y="106" class="mono t1 dt">running</text>
+  <text x="948" y="106" text-anchor="end" class="ui t3 dt">shown as “running”</text>
+
+  <circle cx="656" cy="126" r="4" fill="#8C919E"/>
+  <text x="670" y="130" class="mono t1 dt">idle</text>
+  <text x="948" y="130" text-anchor="end" class="ui t3 dt">shown as “idle”</text>
+
+  <circle cx="656" cy="150" r="4" fill="#5CB8FF"/>
+  <text x="670" y="154" class="mono t1 dt">needsInput</text>
+  <text x="948" y="154" text-anchor="end" class="ui t3 dt">shown as “needs input”</text>
+
+  <circle cx="656" cy="174" r="4" fill="#66CC85"/>
+  <text x="670" y="178" class="mono t1 dt">exitedSuccess</text>
+  <text x="948" y="178" text-anchor="end" class="ui t3 dt">shown as “done”</text>
+
+  <circle cx="656" cy="198" r="4" fill="#F2736B"/>
+  <text x="670" y="202" class="mono t1 dt">exitedError</text>
+  <text x="948" y="202" text-anchor="end" class="ui t3 dt">shown as “error”</text>
+
+  <circle cx="656" cy="222" r="4" fill="#8C919E"/>
+  <text x="670" y="226" class="mono t1 dt">unknown</text>
+  <text x="948" y="226" text-anchor="end" class="ui t3 dt">shown as “starting”</text>
+
+  <rect x="652" y="242" width="296" height="1" fill="#FFFFFF" fill-opacity="0.05"/>
+  <text x="652" y="262" class="ui t3 dt">CPU delta over threshold separates running from idle.</text>
+  <text x="652" y="279" class="ui t3 dt">A first sighting has no delta yet, so it reads “starting”.</text>
+  <text x="652" y="296" class="ui t3 dt">Colours come straight from <tspan class="mono">DesignTokens.swift</tspan>.</text>
+
+  <!-- ===================== rail: privacy boundary ===================== -->
+  <rect x="630" y="336" width="340" height="112" rx="9" fill="#131A1A" stroke="#52C7BD" stroke-opacity="0.28"/>
+  <text x="652" y="360" class="ui ac hdr">PRIVACY BOUNDARY</text>
+  <text x="652" y="382" class="ui t2 dt">PIDs are ephemeral operational metadata and are shown.</text>
+  <text x="652" y="400" class="ui t2 dt">argv, cwd, workspace names, terminal text and note</text>
+  <text x="652" y="416" class="ui t2 dt">content are never added to a row, an event or a log.</text>
+  <text x="652" y="437" class="mono t3" font-size="9.5">Scripts/check-diagnostics-privacy.py<tspan class="ui"> enforces it in CI.</tspan></text>
+
+  <!-- ===================== rail: degradation ===================== -->
+  <rect x="630" y="472" width="340" height="96" rx="9" class="card"/>
+  <text x="652" y="496" class="ui t2 hdr">DEGRADATION RULE</text>
+  <text x="652" y="518" class="ui t2 dt">A missing process, an unreadable argv, a failed pane</text>
+  <text x="652" y="535" class="ui t2 dt">mapping — each degrades to no signal or lower</text>
+  <text x="652" y="552" class="ui t2 dt">confidence. None of them may interrupt your shell.</text>
+
+  <text x="40" y="612" class="ui t3 dt">Every arrow above stays inside one 2-second tick. Detection is derived from the process tree — herminal does not talk to any agent's API, and no agent needs to cooperate.</text>
+</svg>
