@@ -1,6 +1,6 @@
 # Sprint 3 — Agent interoperability and contributor surface
 
-**Status:** in progress
+**Status:** complete
 **Started:** 2026-08-14
 
 ## Goal

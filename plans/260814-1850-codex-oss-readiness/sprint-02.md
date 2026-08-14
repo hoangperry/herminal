@@ -1,6 +1,6 @@
 # Sprint 2 — Security and supply-chain hardening
 
-**Status:** in progress
+**Status:** complete
 **Depends on:** Sprint 1 implementation; may proceed while live IME verification is owner-blocked
 
 ## Goal
@@ -19,8 +19,11 @@ Completed in first pass:
 - Added a pinned CodeQL Swift workflow (execution still requires CI verification).
 - Added release SHA-256 and dependency-manifest generation/upload.
 
-Pending: CI execution evidence, code-level regression guards, entitlement review,
-security review report, and full-suite verification.
+Completed afterward: diagnostics minimization, bounded SSH imports + regression,
+verified Zig installation, release hard-fail on missing signing/notary secrets,
+full CI (152 tests, run `31812947567`), targeted CodeQL (run `31812947548`),
+and `docs/SECURITY-REVIEW-2026-08-14.md`. The entitlement experiment is
+correctly deferred as public issue #4 because it requires signed runtime tests.
 
 ## Deliverables
 

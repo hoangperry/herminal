@@ -1,6 +1,6 @@
 # Sprint 4 — Closed beta and feedback releases
 
-**Status:** planned
+**Status:** in progress — beta infrastructure ready; recruitment blocked on signed build and live IME gate
 **Depends on:** PR #1 merged, installable signed build, live Telex/VNI gate
 
 ## Goal
@@ -35,6 +35,12 @@ Obtain real external usage evidence and turn feedback into visible maintenance w
 - 3 externally authored reports/issues.
 - 1 external contribution of code, docs, fixture, translation, or repro.
 - 2 feedback-driven patch releases when findings justify them.
+
+## Progress
+
+- Added privacy-safe beta issue form and labels.
+- Added `docs/BETA.md` with tester/maintainer commitments and evidence ledger.
+- Recorded green CI (152 tests) and CodeQL evidence.
 
 ## Exit criteria
 

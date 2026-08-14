@@ -15,9 +15,9 @@ blocks: []
 | Sprint | Scope | Status |
 |---|---|---|
 | Sprint 1 | Phase 0: IME Tab blocker + release truth | In progress — full CI build and 152 tests pass; blocked only on live Telex/VNI verification and signed release |
-| Sprint 2 | Phase 1: security and supply-chain hardening | In progress — controls and tests added; CodeQL analysis/entitlement owner audit pending |
+| Sprint 2 | Phase 1: security and supply-chain hardening | Complete — full CI + 152 tests and targeted CodeQL green; entitlement experiment tracked in issue #4 |
 | Sprint 3 | Phase 2–3: agent interoperability + contributor surface | Complete — neutral event boundary, official hooks research, contributor fast path, triage policy, and issues #2–#7 |
-| Sprint 4 | Phase 4: closed beta and feedback releases | Planned |
+| Sprint 4 | Phase 4: closed beta and feedback releases | In progress — intake/privacy/evidence infrastructure ready; recruitment awaits signed build + live IME gate |
 | Sprint 5 | Phase 5–7: launch evidence + application | Planned |
 
 ## 1. Objective
