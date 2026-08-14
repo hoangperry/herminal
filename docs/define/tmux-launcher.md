@@ -1,7 +1,7 @@
 # Define: tmux launcher
 
 Date: 2026-08-15
-Status: Ready for implementation plan
+Status: Implemented on `feat/define-tmux-launcher`
 Owner: Solo / herminal
 Parent: [herminal.prd.md](herminal.prd.md) — Must Feature 3 leftover
 Plan (after this define): `plans/260815-tmux-launcher/plan.md`

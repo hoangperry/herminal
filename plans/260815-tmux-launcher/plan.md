@@ -1,6 +1,6 @@
 ---
 title: tmux launcher (PRD Must Feature 3 leftover)
-status: draft-from-define
+status: implemented
 owner: hoangperry
 created: 2026-08-15
 blockedBy: []
@@ -10,130 +10,249 @@ define: docs/define/tmux-launcher.md
 
 # tmux launcher — implementation plan
 
-**Define (source of truth):** [`docs/define/tmux-launcher.md`](../../docs/define/tmux-launcher.md)
+**Define (product source of truth):** [`docs/define/tmux-launcher.md`](../../docs/define/tmux-launcher.md)
 
-Do not expand past that define. This file is how to build it.
+If this file and the define disagree, **the define wins**. Do not add
+broadcast, choose-tree, `tmux -CC`, PTY detach, or agent-in-tmux mapping.
 
-## Verdict (from validation)
+Phases:
 
-| Idea | Decision |
-|---|---|
-| new / attach / attach-or-create by repo | **Do** — PRD Must Feature 3, not shipped |
-| Broadcast input (`synchronize-panes`) | **Out** — not in PRD; IME + agent-pane risk |
-| choose-tree UI | **Out** — fold session list into Attach… |
-| Detach PTY / process survives quit | **Out** — libghostty cannot attach an existing PTY; restore policy forbids resurrection |
-| tmux `-CC` | **Out** — PRD §6.4 |
-
-Do not implement anything in the Out rows in this plan.
-
-## Goal
-
-Give the user a menu + palette way to start or rejoin a **standard
-tmux session inside a herminal tab**, using the focused pane’s cwd.
-tmux stays in the PTY. Herminal does not become a multiplexer.
-
-Acceptance (PRD §5 Must Feature 3):
-
-- New tmux session
-- Attach existing session
-- Attach-or-create by repo name
-
-## Non-goals
-
-- No control-mode client, no native window/pane sync with tmux
-- No persist-after-quit, no attach of a live PTY after app restart
-- No broadcast to sibling herminal panes
-- No choose-tree / 3-level session-window-pane browser
-- No change to `⌃B` / in-PTY tmux bindings
-- No attempt to map agents inside tmux panes to the dashboard
-- Not a competitor to `⌘⌥W` worktrees (git checkout vs process persist)
-
-## Current code (hooks)
-
-- Spawn: `WorkspaceView.addTab(command:title:workingDirectory:)` already
-  runs a command in a new tab at a cwd (`ssh`, `claude --resume`).
-- List/run helper pattern: `GitWorktree` + `GitRunner` — argv-only
-  `/usr/bin/tmux` (or `tmux` via `command -v` resolved once; prefer
-  `/opt/homebrew/bin/tmux` only after `FileManager.isExecutableFile`,
-  never `PATH` hijack via `env tmux`). Simplest: `Process` with
-  `tmux` looked up the same way we resolve `/usr/bin/git` — if
-  Homebrew tmux is the only install, search a **fixed** list:
-  `/opt/homebrew/bin/tmux`, `/usr/local/bin/tmux`, `/usr/bin/tmux`.
-  First executable wins. Missing → alert, no spawn.
-- Chrome: `AppMenu` Window menu + `CommandPaletteAction.all`.
-- Session name source: focused OSC 7 cwd → `GitWorktree.resolveContext`
-  repo basename when available, else last path component.
-
-## Behaviour
-
-### Names
-
-Validate before any argv:
-
-- Allowed: `A–Z a–z 0–9 . _ -`
-- Reject: empty, leading `-`, `..`, spaces, `/`, control chars, length > 64
-- Slug for attach-or-create: flatten like worktree slug, then validate
-
-Never interpolate a name into a shell string. Spawn command is a
-fixed argv joined only after validation, e.g. `tmux new-session -A -s name`.
-libghostty `config.command` is a string; build it as
-`tmux new-session -A -s` + single-quoted name (reuse
-`WorkspaceView` SSH quoting helper). If quoting helper is
-file-private, extract or duplicate the one-liner next to `TmuxLaunch`.
-
-### Actions
-
-| UI | What runs | Tab title |
+| Phase | File | What |
 |---|---|---|
-| New tmux Session | `tmux new-session -s <name>` — name = validated repo slug; if session exists, fail with alert (do not steal) | `tmux · <name>` |
-| Attach tmux Session… | `tmux list-sessions -F #{session_name}` → picker (NSAlert + popup, same shape as worktree dialog) → `tmux attach -t <name>` | `tmux · <name>` |
-| Attach or Create tmux | `tmux new-session -A -s <name>` | `tmux · <name>` |
+| 1 | [phase-01-core.md](phase-01-core.md) | Tests + `TmuxLaunch` (no UI) |
+| 2 | [phase-02-ui.md](phase-02-ui.md) | Menu, palette, alerts, `addTab` |
+| 3 | [phase-03-docs.md](phase-03-docs.md) | CHANGELOG + shortcuts |
 
-cwd of the new tab = focused pane cwd (nil → tmux default).
+## 1. Why this exists
 
-Empty session list on Attach… → “No tmux sessions. Create one first.”
+PRD Must Feature 3 requires: new session, attach existing, attach-or-create
+by repo. Tabs/splits and in-PTY tmux already ship. The launcher does not.
 
-### Files (keep small)
+Worktrees (`⌘⌥W`) are git checkouts. This is a **named tmux session**
+inside a new herminal tab. Different problem.
 
-| File | Role |
+## 2. Architecture
+
+```
+Menu / ⌘⇧P
+    → WorkspaceView+Tmux (@objc)
+        → TmuxLaunch.resolveBinary()          // or alert, stop
+        → TmuxLaunch.sessionName(fromCwd:)    // or alert, stop
+        → TmuxLaunch.hasSession / listSessions
+        → TmuxLaunch.command(for:name:)       // quoted string
+        → WorkspaceView.addTab(command:title:workingDirectory:)
+            → libghostty surface, cwd = focused OSC 7
+```
+
+tmux **client** dies with the tab. tmux **server** and other sessions
+keep running the way tmux already does. Herminal never attaches an
+existing PTY.
+
+Do not grow `WorkspaceView.swift` except what the extension can already
+call (`addTab`, `focusedWorkingDirectory`).
+
+## 3. `TmuxLaunch` API (implement exactly)
+
+```swift
+enum TmuxLaunch {
+    enum Action { case newSession, attach, attachOrCreate }
+
+    enum ValidationError: Swift.Error, Equatable {
+        case empty, tooLong, invalid
+    }
+
+    enum Error: Swift.Error, Equatable {
+        case tmuxMissing
+        case noWorkingDirectory
+        case sessionExists        // New, and name already live
+        case noSessions           // Attach…, list empty
+        case invalidName
+        case tmuxFailed(String)
+    }
+
+    static let maxNameLength = 64
+    static let binaryCandidates = [
+        "/opt/homebrew/bin/tmux",
+        "/usr/local/bin/tmux",
+        "/usr/bin/tmux",
+    ]
+
+    static func validateName(_ name: String) throws
+    static func slug(_ raw: String) -> String
+    static func sessionName(fromCwd cwd: String) -> String?
+    static func resolveBinary(fileManager: FileManager = .default) -> String?
+    static func quote(_ value: String) -> String          // same as ssh: ' + ' → '\''
+    static func command(action: Action, name: String) throws -> String
+    static func parseSessionList(_ stdout: String) -> [String]
+    static func listSessions(runner: TmuxRunner = .live) throws -> [String]
+    static func hasSession(name: String, runner: TmuxRunner = .live) throws -> Bool
+}
+```
+
+`TmuxRunner` mirrors `GitRunner`: argv-only `Process`, executable =
+resolved binary, 8s timeout, file-backed stdout/stderr (do **not** copy
+the old pipe-deadlock version). Tests inject a fake runner.
+
+### Name rules
+
+Allowed after trim: `A–Z a–z 0–9 . _ -`.  
+Reject: empty, length > 64, leading `-`, `..`, space, `/`, `'`, `"`,
+`$`, `` ` ``, `;`, `|`, `&`, any control char.
+
+`slug`: replace space and `/` with `-`, drop every other illegal
+character, then `validateName`. If slug is empty → `sessionName` returns
+nil.
+
+`sessionName(fromCwd:)`:
+
+1. If `GitWorktree.resolveContext(cwd:)` succeeds, use
+   `(mainRepoRoot as NSString).lastPathComponent`.
+2. Else use `(cwd as NSString).lastPathComponent`.
+3. Slug + validate. Failure → nil.
+
+### Commands (after validate)
+
+| Action | String passed to `addTab` |
 |---|---|
-| `Sources/HerminalApp/Workspace/TmuxLaunch.swift` | name validate, slug, list sessions, resolve binary, build command string |
-| `Sources/HerminalApp/Workspace/WorkspaceView+Tmux.swift` | `@objc` actions, alerts, `addTab` |
-| `AppMenu.swift` / `CommandPalette.swift` | 3 entries, no new shortcut (palette + menu only; leave ⌘⌥* to the cockpit) |
-| `Tests/HerminalAppTests/TmuxLaunchTests.swift` | validate/slug/command build/quoting; fake runner for list |
-| `docs/KEYBOARD-SHORTCUTS.md` + `CHANGELOG.md` Unreleased | document menu/palette only |
+| `.newSession` | `tmux new-session -s` + `quote(name)` |
+| `.attach` | `tmux attach-session -t` + `quote(name)` |
+| `.attachOrCreate` | `tmux new-session -A -s` + `quote(name)` |
 
-Do not grow `WorkspaceView.swift` except a one-line `addTab` call from the extension.
+Use the basename `tmux` in the command string (user shell `PATH` at
+PTY spawn). Binary resolution is **only** for list/has-session
+preflight, so a missing install fails in the GUI instead of a dead pane.
 
-## Tests (write first)
+`quote("foo")` → `'foo'`.  
+`quote("a'b")` → `'a'\''b'`.
+
+### list / has-session
+
+```
+<resolved> list-sessions -F #{session_name}
+<resolved> has-session -t =<name>
+```
+
+The `=` prefix is exact match (tmux target).
+
+- `list-sessions` exit ≠ 0 and empty stdout → `[]` (no server yet), not an error.
+- `has-session` exit 0 → true; anything else → false.
+- Missing binary → `Error.tmuxMissing`.
+
+## 4. UI
+
+Window menu, after the agent-cockpit block, before tab 1–9 **or** after
+tab 1–9 — pick **after Claude Sessions / before theme** if that groups
+better; default: a “tmux” trio after Open Lazygit, separator, then ⌘1–9.
+
+| Title | Selector | Shortcut |
+|---|---|---|
+| New tmux Session | `newTmuxSession:` | none |
+| Attach tmux Session… | `attachTmuxSession:` | none |
+| Attach or Create tmux Session | `attachOrCreateTmuxSession:` | none |
+
+Palette: same three, `id` `tmux-new` / `tmux-attach` / `tmux-attach-or-create`,
+icon `square.split.2x1` (or `terminal`), no `shortcutDisplay`.
+
+### Action flow
+
+Shared preamble:
+
+1. `resolveBinary()` nil → alert “tmux is not installed.” Stop.
+2. Need a name? `focusedWorkingDirectory()` nil → alert “No working
+   directory yet.” Stop. Then `sessionName(fromCwd:)` nil → alert
+   “Could not make a tmux session name from this folder.” Stop.
+
+**New**
+
+3. `hasSession` true → alert “A tmux session named … already exists.
+   Use Attach or Create.” Do not log the name if you can avoid it;
+   “session already exists” is enough.
+4. `addTab(command: command(new), title: "tmux · \(name)", cwd: cwd)`.
+
+**Attach…**
+
+3. `listSessions()`. Empty → alert “No tmux sessions. Create one first.”
+4. NSAlert + `NSPopUpButton` of names. Cancel → stop.
+5. Re-validate the chosen name (do not trust the popup blindly).
+6. `addTab` attach command.
+
+**Attach or Create**
+
+3. `addTab` attachOrCreate command. No extra prompt.
+
+Diary: `tmux spawn action=new|attach|attachOrCreate` only. No cwd, no name.
+
+Alerts: `NSAlert` informational, title `tmux`, one OK button (or
+Create/Cancel on the picker). Copy the worktree dialog layout
+(`WorkspaceView+Cockpit.newAgentWorktree`).
+
+## 5. Files
+
+| Path | Change |
+|---|---|
+| `Sources/HerminalApp/Workspace/TmuxLaunch.swift` | **New.** Pure + runner. |
+| `Sources/HerminalApp/Workspace/WorkspaceView+Tmux.swift` | **New.** `@objc` + alerts. |
+| `Sources/HerminalApp/AppMenu.swift` | +3 items, no key equivalents. |
+| `Sources/HerminalApp/CommandPalette.swift` | +3 `CommandPaletteAction`s. |
+| `Tests/HerminalAppTests/TmuxLaunchTests.swift` | **New.** See phase 1. |
+| `docs/KEYBOARD-SHORTCUTS.md` | Section under tmux: menu/palette, no keys. |
+| `CHANGELOG.md` | Unreleased / Added. |
+
+Do **not** edit `WorkspaceView.swift` unless `quoted` must be shared —
+prefer duplicating the two-line quoter on `TmuxLaunch` (already tested
+there) so we do not touch SSH code.
+
+## 6. Tests first (phase 1, must fail until core exists)
+
+`TmuxLaunchTests`:
 
 - accept `herminal`, `my-app`, `foo.bar`
-- reject `-evil`, `foo bar`, `foo/bar`, `a$(b)`, empty, 65+ chars
-- slug of repo `My App` → `My-App` then validate
-- command build: name `foo` → contains `-s` and quoted `foo`; name with `'` is escaped
-- list parser: split `tmux list-sessions -F` lines, drop empty
-- missing binary: resolve returns nil
+- reject `""`, `" "`, `-evil`, `foo bar`, `foo/bar`, `a$(b)`,
+  `` a`b ``, `foo;rm`, 65-character string
+- `slug("My App") == "My-App"`; `slug("foo/bar") == "foo-bar"`
+- `quote("foo") == "'foo'"`; `quote("a'b") == "'a'\\''b'"`
+- `command(.newSession, "foo") == "tmux new-session -s 'foo'"`
+- `command(.attach, "foo") == "tmux attach-session -t 'foo'"`
+- `command(.attachOrCreate, "foo") == "tmux new-session -A -s 'foo'"`
+- `parseSessionList("a\nb\n\n") == ["a", "b"]`
+- fake runner: `hasSession` true/false from exit code
+- `resolveBinary` with a FileManager mock or a temp executable path —
+  if mocking FileManager is awkward, test `binaryCandidates` order
+  and that an empty candidate list is not used; live resolve is
+  dogfood.
 
-No new `verify-*.sh` unless spawn path regresses; reuse
-`verify-compat-matrix.sh` (already starts a tmux session).
+No new `verify-*.sh`. Compat matrix already starts tmux.
 
-## Risks
+## 7. Order of work
 
-- Other agents edit `AppMenu` / `CommandPalette` / `WorkspaceView` — keep the
-  diff to additive menu items + new files.
-- `config.command` goes through the user shell: quoting is load-bearing
-  (same class as `sshCommand`).
-- Dashboard still cannot focus an agent that lives *inside* tmux. Do not
-  “fix” that here.
+1. Phase 1 tests → red.
+2. `TmuxLaunch` until tests green.
+3. Phase 2 UI wiring. Build the app if Xcode is available; otherwise
+   rely on unit tests + owner dogfood.
+4. Phase 3 docs.
+5. Diff review: no broadcast, no `-CC`, no PTY attach, no new shortcuts.
 
-## Done when
+## 8. Risks
 
-- Three palette/menu actions work on a machine with tmux installed
-- Unit tests for name + command cover the injection cases above
-- No broadcast, no `-CC`, no PTY detach code in the diff
+| Risk | Mitigation |
+|---|---|
+| Other agents edit AppMenu / palette / WorkspaceView | Additive rows + new files only |
+| `config.command` is shell-parsed | `quote` + tests with `'` |
+| tmux only via Homebrew | Fixed candidate list |
+| `list-sessions` fails when no server | Treat as empty list |
+| Agent inside tmux invisible to dashboard | Accepted in define; do not “fix” |
+| Session name collision with `new-session -s` | Preflight `has-session`; New fails closed |
+
+## 9. Done when
+
+Define §7:
+
+- Attach or Create lands in yesterday’s session without typing tmux.
+- Injection cases have unit tests.
+- Diff has no broadcast / `-CC` / detach.
 
 ## Validation log
 
 - 2026-08-15 — cut broadcast, choose-tree, `-CC`, persist-after-quit.
-  Keep only PRD launcher. Session picker is the Attach… dialog, not a
-  tree.
+- 2026-08-15 — define written (`docs/define/tmux-launcher.md`).
+- 2026-08-15 — plan expanded into API, UI flows, and three phases.
