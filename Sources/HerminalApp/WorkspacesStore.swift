@@ -86,7 +86,7 @@ enum WorkspacesStore {
             encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
             try encoder.encode(list).write(to: fileURL, options: .atomic)
         } catch {
-            NSLog("herminal: workspaces save failed: \(error)")
+            NSLog("herminal: workspaces save failed")
         }
     }
 }

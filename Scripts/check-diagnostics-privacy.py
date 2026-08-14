@@ -18,11 +18,11 @@ SOURCES = ROOT / "Sources"
 FIXTURES = ROOT / "Tests" / "Fixtures" / "DiagnosticsPrivacy"
 
 CALL_START = re.compile(
-    r"(?:Diary\.shared\.log|(?:Self\.)?[A-Za-z_][\w.]*\.(?:debug|info|notice|warning|error|critical|fault))\s*\("
+    r"(?:NSLog|Diary\.shared\.log|(?:Self\.)?[A-Za-z_][\w.]*\.(?:debug|info|notice|warning|error|critical|fault))\s*\("
 )
 FORBIDDEN = re.compile(
     r"(?:"
-    r"\b(?:\w*command\w*|\w*argv\w*|\w*arguments?\w*|session_?id|hostname|username|workspace_?name|working_?directory|cwd|\w*path\w*)\b"
+    r"\b(?:\w*command\w*|\w*argv\w*|\w*arguments?\w*|session_?id|hostname|username|workspace_?name|working_?directory|cwd|\w*path\w*|error)\b"
     r"|\bnote\s*\.\s*body\b"
     r"|\b(?:pane|tab|host|session)\s*\.\s*id\b"
     r")",
@@ -115,14 +115,23 @@ def interpolations(call: str) -> list[str]:
         i = end
 
 
+def format_arguments(call: str) -> list[str]:
+    """Return simple NSLog varargs (`%@: value`) outside interpolation."""
+    return re.findall(r",\s*([A-Za-z_]\w*(?:\.\w+)*)\s*(?=[,)])", call)
+
+
 def violations(path: Path) -> list[str]:
     original = path.read_text(encoding="utf-8")
     text = strip_comments(original)
     found: list[str] = []
     for match in CALL_START.finditer(text):
         call, _ = balanced_slice(text, match.end() - 1)
-        is_diary = match.group(0).startswith("Diary.shared.log")
-        for value in interpolations(call):
+        call_name = match.group(0)
+        is_diary = call_name.startswith("Diary.shared.log")
+        values = interpolations(call)
+        if call_name.startswith("NSLog"):
+            values.extend(format_arguments(call))
+        for value in values:
             sensitive_context = is_diary and "workspace" in call.lower()
             if not FORBIDDEN.search(value) and not sensitive_context:
                 continue
