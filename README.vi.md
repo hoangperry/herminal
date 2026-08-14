@@ -84,22 +84,25 @@ rubric đã dùng để lập bảng trên.
 
 - [x] Terminal core native qua libghostty (Metal renderer, p95 keystroke <5ms)
 - [x] Vietnamese IME bridge có regression test cho Tab/preedit; live gate Telex/VNI vẫn đang chờ¹
-- [x] Workspace multi-session + split dọc/ngang
-- [x] Dashboard agent với phân biệt running / idle / starting
+- [x] Workspace multi-session: split đệ quy kiểu tmux, kéo-resize divider, focus pane theo hướng, zoom pane
+- [x] Dashboard agent: badge running / idle / starting / needs-input, nhận wrapper npx/python, gắn đúng tab
+- [x] Cockpit agent worktree — ⌘⌥W spawn agent trong một git worktree cô lập
+- [x] Session continuity: restore khi mở lại, named workspaces, Claude session browser (⌘⇧C → `claude --resume`)
 - [x] Per-session notes (SQLite WAL) + Markdown round-trip
-- [x] SSH Connection Manager + one-click spawn + import từ ~/.ssh/config
-- [x] Premium dark chrome (style Raycast/Linear) + light theme variant
+- [x] SSH Connection Manager + one-click spawn + import từ `~/.ssh/config`
+- [x] Chrome dark + light, follow-system (style Raycast/Linear)
 - [x] Compatibility với vim, less, htop, fzf, lazygit, btop, starship
-- [x] Crash diary local-only (telemetry-free)
+- [x] Crash diary local-only (telemetry-free) + export đã redact
 - [x] Pipeline Developer-ID codesign + notarize
 
 ¹ Implementation và state-transition regressions đã xanh, nhưng matrix với
 macOS input source thật vẫn cần một owner run có ngày tháng. Theo dõi tại
 [issue #2](https://github.com/hoangperry/herminal/issues/2).
 
-Deferred sang post-MVP — xem [CHANGELOG.md](CHANGELOG.md) "Known
-limitations": split tree đệ quy, kéo-resize divider, group/search
-trong SSH manager, candidate post-beta.
+Còn deferred — xem [docs/ROADMAP.md](docs/ROADMAP.md) cho các feedback
+gate: group / search / UI keypair per-host trong SSH manager, Sparkle
+auto-update (hiện chỉ có wiring stub), phân phối App Store
+(sandbox-incompatible by design), Linux / Windows.
 
 ## Cài đặt
 
@@ -139,7 +142,18 @@ Yêu cầu: Xcode 26+, Swift 6.2+, [Zig](https://ziglang.org) 0.15.2+
 - **⌘1…⌘9** — nhảy tới tab N / tab cuối
 - **⌘⇧S** — toggle SSH host manager (mutex với agent dashboard ở slot trái)
 - **⌘⇧N** — toggle notes panel bên phải
+- **⌘⇧C** — Claude session browser: chọn một session cũ, nó mở lại
+  bằng `claude --resume` đúng cwd
 - **⌘⇧L** — toggle theme dark / light
+- **⌥⌘← → ↑ ↓ / ⌘⇧↩** — focus pane theo hướng / zoom pane đang focus
+
+Bản đồ đầy đủ ở [`docs/KEYBOARD-SHORTCUTS.md`](docs/KEYBOARD-SHORTCUTS.md).
+
+**Agent worktree:** đang sửa hai bug cùng lúc? ⌘⌥W tạo một checkout cô
+lập ở `../<repo>.worktrees/<branch>` qua `git worktree add` và mở nó
+trong tab mới chạy agent em chọn (`claude` / `codex` / `aider`) hoặc
+shell thường. Dashboard liệt kê mọi worktree với open / remove — remove
+luôn hỏi xác nhận và không bao giờ dùng `--force`.
 
 Agent được phát hiện bằng cách walk process subtree của herminal —
 chạy `claude`, `codex`, hoặc `aider` trong bất kỳ tab nào và chúng
@@ -179,9 +193,9 @@ herminal/
 │   ├── HerminalCore/         # libghostty C ABI bridge + BellRegistry
 │   ├── HerminalDB/           # NotesStore + SSHHostsStore + SSHConfigImporter
 │   ├── HerminalAgent/        # process-subtree detection + status + pane mapping
-│   └── HerminalApp/          # NSApp, WorkspaceView, panels, Diary
+│   └── HerminalApp/          # NSApp, WorkspaceView, panels, worktree cockpit, Diary
 ├── App/                       # Info.plist + entitlements
-├── Tests/                     # 143+ Swift Testing unit tests
+├── Tests/                     # 175 Swift Testing tests
 ├── Scripts/                   # bootstrap, bundle, verify-*, dogfood, sign, release, capture-screenshots
 ├── Vendor/libghostty/         # git submodule (Ghostty v1.3.1)
 └── docs/
@@ -209,7 +223,13 @@ prompt diary excerpt); security issues đi qua [SECURITY.md](SECURITY.md).
 | [CHANGELOG.md](CHANGELOG.md) | Release notes từng version |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | Cách propose thay đổi |
 | [SECURITY.md](SECURITY.md) | Cách báo cáo vulnerability |
+| [docs/FAQ.md](docs/FAQ.md) | Cài đặt, first-run, và "app này có dành cho mình không" |
+| [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) | Crash, IME gõ đúp ký tự, dashboard agent trống |
+| [docs/KEYBOARD-SHORTCUTS.md](docs/KEYBOARD-SHORTCUTS.md) | Bản đồ shortcut đầy đủ, kể cả conflict |
+| [docs/ROADMAP.md](docs/ROADMAP.md) | Đã ship / sắp tới / không-ship-by-design |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | System overview một trang — đọc trước PR đầu tiên |
+| [docs/AGENT-INTEGRATIONS.md](docs/AGENT-INTEGRATIONS.md) | Contract signal agent chỉ-lifecycle |
+| [docs/THREAT-MODEL.md](docs/THREAT-MODEL.md) | herminal chống lại gì — và cố ý không chống gì |
 | [docs/MAINTAINER-AI-POLICY.md](docs/MAINTAINER-AI-POLICY.md) | Ranh giới human review khi dùng coding agent |
 | [docs/BETA.md](docs/BETA.md) | Beta protocol và evidence ledger không telemetry |
 | [docs/RELEASE.md](docs/RELEASE.md) | Cách cut signed + notarized release |
@@ -218,7 +238,7 @@ prompt diary excerpt); security issues đi qua [SECURITY.md](SECURITY.md).
 | [docs/QA/dogfood-checklist.md](docs/QA/dogfood-checklist.md) | Những thứ cần watch khi daily-driver |
 | [docs/QA/vietnamese-ime-checklist.md](docs/QA/vietnamese-ime-checklist.md) | 20-phrase Telex/VNI smoke matrix |
 | [docs/QA/cjk-ime-checklist.md](docs/QA/cjk-ime-checklist.md) | Smoke matrix IME tiếng Hàn / Nhật / Trung |
-| [docs/backlog/](docs/backlog/) | Task list + retro hàng tháng M1 → M9 |
+| [docs/backlog/](docs/backlog/) | Task list + retro hàng tháng M1 → M12 |
 
 ---
 
