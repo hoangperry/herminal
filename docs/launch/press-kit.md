@@ -49,7 +49,10 @@ README already ships the schematic diagrams from there; this section
 tracks the captures of the running app.
 
 **Already available** — hand-authored, generated from the real design
-tokens in `Sources/HerminalApp/Design/DesignTokens.swift`:
+tokens in `Sources/HerminalApp/Design/DesignTokens.swift`. Each SVG has a
+2× PNG export alongside it (same basename) — the READMEs embed the PNGs
+for sharp rendering at GitHub's column width; the SVGs stay the editable
+sources:
 
 - `docs/assets/window-anatomy.svg` — labelled workspace layout.
 - `docs/assets/architecture.svg` — the five-layer module stack.
