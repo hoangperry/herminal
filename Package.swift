@@ -85,5 +85,5 @@ let package = Package(
             path: "Tests/HerminalAppTests"
         )
     ],
-    swiftLanguageVersions: [.v6]
+    swiftLanguageModes: [.v6]
 )
