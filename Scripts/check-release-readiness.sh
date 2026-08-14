@@ -16,6 +16,27 @@ failures=0
 pass() { printf 'PASS  %s\n' "$1"; }
 fail() { printf 'FAIL  %s\n' "$1" >&2; failures=$((failures + 1)); }
 
+run_with_timeout() {
+    local limit="$1"
+    shift
+    local started=$SECONDS pid status
+    "$@" >/dev/null 2>&1 &
+    pid=$!
+    while kill -0 "$pid" 2>/dev/null; do
+        if ((SECONDS - started >= limit)); then
+            kill "$pid" 2>/dev/null || true
+            wait "$pid" 2>/dev/null || true
+            return 124
+        fi
+        sleep 0.1
+    done
+    set +e
+    wait "$pid"
+    status=$?
+    set -e
+    return "$status"
+}
+
 for tool in xcodebuild xcrun codesign security spctl hdiutil ditto; do
     if command -v "$tool" >/dev/null 2>&1; then
         pass "tool available: $tool"
@@ -25,11 +46,13 @@ for tool in xcodebuild xcrun codesign security spctl hdiutil ditto; do
 done
 
 DEVELOPER_PATH=$(xcode-select -p 2>/dev/null || true)
-if [[ "$DEVELOPER_PATH" == *".app/Contents/Developer" ]] && \
-   xcodebuild -version >/dev/null 2>&1; then
-    pass "full Xcode selected"
-else
+if [[ "$DEVELOPER_PATH" != *".app/Contents/Developer" ]] || \
+   ! xcodebuild -version >/dev/null 2>&1; then
     fail "full Xcode is not selected"
+elif ! xcodebuild -checkFirstLaunchStatus >/dev/null 2>&1; then
+    fail "full Xcode license or first-launch setup is incomplete"
+else
+    pass "full Xcode selected and first-launch setup complete"
 fi
 
 if xcrun notarytool --version >/dev/null 2>&1; then
@@ -47,8 +70,9 @@ elif security find-identity -v -p codesigning 2>/dev/null \
     probe=$(mktemp)
     trap 'rm -f "$probe"' EXIT
     cp /usr/bin/true "$probe"
-    if codesign --force --options runtime --sign "$HERMINAL_SIGNING_IDENTITY" \
-        "$probe" >/dev/null 2>&1 && codesign --verify --strict "$probe" >/dev/null 2>&1; then
+    if run_with_timeout 10 codesign --force --options runtime \
+        --sign "$HERMINAL_SIGNING_IDENTITY" "$probe" && \
+       codesign --verify --strict "$probe" >/dev/null 2>&1; then
         pass "Developer ID private key is usable non-interactively"
     else
         fail "Developer ID private key is not usable non-interactively"

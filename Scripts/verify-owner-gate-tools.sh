@@ -32,6 +32,11 @@ expect_failure \
     "usage: Scripts/run-entitlement-experiment.sh" \
     Scripts/run-entitlement-experiment.sh
 
+if ! grep -Fq 'xcodebuild -checkFirstLaunchStatus' Scripts/check-release-readiness.sh; then
+    echo "FAIL: release readiness does not validate Xcode license/first-launch state" >&2
+    exit 1
+fi
+
 # One-at-a-time signed debug and release experiments proved these exceptions
 # unnecessary. Guard against accidentally restoring the retired permissions.
 for key in \
