@@ -1,0 +1,189 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1240 700" width="1240" height="700" role="img" aria-label="herminal window anatomy: agent dashboard on the left, split terminal panes in the center, per-session notes on the right, status bar along the bottom">
+  <title>herminal window anatomy</title>
+  <desc>Schematic of the herminal workspace. Left slot holds the agent dashboard (mutex with the SSH host manager). Center holds tabs and split terminal panes. Right slot holds the per-session notes panel. A status bar shows cwd, git branch, tick latency, agent count, diary size and theme.</desc>
+
+  <style>
+    .ui   { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, system-ui, sans-serif; }
+    .mono { font-family: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace; }
+    .t1 { fill: #EDF0F5; }
+    .t2 { fill: #9EA3B0; }
+    .t3 { fill: #666B78; }
+    .ac { fill: #52C7BD; }
+    .run  { fill: #5CB8FF; }
+    .idle { fill: #8C919E; }
+    .done { fill: #66CC85; }
+    .hdr { font-size: 10px; font-weight: 700; letter-spacing: 1.3px; }
+    .row-name { font-size: 12.5px; font-weight: 500; }
+    .row-sub  { font-size: 10.5px; }
+    .term { font-size: 11.5px; }
+    .chip-t { font-size: 10px; font-weight: 600; }
+    .surface-el { fill: #17181B; }
+    .surface-ov { fill: #1F2124; }
+    .bd { fill: #FFFFFF; fill-opacity: 0.08; }
+    .dv { fill: #FFFFFF; fill-opacity: 0.05; }
+  </style>
+
+  <defs>
+    <radialGradient id="glow" cx="50%" cy="0%" r="70%">
+      <stop offset="0%"   stop-color="#52C7BD" stop-opacity="0.10"/>
+      <stop offset="100%" stop-color="#52C7BD" stop-opacity="0"/>
+    </radialGradient>
+    <clipPath id="win">
+      <rect x="60" y="40" width="1120" height="560" rx="12"/>
+    </clipPath>
+  </defs>
+
+  <rect width="1240" height="700" fill="#0B0C0E"/>
+  <rect width="1240" height="360" fill="url(#glow)"/>
+
+  <!-- ===== window ===== -->
+  <g clip-path="url(#win)">
+    <rect x="60" y="40" width="1120" height="560" fill="#101114"/>
+
+    <!-- titlebar -->
+    <rect x="60" y="40" width="1120" height="38" class="surface-el"/>
+    <circle cx="82"  cy="59" r="5.5" fill="#F2736B" fill-opacity="0.9"/>
+    <circle cx="100" cy="59" r="5.5" fill="#E3B341" fill-opacity="0.9"/>
+    <circle cx="118" cy="59" r="5.5" fill="#66CC85" fill-opacity="0.9"/>
+    <text x="620" y="63" text-anchor="middle" class="ui t2" font-size="12">herminal</text>
+    <rect x="60" y="77" width="1120" height="1" class="bd"/>
+
+    <!-- tab bar -->
+    <rect x="60" y="78" width="1120" height="34" class="surface-el"/>
+    <rect x="70" y="84" width="168" height="23" rx="6" class="surface-ov"/>
+    <circle cx="84" cy="95.5" r="3" class="ac"/>
+    <text x="94" y="100" class="mono t1" font-size="11">api · zsh</text>
+    <text x="256" y="100" class="mono t2" font-size="11" fill-opacity="0.62">web · claude</text>
+    <text x="382" y="100" class="mono t2" font-size="11" fill-opacity="0.62">staging-vn · ssh</text>
+    <text x="512" y="100" class="ui t3" font-size="14">+</text>
+    <rect x="60" y="111" width="1120" height="1" class="bd"/>
+
+    <!-- ===== left slot: agent dashboard ===== -->
+    <rect x="60" y="112" width="280" height="450" class="surface-el"/>
+    <text x="76" y="135" class="ui t2 hdr">AGENTS</text>
+    <rect x="278" y="123" width="48" height="18" rx="5" class="surface-ov"/>
+    <text x="302" y="136" text-anchor="middle" class="ui t2 chip-t">⌘⇧A</text>
+    <rect x="60" y="150" width="280" height="1" class="dv"/>
+
+    <!-- row 1 — running -->
+    <circle cx="86" cy="174" r="4" class="run"/>
+    <text x="100" y="172" class="ui t1 row-name">Claude Code</text>
+    <text x="100" y="189" class="mono t3 row-sub">pid 48231 · running</text>
+    <rect x="276" y="163" width="50" height="18" rx="5" class="surface-ov"/>
+    <text x="301" y="176" text-anchor="middle" class="ui t2 chip-t">Tab 1</text>
+    <rect x="76" y="206" width="248" height="1" class="dv"/>
+
+    <!-- row 2 — idle -->
+    <circle cx="86" cy="234" r="4" class="idle"/>
+    <text x="100" y="232" class="ui t1 row-name">Codex</text>
+    <text x="100" y="249" class="mono t3 row-sub">pid 48992 · idle</text>
+    <rect x="276" y="223" width="50" height="18" rx="5" class="surface-ov"/>
+    <text x="301" y="236" text-anchor="middle" class="ui t2 chip-t">Tab 2</text>
+    <rect x="76" y="266" width="248" height="1" class="dv"/>
+
+    <!-- row 3 — done -->
+    <circle cx="86" cy="294" r="4" class="done"/>
+    <text x="100" y="292" class="ui t1 row-name">Aider</text>
+    <text x="100" y="309" class="mono t3 row-sub">pid 49104 · done</text>
+    <rect x="276" y="283" width="50" height="18" rx="5" class="surface-ov"/>
+    <text x="301" y="296" text-anchor="middle" class="ui t2 chip-t">Tab 2</text>
+    <rect x="76" y="326" width="248" height="1" class="dv"/>
+
+    <text x="76" y="546" class="ui t3" font-size="10">Process subtree only · polled every 2 s</text>
+    <text x="76" y="560" class="ui t3" font-size="10">Mutex with ⌘⇧S — the SSH host manager</text>
+    <rect x="339" y="112" width="1" height="450" class="bd"/>
+
+    <!-- ===== center: split panes ===== -->
+    <!-- focused pane -->
+    <rect x="342" y="115" width="285" height="444" rx="6" fill="#101114" stroke="#52C7BD" stroke-opacity="0.5" stroke-width="1.5"/>
+    <text x="356" y="140" class="mono term"><tspan class="ac">~/projects/api ❯</tspan><tspan class="t1"> claude</tspan></text>
+    <text x="356" y="160" class="mono term t2">✻ Reading Sources/HerminalAgent/</text>
+    <text x="356" y="180" class="mono term t3">  AgentDetector.swift  +18 −4</text>
+    <text x="356" y="200" class="mono term done">✓ 153 tests passed</text>
+    <text x="356" y="220" class="mono term ac">❯</text>
+    <rect x="368" y="210" width="7" height="13" class="ac" fill-opacity="0.85"/>
+
+    <!-- pane divider (⌘D — vertical split) -->
+    <rect x="629" y="115" width="2" height="444" class="dv"/>
+
+    <!-- second pane -->
+    <rect x="633" y="115" width="285" height="444" rx="6" fill="#101114" stroke="#FFFFFF" stroke-opacity="0.08"/>
+    <text x="647" y="140" class="mono term"><tspan class="ac">❯</tspan><tspan class="t1"> git commit -m "font tiếng việt"</tspan></text>
+    <text x="647" y="160" class="mono term t2">[main a91f3c2] font tiếng việt</text>
+    <text x="647" y="180" class="mono term t3"> 2 files changed, 18 insertions(+)</text>
+    <text x="647" y="200" class="mono term"><tspan class="ac">❯</tspan><tspan class="t1"> nvim docs/QA/ime.md</tspan></text>
+    <text x="647" y="220" class="mono term t3">-- INSERT --  <tspan class="t1">tiế</tspan></text>
+    <rect x="741" y="223" width="19" height="1.5" class="ac"/>
+    <rect x="919" y="112" width="1" height="450" class="bd"/>
+
+    <!-- ===== right slot: notes ===== -->
+    <rect x="920" y="112" width="260" height="450" class="surface-el"/>
+    <text x="936" y="135" class="ui t2 hdr">NOTES</text>
+    <rect x="1118" y="123" width="48" height="18" rx="5" class="surface-ov"/>
+    <text x="1142" y="136" text-anchor="middle" class="ui t2 chip-t">⌘⇧N</text>
+    <rect x="920" y="150" width="260" height="1" class="dv"/>
+
+    <text x="936" y="176" class="mono ac" font-size="11.5">## api refactor</text>
+    <text x="936" y="198" class="mono t2" font-size="11">- [x] wrapper argv detect</text>
+    <text x="936" y="217" class="mono t2" font-size="11">- [ ] pane mapping by</text>
+    <text x="972" y="236" class="mono t2" font-size="11">kernel start-time</text>
+    <text x="936" y="255" class="mono t2" font-size="11">- ssh: staging-vn :2222</text>
+    <rect x="936" y="272" width="212" height="24" rx="4" class="surface-ov"/>
+    <text x="946" y="288" class="mono t1" font-size="11">swift test --filter Agent</text>
+
+    <circle cx="940" cy="545" r="3" class="done"/>
+    <text x="952" y="549" class="ui t3" font-size="10">Saved to SQLite WAL · session-scoped</text>
+
+    <!-- ===== status bar ===== -->
+    <rect x="60" y="562" width="1120" height="38" class="surface-el"/>
+    <rect x="60" y="562" width="1120" height="1" class="bd"/>
+    <!-- folder glyph -->
+    <path d="M76 578h4.5l1.5 2H88a1.5 1.5 0 0 1 1.5 1.5v6A1.5 1.5 0 0 1 88 589h-12a1.5 1.5 0 0 1-1.5-1.5v-8A1.5 1.5 0 0 1 76 578z" fill="none" stroke="#9EA3B0" stroke-width="1.2"/>
+    <text x="98" y="586" class="mono t1" font-size="11">~/projects/api</text>
+    <!-- branch glyph -->
+    <g stroke="#52C7BD" stroke-width="1.2" fill="none">
+      <circle cx="210" cy="578.5" r="2.2"/>
+      <circle cx="222" cy="578.5" r="2.2"/>
+      <circle cx="210" cy="588" r="2.2"/>
+      <path d="M210 580.7v5.1M212.2 578.5h7.6"/>
+    </g>
+    <text x="232" y="586" class="mono t2" font-size="11">main</text>
+
+    <text x="1164" y="586" text-anchor="end" class="ui t2" font-size="10">tick p95<tspan class="mono t1" font-size="11" font-weight="600" dx="5">4.2 ms</tspan><tspan dx="15">agents</tspan><tspan class="mono t1" font-size="11" font-weight="600" dx="5">3</tspan><tspan dx="15">diary</tspan><tspan class="mono t1" font-size="11" font-weight="600" dx="5">128 KB</tspan><tspan dx="15">theme</tspan><tspan class="mono t1" font-size="11" font-weight="600" dx="5">dark</tspan></text>
+  </g>
+  <rect x="60" y="40" width="1120" height="560" rx="12" fill="none" stroke="#FFFFFF" stroke-opacity="0.10"/>
+
+  <!-- ===== shortcut legend ===== -->
+  <g class="ui">
+    <g>
+      <rect x="60" y="632" width="54" height="22" rx="6" class="surface-ov"/>
+      <text x="87" y="647" text-anchor="middle" class="t1" font-size="11" font-weight="600">⌘T</text>
+      <text x="122" y="647" class="t2" font-size="11.5">new tab</text>
+    </g>
+    <g>
+      <rect x="247" y="632" width="54" height="22" rx="6" class="surface-ov"/>
+      <text x="274" y="647" text-anchor="middle" class="t1" font-size="11" font-weight="600">⌘D</text>
+      <text x="309" y="647" class="t2" font-size="11.5">split pane</text>
+    </g>
+    <g>
+      <rect x="434" y="632" width="54" height="22" rx="6" class="surface-ov"/>
+      <text x="461" y="647" text-anchor="middle" class="t1" font-size="11" font-weight="600">⌘⇧A</text>
+      <text x="496" y="647" class="t2" font-size="11.5">agents</text>
+    </g>
+    <g>
+      <rect x="621" y="632" width="54" height="22" rx="6" class="surface-ov"/>
+      <text x="648" y="647" text-anchor="middle" class="t1" font-size="11" font-weight="600">⌘⇧S</text>
+      <text x="683" y="647" class="t2" font-size="11.5">ssh hosts</text>
+    </g>
+    <g>
+      <rect x="808" y="632" width="54" height="22" rx="6" class="surface-ov"/>
+      <text x="835" y="647" text-anchor="middle" class="t1" font-size="11" font-weight="600">⌘⇧N</text>
+      <text x="870" y="647" class="t2" font-size="11.5">notes</text>
+    </g>
+    <g>
+      <rect x="995" y="632" width="54" height="22" rx="6" class="surface-ov"/>
+      <text x="1022" y="647" text-anchor="middle" class="t1" font-size="11" font-weight="600">⌥⌘←</text>
+      <text x="1057" y="647" class="t2" font-size="11.5">focus pane</text>
+    </g>
+  </g>
+</svg>

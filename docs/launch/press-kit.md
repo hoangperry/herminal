@@ -44,17 +44,40 @@ MIT-licensed.
 
 ## Screenshots / GIFs
 
-*Placeholders — drop the final PNGs into `docs/launch/assets/` and
-link them here before announcing.*
+All visual assets live in one place: [`docs/assets/`](../assets/). The
+README already ships the schematic diagrams from there; this section
+tracks the captures of the running app.
 
-- `assets/hero.png` — herminal window with two tabs, the agent
-  dashboard open on the left, notes panel on the right, vim running
-  in a split.
-- `assets/agent-dashboard.gif` — Claude Code starts → badge flips
+**Already available** — hand-authored, generated from the real design
+tokens in `Sources/HerminalApp/Design/DesignTokens.swift`:
+
+- `docs/assets/window-anatomy.svg` — labelled workspace layout.
+- `docs/assets/architecture.svg` — the five-layer module stack.
+- `docs/assets/agent-lifecycle.svg` — one agent poll, end to end.
+- `docs/assets/ime-composition.svg` — Vietnamese, Korean, Japanese and
+  Chinese composition on the same bridge.
+
+**Captures of the running app** — produced by
+`Scripts/capture-screenshots.sh`, which needs Accessibility and Screen
+Recording granted to the terminal that runs it:
+
+- `docs/assets/screenshot-workspace.png` — two panes split, agent
+  dashboard open on the left.
+- `docs/assets/screenshot-ssh-manager.png` — saved hosts with their
+  recency badges.
+- `docs/assets/screenshot-notes.png` — per-session notes on the right.
+- `docs/assets/screenshot-ime.png` — a live underlined preedit at the
+  shell prompt. Manual: the script cannot switch the system input
+  source, so it prints the recipe and leaves the window open.
+
+**Still to record by hand** — GIFs need a screen recorder, not
+`screencapture`:
+
+- `docs/assets/agent-dashboard.gif` — Claude Code starts → badge flips
   from `starting` to `idle` to `running` as a prompt is processed.
-- `assets/ssh-connect.gif` — SSH manager → click Connect → new tab
+- `docs/assets/ssh-connect.gif` — SSH manager → click Connect → new tab
   opens with `ssh user@host` already running.
-- `assets/ime-telex.gif` — Telex composition of `tieesng vieejt` →
+- `docs/assets/ime-telex.gif` — Telex composition of `tieesng vieejt` →
   `tiếng việt` with the candidate window positioned at the cursor.
 
 ## Links

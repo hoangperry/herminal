@@ -17,6 +17,23 @@ See [CHANGELOG](CHANGELOG.md).
 
 > 🇻🇳 Phiên bản tiếng Việt: [`README.vi.md`](README.vi.md)
 
+![The herminal workspace — agent dashboard in the left slot, split terminal panes in the center, per-session notes on the right, status bar along the bottom](docs/assets/window-anatomy.svg)
+
+*Agents on the left, splits in the middle, per-session notes on the right.
+The left slot is one slot: the agent dashboard and the SSH manager take
+turns in it.*
+
+<!-- Screenshots of the running app land here. Run
+     Scripts/capture-screenshots.sh (needs Screen Recording + Accessibility
+     granted to your terminal), then delete this comment wrapper.
+
+| | |
+|---|---|
+| ![Split panes with the agent dashboard open](docs/assets/screenshot-workspace.png) | ![SSH host manager](docs/assets/screenshot-ssh-manager.png) |
+| ![Per-session notes panel](docs/assets/screenshot-notes.png) | ![A live Telex preedit at the shell prompt](docs/assets/screenshot-ime.png) |
+
+-->
+
 ---
 
 ## What is herminal
@@ -27,13 +44,22 @@ A local-first macOS terminal built around two daily realities the existing
 1. **You run Claude Code / Codex / Aider all day** and need a glanceable
    view of which agents are alive, idle, or done — without an
    open-a-second-window detour.
-2. **You write Vietnamese** and need Telex / VNI to land correctly the
-   first time, in tmux, in vim, every time.
+2. **You type a language an English keyboard can't reach** — Vietnamese
+   Telex / VNI, Korean 2-Set Hangul, Japanese romaji, Chinese Pinyin —
+   and need the composition to land correctly the first time, in tmux,
+   in vim, every time.
 
 herminal pairs the [libghostty](https://github.com/ghostty-org/ghostty)
 engine (Zig, mature, native performance) with a Swift / AppKit shell that
 owns the IME and the chrome. Storage is SQLite for both per-session notes
 and saved SSH hosts. No cloud, no telemetry, no account.
+
+![One NSTextInputClient bridge serving Vietnamese Telex, Korean 2-Set Hangul, Japanese romaji-to-kanji and Chinese Pinyin, plus the Tab-while-preedit case they all share](docs/assets/ime-composition.svg)
+
+*The composition APIs live on the terminal surface itself, not in a
+wrapper text field — so one bridge serves every input method macOS
+offers. Vietnamese is the release gate because it's the PRD's headline
+persona, not because it's special-cased in code.*
 
 ## Why a new terminal
 
@@ -46,6 +72,11 @@ In 2026 nothing on the market hits all five at once:
 | tmux + multi-session | ✓ | partial | × | ✓ | ✓ |
 | Built-in agent dashboard | × | partial | × | × | ✓ |
 | Local-only persistent notes per session | × | × | × | × | ✓ |
+
+The IME row is scored on Vietnamese because that's the rubric's persona.
+The bridge underneath is generic — Korean, Japanese and Chinese get their
+own smoke matrix in
+[`docs/QA/cjk-ime-checklist.md`](docs/QA/cjk-ime-checklist.md).
 
 See [`docs/research/`](docs/research/) for the full comparison and
 scoring rubric the table is derived from.
@@ -121,6 +152,14 @@ Agents are detected by walking herminal's process subtree — start
 dashboard within ~2 seconds with a `running` / `idle` / `starting`
 badge tracked via CPU sampling.
 
+![The five stages of one agent poll: timer, sysctl process snapshot, classify by name or argv, annotate with CPU delta and tab hint, render](docs/assets/agent-lifecycle.svg)
+
+*No agent has to cooperate and no API key is involved — the signal is
+derived entirely from the process tree. `argv` is read only to recognise
+`node` / `python` / `bun` / `deno` wrappers, and is dropped immediately
+after. See [`docs/CONTRIBUTOR-TOUR-AGENT-SIGNAL.md`](docs/CONTRIBUTOR-TOUR-AGENT-SIGNAL.md)
+to follow one signal end to end.*
+
 ## Tech stack
 
 | Layer | Tech | Why |
@@ -130,6 +169,12 @@ badge tracked via CPU sampling.
 | Surface | `NSView` hosting libghostty's Metal layer | Pixel-precise IME |
 | Storage | SQLite WAL (notes + SSH hosts) | Local-only, atomic, indexable |
 | Distribution | Developer-ID signed + notarized DMG/zip and Homebrew cask | App Store sandbox is incompatible |
+
+![The five dependency layers: HerminalApp, HerminalAgent, HerminalDB, HerminalCore, GhosttyKit.xcframework](docs/assets/architecture.svg)
+
+*libghostty is consumed as an upstream release through its published C
+ABI — not vendored as a fork. Full write-up in
+[`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).*
 
 ## Repo layout
 
@@ -142,13 +187,14 @@ herminal/
 │   └── HerminalApp/          # NSApp, WorkspaceView, panels, Diary
 ├── App/                       # Info.plist + entitlements
 ├── Tests/                     # 153 Swift Testing tests
-├── Scripts/                   # bootstrap, bundle, verify-*, dogfood, sign, release
+├── Scripts/                   # bootstrap, bundle, verify-*, dogfood, sign, release, capture-screenshots
 ├── Vendor/libghostty/         # git submodule (Ghostty v1.3.1)
 └── docs/
+    ├── assets/               # README diagrams + app screenshots
     ├── research/             # market scan + scoring
     ├── define/herminal.prd.md # source-of-truth PRD
     ├── backlog/              # monthly task lists + retrospectives
-    ├── QA/                   # IME checklist, dogfood checklist + journal
+    ├── QA/                   # IME checklists (VI + CJK), dogfood checklist + journal
     └── launch/               # press kit + tweet/LinkedIn drafts
 ```
 
@@ -167,12 +213,14 @@ the diary excerpt; security issues go to
 | [CHANGELOG.md](CHANGELOG.md) | Per-version release notes |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | How to propose changes |
 | [SECURITY.md](SECURITY.md) | How to report vulnerabilities |
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | One-page system overview — read before the first PR |
 | [docs/MAINTAINER-AI-POLICY.md](docs/MAINTAINER-AI-POLICY.md) | Human boundaries for AI-assisted maintenance |
 | [docs/BETA.md](docs/BETA.md) | Privacy-safe beta protocol and evidence ledger |
 | [docs/RELEASE.md](docs/RELEASE.md) | Cutting a signed + notarized release |
 | [docs/define/herminal.prd.md](docs/define/herminal.prd.md) | The PRD that frames every decision |
 | [docs/QA/dogfood-checklist.md](docs/QA/dogfood-checklist.md) | What to watch for during daily-driver use |
 | [docs/QA/vietnamese-ime-checklist.md](docs/QA/vietnamese-ime-checklist.md) | 20-phrase Telex/VNI smoke matrix |
+| [docs/QA/cjk-ime-checklist.md](docs/QA/cjk-ime-checklist.md) | Korean / Japanese / Chinese IME smoke matrices |
 | [docs/backlog/](docs/backlog/) | Monthly task lists + retrospectives M1 → M7 |
 
 ---
