@@ -31,7 +31,27 @@ The current `ProcessAgentSignalSource` is heuristic. CPU sampling, pane mapping,
 | Claude Code | process tree / wrapper detection + optional BEL | heuristic/inferred |
 | Aider | process tree / Python wrapper detection | heuristic |
 
-Before adding structured Codex support, verify the current official Codex interface and pin the tested CLI version/date in the implementation PR. Herminal will not depend on undocumented log files or scrape private conversation content.
+## Codex hooks research checkpoint
+
+Verified against OpenAI's official Codex Hooks and configuration references on
+2026-08-14. Codex exposes opt-in lifecycle command hooks behind `features.hooks`
+from `hooks.json` or inline `[hooks]` configuration. Relevant documented events
+include `SessionStart`, `Stop`, and `SessionEnd`; every hook receives JSON on
+stdin with `session_id`, `transcript_path`, `cwd`, and `hook_event_name`.
+
+Herminal must **not** read `transcript_path`, copy the transcript, persist raw
+`session_id`, or treat project-local hooks as trusted automatically. A future
+adapter should be an explicitly installed command hook that maps only the event
+name to a bounded local lifecycle signal. The current hook schema does not
+provide a documented PTY/pane identity, so process detection remains necessary
+for tab attribution. Until that mapping and authentication boundary are
+resolved, process observation stays the production source and the hooks adapter
+remains a researched design—not a half-secure implementation.
+
+References:
+
+- <https://developers.openai.com/codex/hooks>
+- <https://developers.openai.com/codex/config-reference>
 
 ## Adapter requirements
 

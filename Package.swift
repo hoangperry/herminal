@@ -56,7 +56,7 @@ let package = Package(
         ),
         .target(
             name: "HerminalAgent",
-            dependencies: ["HerminalCore"],
+            dependencies: [],
             path: "Sources/HerminalAgent"
         ),
         .executableTarget(

@@ -27,6 +27,8 @@ jobs:
         with:
           submodules: recursive
 
+      # SwiftPM validates every local binary target even for a targeted build,
+      # so create GhosttyKit before CodeQL enables its DYLD tracer.
       - name: Install verified build toolchain
         run: |
           Scripts/install-zig-ci.sh
@@ -34,7 +36,15 @@ jobs:
             xcodebuild -downloadComponent MetalToolchain
           fi
 
-      - name: Build libghostty xcframework
+      - name: Cache libghostty xcframework
+        id: cache-ghostty
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: Vendor/libghostty/macos/GhosttyKit.xcframework
+          key: ghostty-xcframework-${{ hashFiles('.gitmodules', 'Vendor/libghostty/build.zig') }}
+
+      - name: Build libghostty xcframework outside CodeQL tracing
+        if: steps.cache-ghostty.outputs.cache-hit != 'true'
         run: Scripts/bootstrap.sh
 
       - name: Initialize CodeQL
@@ -43,8 +53,13 @@ jobs:
           languages: swift
           queries: security-extended
 
-      - name: Build Swift targets
-        run: swift build
+      # CodeQL's DYLD tracer cannot import the prebuilt GhosttyKit module.
+      # Analyze the independent data + agent libraries here; full app/core
+      # compilation and tests remain mandatory in CI.
+      - name: Build independently analyzable Swift targets
+        run: |
+          swift build --target HerminalDB
+          swift build --target HerminalAgent
 
       - name: Analyze
         uses: github/codeql-action/analyze@f3712979fa5f215279b101dd0a2e3bdfb4353324 # v3

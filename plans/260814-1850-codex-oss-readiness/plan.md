@@ -14,9 +14,9 @@ blocks: []
 
 | Sprint | Scope | Status |
 |---|---|---|
-| Sprint 1 | Phase 0: IME Tab blocker + release truth | In progress — code/docs complete; blocked on full Xcode tests and live Telex/VNI owner verification |
-| Sprint 2 | Phase 1: security and supply-chain hardening | In progress — threat model, private reporting, Dependabot, pinned Actions, CodeQL and release integrity metadata added; CI evidence pending |
-| Sprint 3 | Phase 2–3: agent interoperability + contributor surface | Planned |
+| Sprint 1 | Phase 0: IME Tab blocker + release truth | In progress — full CI build and 152 tests pass; blocked only on live Telex/VNI verification and signed release |
+| Sprint 2 | Phase 1: security and supply-chain hardening | In progress — controls and tests added; CodeQL analysis/entitlement owner audit pending |
+| Sprint 3 | Phase 2–3: agent interoperability + contributor surface | Complete — neutral event boundary, official hooks research, contributor fast path, triage policy, and issues #2–#7 |
 | Sprint 4 | Phase 4: closed beta and feedback releases | Planned |
 | Sprint 5 | Phase 5–7: launch evidence + application | Planned |
 

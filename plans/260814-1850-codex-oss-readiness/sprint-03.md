@@ -27,7 +27,11 @@ Introduce a privacy-minimized, vendor-neutral agent event boundary and make the 
 
 - Added the neutral event contract and process source.
 - Added identity and privacy-minimization tests.
-- Added `docs/AGENT-INTEGRATIONS.md`.
+- Added `docs/AGENT-INTEGRATIONS.md` and verified official Codex hook surfaces.
+- Documented why a hook adapter is deferred until secure pane attribution exists.
+- Added contributor fast path and public triage policy.
+- Opened six genuinely scoped public issues (#2–#7) with contributor labels.
+- CI full build and 152 tests pass; live IME remains a manual acceptance gate.
 
 ## Exit criteria
 
