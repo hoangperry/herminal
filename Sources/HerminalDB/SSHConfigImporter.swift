@@ -14,8 +14,14 @@ import Foundation
 public enum SSHConfigImporter {
     public enum ImportError: Error, Equatable {
         case fileMissing(path: String)
+        case fileTooLarge(path: String, bytes: Int)
         case readFailed(String)
     }
+
+    /// Importing SSH metadata should never require reading an unbounded file.
+    /// A normal OpenSSH config is measured in KB; 1 MiB leaves ample room for
+    /// generated configs while preventing accidental memory/CPU abuse.
+    public static let maxConfigBytes = 1_048_576
 
     /// Reads `path` (defaults to `~/.ssh/config`), parses every concrete
     /// Host block, and returns the corresponding `SSHHost` rows. The
@@ -28,6 +34,11 @@ public enum SSHConfigImporter {
         let fm = FileManager.default
         guard fm.fileExists(atPath: path) else {
             throw ImportError.fileMissing(path: path)
+        }
+        if let attributes = try? fm.attributesOfItem(atPath: path),
+           let size = attributes[.size] as? NSNumber,
+           size.intValue > maxConfigBytes {
+            throw ImportError.fileTooLarge(path: path, bytes: size.intValue)
         }
         let content: String
         do {

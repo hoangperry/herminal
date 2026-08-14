@@ -129,4 +129,20 @@ struct SSHConfigImporterTests {
             )
         }
     }
+
+    @Test("parseHosts rejects an oversized config before decoding")
+    func oversizedConfigThrows() throws {
+        let url = FileManager.default.temporaryDirectory
+            .appendingPathComponent("herminal-oversized-ssh-\(UUID().uuidString)")
+        let size = SSHConfigImporter.maxConfigBytes + 1
+        try Data(repeating: 0x20, count: size).write(to: url)
+        defer { try? FileManager.default.removeItem(at: url) }
+
+        #expect(throws: SSHConfigImporter.ImportError.fileTooLarge(
+            path: url.path,
+            bytes: size
+        )) {
+            _ = try SSHConfigImporter.parseHosts(at: url.path)
+        }
+    }
 }
