@@ -235,6 +235,23 @@ enum AppMenu {
         windowMenu.addItem(lazygit)
 
         windowMenu.addItem(.separator())
+        windowMenu.addItem(NSMenuItem(
+            title: "New tmux Session",
+            action: #selector(WorkspaceView.newTmuxSession(_:)),
+            keyEquivalent: ""
+        ))
+        windowMenu.addItem(NSMenuItem(
+            title: "Attach tmux Session…",
+            action: #selector(WorkspaceView.attachTmuxSession(_:)),
+            keyEquivalent: ""
+        ))
+        windowMenu.addItem(NSMenuItem(
+            title: "Attach or Create tmux Session",
+            action: #selector(WorkspaceView.attachOrCreateTmuxSession(_:)),
+            keyEquivalent: ""
+        ))
+
+        windowMenu.addItem(.separator())
         for n in 1...9 {
             let title = n == 9 ? "Select Last Tab" : "Select Tab \(n)"
             let item = NSMenuItem(
