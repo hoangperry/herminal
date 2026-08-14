@@ -3,8 +3,16 @@ name: CI
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - "**/*.md"
+      - "docs/**"
+      - "plans/**"
   pull_request:
     branches: [main]
+    paths-ignore:
+      - "**/*.md"
+      - "docs/**"
+      - "plans/**"
 
 # Cancel any in-flight run for the same PR / branch when a new commit lands.
 # Saves runner minutes and avoids redundant work on rapid iterations.
