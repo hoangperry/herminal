@@ -26,15 +26,31 @@ struct NotesPanelView: View {
                 .scrollContentBackground(.hidden)
                 .padding(HerminalDesign.Spacing.sm)
                 .onChange(of: text) { _, newValue in onSave(newValue) }
+            Divider().overlay(HerminalDesign.Palette.divider)
+            footer
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(HerminalDesign.Palette.surfaceElevated)
+    }
+
+    /// Storage context only. Do not claim a successful save here: `onSave`
+    /// has no result channel and the database layer may reject a write.
+    private var footer: some View {
+        HStack(spacing: HerminalDesign.Spacing.xs) {
+            Text("Local SQLite · session-scoped")
+                .font(HerminalDesign.Typography.caption)
+                .foregroundStyle(HerminalDesign.Palette.textTertiary)
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, HerminalDesign.Spacing.md)
+        .frame(height: 24)
     }
 
     private var header: some View {
         HStack {
             Text("NOTES")
                 .font(HerminalDesign.Typography.caption)
+                .tracking(1.2)
                 .foregroundStyle(HerminalDesign.Palette.textTertiary)
                 .accessibilityAddTraits(.isHeader)
             Spacer()

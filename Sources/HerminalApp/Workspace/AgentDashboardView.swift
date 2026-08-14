@@ -49,6 +49,7 @@ struct AgentDashboardView: View {
         HStack(spacing: HerminalDesign.Spacing.xs) {
             Text("AGENTS")
                 .font(HerminalDesign.Typography.caption)
+                .tracking(1.2)
                 .foregroundStyle(HerminalDesign.Palette.textTertiary)
                 .accessibilityAddTraits(.isHeader)
             Text("\(agents.count)")
@@ -89,6 +90,8 @@ struct AgentDashboardView: View {
         }
     }
 
+    // v1.0 polish: rows read as a flat list with hairline dividers and the
+    // pane chip on the trailing edge — matches the launch-site hero mockup.
     private func agentRow(_ agent: DetectedAgent) -> some View {
         HStack(spacing: HerminalDesign.Spacing.sm) {
             Circle()
@@ -96,36 +99,34 @@ struct AgentDashboardView: View {
                 .frame(width: 7, height: 7)
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 1) {
-                HStack(spacing: HerminalDesign.Spacing.xs) {
-                    Text(Self.label(for: agent.kind))
-                        .font(HerminalDesign.Typography.bodyEmphasis)
-                        .foregroundStyle(HerminalDesign.Palette.textPrimary)
-                    if let tab = agent.tabHint {
-                        // AgentPaneMapper returns a flattened session/pane
-                        // index, not a tab-strip index. Number it 1-based.
-                        Text("Pane \(tab + 1)")
-                            .font(HerminalDesign.Typography.caption)
-                            .foregroundStyle(HerminalDesign.Palette.accent)
-                            .padding(.horizontal, 4)
-                            .background(
-                                RoundedRectangle(cornerRadius: 3)
-                                    .fill(HerminalDesign.Palette.accent.opacity(0.15))
-                            )
-                    }
-                }
+                Text(Self.label(for: agent.kind))
+                    .font(HerminalDesign.Typography.bodyEmphasis)
+                    .foregroundStyle(HerminalDesign.Palette.textPrimary)
                 Text("pid \(agent.pid) · \(Self.statusText(agent.status))")
                     .font(HerminalDesign.Typography.caption)
                     .foregroundStyle(HerminalDesign.Palette.textTertiary)
             }
             Spacer(minLength: 0)
+            if let tab = agent.tabHint {
+                // AgentPaneMapper returns a flattened session/pane
+                // index, not a tab-strip index. Number it 1-based.
+                Text("Pane \(tab + 1)")
+                    .font(HerminalDesign.Typography.caption)
+                    .foregroundStyle(HerminalDesign.Palette.accent)
+                    .padding(.horizontal, 4)
+                    .padding(.vertical, 2)
+                    .background(
+                        RoundedRectangle(cornerRadius: 3)
+                            .fill(HerminalDesign.Palette.accent.opacity(0.15))
+                    )
+            }
         }
         .padding(.horizontal, HerminalDesign.Spacing.sm)
         .padding(.vertical, HerminalDesign.Spacing.xs)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(
-            RoundedRectangle(cornerRadius: HerminalDesign.Radius.sm)
-                .fill(HerminalDesign.Palette.surfaceOverlay)
-        )
+        .overlay(alignment: .bottom) {
+            HerminalDesign.Palette.divider.frame(height: 1)
+        }
         .contentShape(Rectangle())
         .onTapGesture { onSelectAgent?(agent) }
         .accessibilityElement(children: .combine)
@@ -135,10 +136,31 @@ struct AgentDashboardView: View {
 
     private var worktreeSection: some View {
         VStack(alignment: .leading, spacing: HerminalDesign.Spacing.xxs) {
-            Text("WORKTREES")
-                .font(HerminalDesign.Typography.caption)
-                .foregroundStyle(HerminalDesign.Palette.textTertiary)
-                .padding(.top, HerminalDesign.Spacing.xs)
+            HStack {
+                Text("WORKTREES")
+                    .font(HerminalDesign.Typography.caption)
+                    .tracking(1.2)
+                    .foregroundStyle(HerminalDesign.Palette.textTertiary)
+                Spacer(minLength: 0)
+                // Functional shortcut chip — same affordance the hero
+                // mockup shows; clicking it spawns a new worktree.
+                Button { onNewWorktree?() } label: {
+                    Text("⌘⌥W")
+                        .font(HerminalDesign.Typography.monoCaption)
+                        .foregroundStyle(HerminalDesign.Palette.textSecondary)
+                        .padding(.horizontal, HerminalDesign.Spacing.xs)
+                        .padding(.vertical, 2)
+                        .background(
+                            RoundedRectangle(cornerRadius: HerminalDesign.Radius.sm)
+                                .fill(HerminalDesign.Palette.surfaceOverlay)
+                        )
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .disabled(onNewWorktree == nil)
+                .accessibilityLabel("New agent worktree")
+            }
+            .padding(.top, HerminalDesign.Spacing.xs)
             if !inGitRepo {
                 Text("Current pane is not a git repo")
                     .font(HerminalDesign.Typography.caption)
@@ -157,6 +179,10 @@ struct AgentDashboardView: View {
 
     private func worktreeRow(_ tree: GitWorktree.Entry) -> some View {
         HStack(spacing: HerminalDesign.Spacing.xs) {
+            Image(systemName: "arrow.triangle.branch")
+                .font(.system(size: 10, weight: .semibold))
+                .foregroundStyle(HerminalDesign.Palette.accent)
+                .accessibilityHidden(true)
             Button { onOpenWorktree?(tree) } label: {
                 VStack(alignment: .leading, spacing: 1) {
                     Text(tree.label)
@@ -185,10 +211,9 @@ struct AgentDashboardView: View {
         .padding(.horizontal, HerminalDesign.Spacing.sm)
         .padding(.vertical, HerminalDesign.Spacing.xs)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(
-            RoundedRectangle(cornerRadius: HerminalDesign.Radius.sm)
-                .fill(HerminalDesign.Palette.surfaceOverlay)
-        )
+        .overlay(alignment: .bottom) {
+            HerminalDesign.Palette.divider.frame(height: 1)
+        }
     }
 
     private func tinyButton(_ systemName: String, label: String, action: @escaping () -> Void) -> some View {
