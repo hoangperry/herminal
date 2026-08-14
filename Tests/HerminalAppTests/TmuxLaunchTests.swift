@@ -98,3 +98,34 @@ struct TmuxLaunchListTests {
         ])
     }
 }
+
+@Suite("TmuxRunner.process")
+struct TmuxRunnerProcessTests {
+    @Test("force-kills a subprocess that ignores graceful timeout signals")
+    func killsStubbornProcess() {
+        let started = Date()
+        let runner = TmuxRunner.process(timeout: 0.1)
+        let result = runner.run(
+            ["-c", "trap '' TERM INT; while :; do :; done"],
+            binary: "/bin/sh",
+            in: "/"
+        )
+
+        #expect(result.status == 124)
+        #expect(Date().timeIntervalSince(started) < 2)
+        #expect(result.stderr == "tmux timed out")
+    }
+
+    @Test("captures at most one MiB of subprocess output")
+    func capsOutput() {
+        let runner = TmuxRunner.process(timeout: 3)
+        let result = runner.run(
+            ["-c", "yes 1234567890 | head -n 200000"],
+            binary: "/bin/sh",
+            in: "/"
+        )
+
+        #expect(result.status == 0)
+        #expect(result.stdout.utf8.count <= 1_048_576)
+    }
+}
