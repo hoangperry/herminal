@@ -6,6 +6,12 @@ The beta validates whether Herminal works as a real terminal for Vietnamese macO
 
 Engineering gates are green: CI build, 152 tests, and targeted CodeQL. Distribution begins only after the live Telex/VNI marked-text checklist and signed/notarized build pass.
 
+## Current distribution blockers
+
+- Real Telex/VNI marked-text cases still require human keyboard verification.
+- Repository Actions secrets are not configured for Developer ID/notarization.
+- A local Developer ID identity is visible, but non-interactive signing currently returns `errSecInternalComponent`; no notarytool profile is configured. Credential repair stays an owner-only action and no password/key material belongs in the repository.
+
 ## Tester commitment
 
 - Install through the supplied signed DMG or Homebrew cask.
@@ -31,7 +37,8 @@ Counts must link to public evidence or a privacy-preserving opt-in record. One p
 | Date | Evidence | Count | Public link/verification | Notes |
 |---|---|---:|---|---|
 | 2026-08-14 | CI full suite | 152 tests | GitHub Actions run 31812947567 | Green |
-| 2026-08-14 | CodeQL | 1 run | GitHub Actions run 31812947548 | DB + Agent targets |
+| 2026-08-14 | CodeQL | 1 run | GitHub Actions run 31814582462 | DB + Agent targets |
+| 2026-08-14 | CI artifact local launch | 1 smoke | PR #1 / CI run 31814582438 | Signature structure verified; version 1.0.0 build 23; launched without immediate crash |
 | — | Verified installs | 0 | — | Target 10 |
 | — | Completed 3-day testers | 0 | — | Target 5 |
 | — | External beta reports | 0 | — | Target 3 |
