@@ -46,10 +46,10 @@ projects of this size.)
 >    inspection too — `aider` running as `python3 -m aider`
 >    appears in the dashboard as `aider (Python)`.
 >
-> 2. **Vietnamese IME that works.** Telex + VNI verified against
->    a 20-phrase smoke matrix before every release. NSTextInputClient
->    bridge unit-tested separately from the system IME so
->    composition-state bugs surface in CI.
+> 2. **Vietnamese IME that works.** The NSTextInputClient bridge and
+>    composition transitions are regression-tested in CI. Telex + VNI
+>    must also pass the documented live 20-phrase/system-input-source
+>    matrix before this launch copy may be published.
 >
 > 3. **SSH manager + ~/.ssh/config import.** Stores zero secrets;
 >    your keys + Keychain entries stay where you put them. One-

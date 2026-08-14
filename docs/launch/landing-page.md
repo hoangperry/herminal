@@ -81,9 +81,9 @@ Tab attribution from process-tree walking.
 `tieesng vieejt` → `tiếng việt` — first try, in vim, in tmux, in a
 fast-typing burst.
 
-NSTextInputClient bridge that's verified against a 20-phrase smoke
-checklist before every release. KR / JP / CN smoke matrices also
-ready for the next audience expansion.
+NSTextInputClient bridge with automated composition regressions. Publication
+of this claim is gated on a dated live Telex/VNI run of the 20-phrase checklist.
+KR / JP / CN smoke matrices are also ready for later validation.
 
 The Vietnamese IME ladder is the kind of thing macOS handles
 correctly out of the box AND that Electron terminals reliably

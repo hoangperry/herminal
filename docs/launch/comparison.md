@@ -48,15 +48,16 @@ shows on burst-type workloads.
 
 | Terminal | NSTextInputClient | Marked-text preview | Diacritic correctness |
 |---|---|---|---|
-| **herminal** | full implementation | underline preview | passes 20-phrase smoke matrix |
+| **herminal** | implementation on `main` | underline preview | automated bridge tests green; live matrix pending |
 | iTerm2 | full implementation | underline preview | passes |
 | Ghostty | full implementation | underline preview | passes |
 | Warp | partial (custom input layer) | inconsistent | fails on tonal stacking |
 | Wave | partial (Electron IME bridge) | inconsistent | fails on `aw`/`ow`/`oo` |
 
-**herminal verdict:** iTerm2, Ghostty, and herminal all do this
-right. herminal additionally has owner-runnable smoke matrices for
-KR/JP/CN ready for the next audience expansion.
+**herminal verdict:** the implementation and automated bridge tests are
+promising, but no comparative verdict may be published until the dated live
+Telex/VNI release matrix passes. Owner-runnable KR/JP/CN smoke matrices are
+available for later validation.
 
 ---
 

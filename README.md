@@ -42,7 +42,7 @@ In 2026 nothing on the market hits all five at once:
 | Need | iTerm2 | Warp | Wave | Ghostty | **herminal** |
 |---|---|---|---|---|---|
 | Native macOS speed | ✓ | partial | partial | ✓ | ✓ |
-| Vietnamese IME + in-preedit shell completion | ✓ | × | × | partial | ✓ |
+| Vietnamese IME + in-preedit shell completion | ✓ | × | × | partial | RC¹ |
 | tmux + multi-session | ✓ | partial | × | ✓ | ✓ |
 | Built-in agent dashboard | × | partial | × | × | ✓ |
 | Local-only persistent notes per session | × | × | × | × | ✓ |
@@ -52,10 +52,10 @@ scoring rubric the table is derived from.
 
 ## v1 scope
 
-All shipped:
+Built on `main`; public v1 remains a release candidate:
 
 - [x] Native terminal core via libghostty (Metal renderer, p95 keystroke <5ms)
-- [x] Vietnamese IME via NSTextInputClient (Telex + VNI verified)
+- [x] Vietnamese IME bridge with automated Tab/preedit regressions; live Telex/VNI release gate pending¹
 - [x] Multi-session workspace + vertical/horizontal splits
 - [x] Agent dashboard with running / idle / starting discrimination
 - [x] Per-session notes (SQLite WAL) with Markdown round-trip
@@ -64,6 +64,10 @@ All shipped:
 - [x] tmux compatibility verified against vim, less, htop, fzf, lazygit, btop, starship
 - [x] Telemetry-free local crash diary
 - [x] Developer-ID codesign + notarize pipeline
+
+¹ The implementation and state-transition regressions are green, but the
+release-blocking system-input-source matrix still requires a dated human run.
+See [issue #2](https://github.com/hoangperry/herminal/issues/2).
 
 Deferred to post-MVP — see [CHANGELOG.md](CHANGELOG.md) "Known
 limitations": agent↔pane mapping, recursive split trees, drag-to-resize
@@ -162,6 +166,8 @@ the diary excerpt; security issues go to
 | [CHANGELOG.md](CHANGELOG.md) | Per-version release notes |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | How to propose changes |
 | [SECURITY.md](SECURITY.md) | How to report vulnerabilities |
+| [docs/MAINTAINER-AI-POLICY.md](docs/MAINTAINER-AI-POLICY.md) | Human boundaries for AI-assisted maintenance |
+| [docs/BETA.md](docs/BETA.md) | Privacy-safe beta protocol and evidence ledger |
 | [docs/RELEASE.md](docs/RELEASE.md) | Cutting a signed + notarized release |
 | [docs/define/herminal.prd.md](docs/define/herminal.prd.md) | The PRD that frames every decision |
 | [docs/QA/dogfood-checklist.md](docs/QA/dogfood-checklist.md) | What to watch for during daily-driver use |

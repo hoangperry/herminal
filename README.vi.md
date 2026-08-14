@@ -40,7 +40,7 @@ Năm 2026 không terminal nào hit đủ 5 thứ cùng lúc:
 | Yêu cầu | iTerm2 | Warp | Wave | Ghostty | **herminal** |
 |---|---|---|---|---|---|
 | Tốc độ native macOS | ✓ | partial | partial | ✓ | ✓ |
-| Vietnamese IME + autocomplete khi còn preedit | ✓ | × | × | partial | ✓ |
+| Vietnamese IME + autocomplete khi còn preedit | ✓ | × | × | partial | RC¹ |
 | tmux + multi-session | ✓ | partial | × | ✓ | ✓ |
 | Dashboard agent built-in | × | partial | × | × | ✓ |
 | Notes per-session local-only | × | × | × | × | ✓ |
@@ -50,10 +50,10 @@ rubric đã dùng để lập bảng trên.
 
 ## Scope v1
 
-Tất cả đã ship:
+Đã có trên `main`; bản public v1 vẫn là release candidate:
 
 - [x] Terminal core native qua libghostty (Metal renderer, p95 keystroke <5ms)
-- [x] Vietnamese IME qua NSTextInputClient (Telex + VNI đã verify)
+- [x] Vietnamese IME bridge có regression test cho Tab/preedit; live gate Telex/VNI vẫn đang chờ¹
 - [x] Workspace multi-session + split dọc/ngang
 - [x] Dashboard agent với phân biệt running / idle / starting
 - [x] Per-session notes (SQLite WAL) + Markdown round-trip
@@ -62,6 +62,10 @@ Tất cả đã ship:
 - [x] Compatibility với vim, less, htop, fzf, lazygit, btop, starship
 - [x] Crash diary local-only (telemetry-free)
 - [x] Pipeline Developer-ID codesign + notarize
+
+¹ Implementation và state-transition regressions đã xanh, nhưng matrix với
+macOS input source thật vẫn cần một owner run có ngày tháng. Theo dõi tại
+[issue #2](https://github.com/hoangperry/herminal/issues/2).
 
 Deferred sang post-MVP — xem [CHANGELOG.md](CHANGELOG.md) "Known
 limitations": split tree đệ quy, kéo-resize divider, group/search
@@ -157,6 +161,8 @@ prompt diary excerpt); security issues đi qua [SECURITY.md](SECURITY.md).
 | [CHANGELOG.md](CHANGELOG.md) | Release notes từng version |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | Cách propose thay đổi |
 | [SECURITY.md](SECURITY.md) | Cách báo cáo vulnerability |
+| [docs/MAINTAINER-AI-POLICY.md](docs/MAINTAINER-AI-POLICY.md) | Ranh giới human review khi dùng coding agent |
+| [docs/BETA.md](docs/BETA.md) | Beta protocol và evidence ledger không telemetry |
 | [docs/RELEASE.md](docs/RELEASE.md) | Cách cut signed + notarized release |
 | [docs/PATTERNS.md](docs/PATTERNS.md) | Patterns hay lặp trong codebase |
 | [docs/define/herminal.prd.md](docs/define/herminal.prd.md) | PRD frame mọi decision |

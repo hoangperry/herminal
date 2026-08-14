@@ -23,7 +23,8 @@ Every PRD v1 feature plus the post-MVP workspace and session waves:
   lazygit, btop, starship
 
 ### Vietnamese-first IME
-- Telex + VNI verified end-to-end via NSTextInputClient
+- NSTextInputClient bridge and Tab/preedit state transitions covered by automated tests
+- Telex/VNI system-input-source verification remains a public-v1 owner gate
 - 20-phrase smoke checklist for owner runs
 - KR / JP / CN smoke checklists drafted for non-Vietnamese expansion
 

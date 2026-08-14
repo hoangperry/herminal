@@ -228,9 +228,10 @@ herminal — terminal macOS làm cho dev người Việt dùng Claude Code
 >
 > Đặc biệt với người Việt:
 >
-> - Vietnamese IME đã verify qua bộ 20 câu smoke test
->   (docs/QA/vietnamese-ime-checklist.md trong repo). Telex,
->   VNI, dấu thanh stacking — đều đúng ngay lần đầu.
+> - Vietnamese IME bridge có regression tests trong CI và bộ 20 câu
+>   smoke test công khai tại docs/QA/vietnamese-ime-checklist.md.
+>   Chỉ publish đoạn launch này sau khi Telex/VNI input source thật
+>   đã pass matrix và kết quả có ngày tháng.
 > - README.vi.md có bản tiếng Việt đầy đủ.
 > - 3 bài blog về kernel bugs trên macOS Sequoia (cũng viết tiếng
 >   Anh, định translate sang Việt nếu có người quan tâm).

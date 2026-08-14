@@ -18,7 +18,7 @@ blocks: []
 | Sprint 2 | Phase 1: security and supply-chain hardening | Complete — full CI + 152 tests and targeted CodeQL green; entitlement experiment tracked in issue #4 |
 | Sprint 3 | Phase 2–3: agent interoperability + contributor surface | Complete — neutral event boundary, official hooks research, contributor fast path, triage policy, and issues #2–#7 |
 | Sprint 4 | Phase 4: closed beta and feedback releases | In progress — intake/privacy/evidence infrastructure ready; recruitment awaits signed build + live IME gate |
-| Sprint 5 | Phase 5–7: launch evidence + application | Planned |
+| Sprint 5 | Phase 5–7: launch evidence + application | In progress — maintainer AI policy and truth-gated application skeleton ready; evidence/submission blocked on Sprint 4 |
 
 ## 1. Objective
 
