@@ -1,8 +1,8 @@
 # Vietnamese IME live-input evidence — partial
 
 - Date: 2026-08-15
-- App: Developer-ID signed, notarized, release-optimized owner-gate candidate
-- macOS input source: Apple's **Simple Telex**
+- App: Developer-ID signed, notarized, release-optimized owner-gate candidates
+- macOS input sources: Apple's **Simple Telex** and **VNI**
 - Shell fixture: `/tmp/herminal-ime-tab/tiếng-việt-project`
 
 A local accessibility harness focused a fresh Herminal tab, selected the actual
@@ -19,9 +19,11 @@ Result: **PASS** for the core Telex one-Tab commit-and-complete path on the
 notarized release candidate. This used the live macOS input method rather than
 Herminal's synthetic text-injection test hook.
 
-VNI automation was attempted but the active desktop session did not preserve
-Herminal focus consistently while input sources changed. Those attempts are
-**inconclusive**, not product failures, and are not counted as evidence.
+The same objective test was repeated after CI removed all four hardened-runtime
+exceptions. Apple's actual VNI source entered `cd tie61ng`; one Tab followed by
+Return changed into the same `tiếng-việt-project` directory. Result: **PASS** for
+the core VNI one-Tab path on the notarized no-exception candidate from workflow
+run `31831816811`.
 
 This result does not replace the owner T1–T7 visual matrix: VNI, marked-text
 appearance, Shift-Tab, zsh menu completion, surrounding text, and duplicate/drop
