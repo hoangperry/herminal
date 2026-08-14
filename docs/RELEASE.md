@@ -48,10 +48,25 @@ Add the two `export` lines to `~/.zshrc` or a `.env.local` you source
 before running the release script. Don't commit them — the team id is
 benign but the convention is to keep signing config out of the repo.
 
+## Check owner prerequisites
+
+```sh
+export HERMINAL_SIGNING_IDENTITY="Developer ID Application: …"
+export HERMINAL_NOTARY_PROFILE="herminal-notarize"
+Scripts/check-release-readiness.sh
+# Optional authenticated network check:
+Scripts/check-release-readiness.sh --online-notary-check
+```
+
+The checker prints capability outcomes only—not identity/profile values. It
+signs a temporary copy of `/usr/bin/true` to catch locked or unusable private
+keys before an expensive build.
+
 ## Verify the release guards
 
 ```sh
 Scripts/verify-release-guards.sh
+Scripts/verify-owner-gate-tools.sh
 ```
 
 This check proves the local release driver refuses missing signing/notary
