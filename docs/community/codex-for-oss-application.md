@@ -54,8 +54,8 @@ No row may be marked ready without a dated public source.
 | Claim | Required source | Current evidence | Ready? |
 |---|---|---|---|
 | Maintainer/write access | Repository ownership | Public repository owner | Yes |
-| CI health | GitHub Actions run | 152-test run `31812947567` | Yes |
-| Security scanning | GitHub Actions run | CodeQL run `31814582462` | Yes |
+| CI health | GitHub Actions run | 153-test run `31822247206` | Yes |
+| Security scanning | GitHub Actions run | CodeQL run `31822247125` | Yes |
 | Public v1 install | Release + DMG/Homebrew/Gatekeeper verification | Missing | No |
 | Live Telex/VNI completion | Dated checklist result linked from issue #2 | Missing | No |
 | Verified installs | Privacy-safe beta ledger | 0 | No |

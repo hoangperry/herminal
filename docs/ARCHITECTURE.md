@@ -164,7 +164,7 @@ No DBs hit the network. No telemetry.
 |---|---|---|
 | Unit tests (Swift Testing) | `Tests/Herminal{Core,DB,Agent,App}Tests/` | Logic in each module + bridge state machines (IME, agent matching, CPU sampling, redaction) |
 | Integration scripts | `Scripts/verify-*.sh` | Real binary launch with env-driven test hooks (text injection, agent spawn, ssh spawn, compat matrix) |
-| Smoke harness | `Scripts/dogfood-daily.sh` | Runs all 5 integration scripts + diary tail |
+| Smoke harness | `Scripts/dogfood-daily.sh` | Runs all 9 GUI/integration checks + diary tail |
 | Owner-manual | `docs/QA/*.md` | IME composition (Vietnamese + CJK), dogfood journal |
 
 Test hooks (`HERMINAL_TEST_*` env vars) are read ONLY by
@@ -178,11 +178,12 @@ never branch on them.
 ```
 Scripts/bootstrap.sh        → Vendor/libghostty → GhosttyKit.xcframework  (~5-15 min cold)
 swift build                 → SPM core libraries
-swift test                  → 77 unit tests
+swift test                  → 153 tests
 Scripts/make-app-bundle.sh  → .build/herminal.app (ad-hoc signed)
 Scripts/sign-and-notarize.sh→ .build/release/herminal.app (Developer-ID + notarytool)
 Scripts/make-dmg.sh         → .build/release/herminal-vX.Y.Z.dmg
-Scripts/release.sh X.Y.Z    → tag + signed build + zip + dmg + draft release
+Scripts/release.sh X.Y.Z    → verified local tag + signed/notarized zip
+Release GitHub workflow     → post-staple zip + dmg + integrity files + draft
 ```
 
 CI mirrors this in `.github/workflows/{ci,release}.yml`.

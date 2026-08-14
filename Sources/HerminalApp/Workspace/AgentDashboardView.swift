@@ -1,9 +1,8 @@
 // AgentDashboardView — sidebar panel listing the agent CLIs running under
 // herminal. SwiftUI chrome styled from design tokens.
 //
-// Alpha scope: every detected agent is shown as "running" (a detected process
-// is, by definition, alive). Running/idle/done discrimination needs CPU /
-// process-state sampling — deferred (see docs/backlog/month-3.md).
+// Lifecycle status is inferred outside the view from CPU deltas and recent
+// terminal bells. This view only renders privacy-minimized DetectedAgent values.
 
 import SwiftUI
 import HerminalAgent

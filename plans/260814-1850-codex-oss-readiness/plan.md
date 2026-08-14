@@ -19,6 +19,7 @@ blocks: []
 | Sprint 3 | Phase 2–3: agent interoperability + contributor surface | Complete — neutral event boundary, official hooks research, contributor fast path, triage policy, and issues #2–#7 |
 | Sprint 4 | Phase 4: closed beta and feedback releases | In progress — intake/privacy/evidence infrastructure ready; recruitment awaits signed build + live IME gate |
 | Sprint 5 | Phase 5–7: launch evidence + application | In progress — maintainer AI policy and truth-gated application skeleton ready; evidence/submission blocked on Sprint 4 |
+| Sprint 6 | Existing-feature completion | Complete for automatable scope — issues #3/#5/#6/#7 closed with 153-test CI and CodeQL; owner gates #2/#4/#13 remain |
 
 ## 1. Objective
 
