@@ -9,16 +9,16 @@ it locally.
 
 ## Tasks
 
-1. [ ] Add a manually dispatched, read-only release-candidate workflow pinned to
+1. [x] Add a manually dispatched, read-only release-candidate workflow pinned to
    a requested ref.
-2. [ ] Build `HerminalApp` with SwiftPM release optimization and package the app
+2. [x] Build `HerminalApp` with SwiftPM release optimization and package the app
    plus commit/submodule provenance and SHA-256 metadata.
-3. [ ] Allow `sign-and-notarize.sh` to consume an explicit candidate app instead
+3. [x] Allow `sign-and-notarize.sh` to consume an explicit candidate app instead
    of always rebuilding, while failing closed on invalid/missing input.
-4. [ ] Add static regression guards for build-only workflow permissions,
+4. [x] Add static regression guards for build-only workflow permissions,
    release configuration, provenance, and source-app validation.
-5. [ ] Document the two-machine trust boundary and commands.
-6. [ ] Run CI, dispatch a candidate from `main`, download it, and locally verify
+5. [x] Document the two-machine trust boundary and commands.
+6. [x] Run CI, dispatch a candidate from `main`, download it, and locally verify
    Developer ID signing/notarization without tagging or publishing.
 
 ## Safety gates
@@ -28,3 +28,11 @@ it locally.
 - Local finalization verifies the downloaded app and commit provenance.
 - No tag or GitHub release is created by the candidate workflow.
 - Public v1 remains blocked by the live Telex/VNI owner gate.
+
+## Result
+
+Complete for automatable scope. PR #18 merged; CI passed 189 tests and CodeQL.
+Candidate run `31830331678` produced a checksummed release build that was locally
+Developer-ID signed, accepted by Apple notarization, stapled, Gatekeeper-assessed,
+and packaged into a verified owner-gate DMG. Quarantined first-open confirmation
+and clean-account/Homebrew installation remain manual.
