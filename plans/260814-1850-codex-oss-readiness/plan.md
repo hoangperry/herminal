@@ -22,7 +22,7 @@ blocks: []
 | Sprint 6 | Existing-feature completion | Complete for automatable scope — issues #3/#5/#6/#7 closed with 153-test CI and CodeQL; owner gates #2/#4/#13 remain |
 | Sprint 7 | Owner-gate automation | Tooling complete — privacy-safe IME recorder, entitlement experiment, and signing readiness preflight ready; owner execution pending |
 | Sprint 8 | Agent worktree cockpit | Complete — isolated worktrees, whitelisted agent/lazygit launch, pane focus, off-main bounded git runner; CI + CodeQL green |
-| Sprint 9 | Remote release build, local signing | Complete for automation — read-only release build run `31830331678`, local Developer ID + notarization + staple + Gatekeeper + signed DMG passed; quarantine UI/clean install pending |
+| Sprint 9 | Remote release build, local signing | Complete for automation — read-only release build run `31830331678`, local Developer ID + notarization + staple + Gatekeeper + signed DMG + quarantined first-open passed; clean install pending |
 
 ## 1. Objective
 

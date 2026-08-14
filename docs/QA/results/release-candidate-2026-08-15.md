@@ -30,7 +30,7 @@ identity, account, team, profile contents, or credential values were recorded.
 | Read-only DMG mount | PASS |
 | Embedded app signature, staple, and Gatekeeper assessment | PASS |
 | Installed-copy launch and PTY child | PASS without quarantine UI |
-| Quarantined first-open confirmation | PENDING — test session was at loginwindow |
+| Quarantined first-open confirmation | PASS — standard Apple prompt, Open, translocated launch + PTY child |
 | Clean macOS account/machine installation | PENDING |
 | Homebrew installation from final public URL | PENDING |
 
@@ -41,6 +41,6 @@ The owner-gate DMG is local and intentionally unpublished. It uses an
 
 The full-local-Xcode blocker is removed: release optimization can happen in the
 read-only GitHub workflow while signing and notarization remain exclusively on
-the owner machine. Public v1 remains blocked by the live Telex/VNI matrix, an
-unlocked quarantined first-open check, and final clean Homebrew installation.
+the owner machine. Public v1 remains blocked by the complete live Telex/VNI matrix, a clean-account
+installation, and final Homebrew installation.
 No tag or GitHub release was created.

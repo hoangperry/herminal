@@ -34,5 +34,6 @@ it locally.
 Complete for automatable scope. PR #18 merged; CI passed 189 tests and CodeQL.
 Candidate run `31830331678` produced a checksummed release build that was locally
 Developer-ID signed, accepted by Apple notarization, stapled, Gatekeeper-assessed,
-and packaged into a verified owner-gate DMG. Quarantined first-open confirmation
-and clean-account/Homebrew installation remain manual.
+and packaged into a verified owner-gate DMG. The quarantined Apple first-open
+prompt also passed with a translocated launch and PTY child; clean-account and
+Homebrew installation remain manual.
