@@ -3,22 +3,23 @@
 // the spawn string uses the basename `tmux` so the user's login PATH
 // finds it. Never interpolates an unvalidated name.
 
+import Darwin
 import Foundation
 
 enum TmuxLaunch {
-    enum Action: Equatable {
+    enum Action: Equatable, Sendable {
         case newSession
         case attach
         case attachOrCreate
     }
 
-    enum ValidationError: Swift.Error, Equatable {
+    enum ValidationError: Swift.Error, Equatable, Sendable {
         case empty
         case tooLong
         case invalid
     }
 
-    enum Error: Swift.Error, Equatable {
+    enum Error: Swift.Error, Equatable, Sendable {
         case tmuxMissing
         case noWorkingDirectory
         case sessionExists
@@ -134,7 +135,10 @@ struct TmuxRunner: Sendable {
         execute(args, binary, cwd)
     }
 
-    static let live = TmuxRunner { args, binary, cwd in
+    static let live = process()
+
+    static func process(timeout: TimeInterval = 8) -> TmuxRunner {
+        TmuxRunner { args, binary, cwd in
         let process = Process()
         process.executableURL = URL(fileURLWithPath: binary)
         process.arguments = args
@@ -146,8 +150,16 @@ struct TmuxRunner: Sendable {
         let stderrURL = captureRoot.appendingPathComponent("stderr")
         do {
             try FileManager.default.createDirectory(at: captureRoot, withIntermediateDirectories: true)
-            _ = FileManager.default.createFile(atPath: stdoutURL.path, contents: nil)
-            _ = FileManager.default.createFile(atPath: stderrURL.path, contents: nil)
+            _ = FileManager.default.createFile(
+                atPath: stdoutURL.path,
+                contents: nil,
+                attributes: [.posixPermissions: 0o600]
+            )
+            _ = FileManager.default.createFile(
+                atPath: stderrURL.path,
+                contents: nil,
+                attributes: [.posixPermissions: 0o600]
+            )
             let stdoutHandle = try FileHandle(forWritingTo: stdoutURL)
             let stderrHandle = try FileHandle(forWritingTo: stderrURL)
             defer {
@@ -158,7 +170,7 @@ struct TmuxRunner: Sendable {
             process.standardOutput = stdoutHandle
             process.standardError = stderrHandle
             try process.run()
-            let deadline = Date().addingTimeInterval(8)
+            let deadline = Date().addingTimeInterval(timeout)
             while process.isRunning && Date() < deadline {
                 Thread.sleep(forTimeInterval: 0.05)
             }
@@ -166,19 +178,23 @@ struct TmuxRunner: Sendable {
             if timedOut {
                 process.terminate()
                 Thread.sleep(forTimeInterval: 0.2)
-                if process.isRunning { process.interrupt() }
+                if process.isRunning {
+                    _ = Darwin.kill(process.processIdentifier, SIGKILL)
+                }
             }
             process.waitUntilExit()
             func readPrefix(_ url: URL) -> String {
-                guard let data = try? Data(contentsOf: url) else { return "" }
-                let slice = data.prefix(1_048_576)
-                return String(data: slice, encoding: .utf8) ?? ""
+                guard let handle = try? FileHandle(forReadingFrom: url) else { return "" }
+                defer { try? handle.close() }
+                let data = handle.readData(ofLength: 1_048_576)
+                return String(decoding: data, as: UTF8.self)
             }
             if timedOut { return (124, readPrefix(stdoutURL), "tmux timed out") }
             return (process.terminationStatus, readPrefix(stdoutURL), readPrefix(stderrURL))
         } catch {
             try? FileManager.default.removeItem(at: captureRoot)
             return (127, "", "tmux could not start")
+        }
         }
     }
 }

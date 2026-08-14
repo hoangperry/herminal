@@ -1,0 +1,88 @@
+name: Release candidate build
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: 'Git ref to build without signing or publishing'
+        required: true
+        default: main
+        type: string
+
+concurrency:
+  group: release-candidate-${{ inputs.ref }}
+  cancel-in-progress: false
+
+# This workflow deliberately cannot publish releases and receives no Apple
+# credentials. Owner-held signing and notarization happen after download.
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build unsigned release candidate
+    runs-on: macos-15
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ inputs.ref }}
+          submodules: recursive
+
+      - name: Resolve immutable commit
+        id: source
+        run: echo "commit=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Install verified build toolchain
+        run: |
+          Scripts/install-zig-ci.sh
+          if ! xcrun -sdk macosx metal --version >/dev/null 2>&1; then
+            xcodebuild -downloadComponent MetalToolchain
+          fi
+
+      - name: Cache libghostty xcframework
+        id: cache-ghostty
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: Vendor/libghostty/macos/GhosttyKit.xcframework
+          key: ghostty-xcframework-${{ hashFiles('.gitmodules', 'Vendor/libghostty/build.zig') }}
+
+      - name: Build libghostty xcframework (if not cached)
+        if: steps.cache-ghostty.outputs.cache-hit != 'true'
+        run: Scripts/bootstrap.sh
+
+      - name: Build release-optimized app
+        run: Scripts/make-app-bundle.sh release
+
+      - name: Package candidate and provenance
+        env:
+          SOURCE_COMMIT: ${{ steps.source.outputs.commit }}
+          REQUESTED_REF: ${{ inputs.ref }}
+        run: |
+          set -euo pipefail
+          test -x .build/herminal.app/Contents/MacOS/HerminalApp
+          test "$(defaults read "$PWD/.build/herminal.app/Contents/Info" CFBundleIdentifier)" = "com.hoangperry.herminal"
+
+          mkdir -p "$RUNNER_TEMP/candidate"
+          ditto -c -k --keepParent .build/herminal.app "$RUNNER_TEMP/candidate/herminal-release-candidate.zip"
+          {
+            echo "configuration=release"
+            echo "commit=$SOURCE_COMMIT"
+            echo "requested_ref=$REQUESTED_REF"
+            echo "workflow_run=$GITHUB_RUN_ID"
+            echo
+            echo "[git submodules]"
+            git submodule status --recursive
+          } > "$RUNNER_TEMP/candidate/provenance.txt"
+          (
+            cd "$RUNNER_TEMP/candidate"
+            shasum -a 256 herminal-release-candidate.zip provenance.txt
+          ) > "$RUNNER_TEMP/candidate/SHA256SUMS"
+
+      - name: Upload unsigned candidate
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: herminal-release-candidate-${{ steps.source.outputs.commit }}
+          path: ${{ runner.temp }}/candidate
+          retention-days: 7
+          if-no-files-found: error

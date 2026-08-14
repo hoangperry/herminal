@@ -16,6 +16,8 @@
 # Optional:
 #   HERMINAL_OUTPUT_DIR         — Where to drop the signed .app and .zip.
 #                                 Defaults to .build/release.
+#   HERMINAL_SOURCE_APP         — Existing release-optimized candidate app.
+#                                 When set, skip the local build and sign a copy.
 #
 # Falls back to ad-hoc signing (the same path `make-app-bundle.sh` uses)
 # when neither variable is set — useful in CI smoke runs that can't
@@ -32,16 +34,37 @@ ENTITLEMENTS="$REPO_ROOT/App/herminal.entitlements"
 # shellcheck disable=SC1091 # Path is resolved from this script's repo root.
 source "$REPO_ROOT/Scripts/release-common.sh"
 
-# 1. Release build via the shared bundle script (gives us .build/herminal.app
-#    with Info.plist + ad-hoc signature). We re-sign over the ad-hoc id.
-echo "==> Building release bundle"
-"$REPO_ROOT/Scripts/make-app-bundle.sh" release >/dev/null
+# 1. Build locally or import a release-optimized candidate produced by the
+#    read-only GitHub workflow. In both cases we sign a copy and never mutate
+#    the source artifact.
+if [ -n "${HERMINAL_SOURCE_APP:-}" ]; then
+    SRC_APP="$HERMINAL_SOURCE_APP"
+    echo "==> Importing release candidate"
+else
+    echo "==> Building release bundle"
+    "$REPO_ROOT/Scripts/make-app-bundle.sh" release >/dev/null
+    SRC_APP="$REPO_ROOT/.build/herminal.app"
+fi
 
-SRC_APP="$REPO_ROOT/.build/herminal.app"
+if [ ! -d "$SRC_APP" ] || [ ! -x "$SRC_APP/Contents/MacOS/HerminalApp" ]; then
+    echo "ERROR: source app is missing or incomplete" >&2
+    exit 1
+fi
+if [ "$(/usr/bin/defaults read "$SRC_APP/Contents/Info" CFBundleIdentifier 2>/dev/null || true)" != "com.hoangperry.herminal" ]; then
+    echo "ERROR: source app has an unexpected bundle identifier" >&2
+    exit 1
+fi
+
 mkdir -p "$OUTPUT_DIR"
 APP="$OUTPUT_DIR/$APP_NAME.app"
+SRC_APP_ABS="$(cd "$(dirname "$SRC_APP")" && pwd -P)/$(basename "$SRC_APP")"
+APP_ABS="$(cd "$OUTPUT_DIR" && pwd -P)/$APP_NAME.app"
+if [ "$SRC_APP_ABS" = "$APP_ABS" ]; then
+    echo "ERROR: source app must be outside the output directory" >&2
+    exit 1
+fi
 rm -rf "$APP"
-cp -R "$SRC_APP" "$APP"
+ditto "$SRC_APP" "$APP"
 
 # 2. Sign or ad-hoc — branch on env config presence.
 if [ -z "${HERMINAL_SIGNING_IDENTITY:-}" ]; then

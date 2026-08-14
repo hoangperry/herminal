@@ -1,8 +1,22 @@
 // WorkspaceView+Tmux — PRD launcher: new / attach / attach-or-create.
 // Opens a herminal tab whose command is a validated tmux invocation.
-// tmux stays in the PTY.
+// Process and git queries stay off MainActor; tmux stays in the PTY.
 
 import AppKit
+
+private enum TmuxListOutcome: Sendable {
+    case sessions([String])
+    case missing
+    case failed
+}
+
+private enum TmuxSpawnOutcome: Sendable {
+    case ready(name: String)
+    case exists
+    case missing
+    case invalidName
+    case failed
+}
 
 extension WorkspaceView {
 
@@ -15,21 +29,35 @@ extension WorkspaceView {
             presentTmuxError("tmux is not installed.")
             return
         }
-        do {
-            let names = try TmuxLaunch.listSessions()
-            guard !names.isEmpty else {
-                presentTmuxError("No tmux sessions. Create one first.")
-                return
+        Task { [weak self] in
+            let outcome = await Task.detached(priority: .utility) {
+                do {
+                    return TmuxListOutcome.sessions(try TmuxLaunch.listSessions())
+                } catch TmuxLaunch.Error.tmuxMissing {
+                    return TmuxListOutcome.missing
+                } catch {
+                    return TmuxListOutcome.failed
+                }
+            }.value
+            guard let self else { return }
+            switch outcome {
+            case let .sessions(names):
+                guard !names.isEmpty else {
+                    presentTmuxError("No tmux sessions. Create one first.")
+                    return
+                }
+                guard let chosen = pickSession(from: names) else { return }
+                do {
+                    try TmuxLaunch.validateName(chosen)
+                    openTmuxTab(action: .attach, name: chosen, cwd: focusedWorkingDirectory())
+                } catch {
+                    presentTmuxError("That session name is not safe to attach.")
+                }
+            case .missing:
+                presentTmuxError("tmux is not installed.")
+            case .failed:
+                presentTmuxError("Could not list tmux sessions.")
             }
-            guard let chosen = pickSession(from: names) else { return }
-            try TmuxLaunch.validateName(chosen)
-            openTmuxTab(action: .attach, name: chosen, cwd: focusedWorkingDirectory())
-        } catch TmuxLaunch.Error.tmuxMissing {
-            presentTmuxError("tmux is not installed.")
-        } catch TmuxLaunch.ValidationError {
-            presentTmuxError("That session name is not safe to attach.")
-        } catch {
-            presentTmuxError("Could not list tmux sessions.")
         }
     }
 
@@ -38,38 +66,47 @@ extension WorkspaceView {
     }
 
     private func spawnTmux(action: TmuxLaunch.Action) {
-        guard let ctx = prelude() else { return }
-        if action == .newSession {
-            do {
-                if try TmuxLaunch.hasSession(name: ctx.name) {
-                    presentTmuxError("A tmux session with that name already exists. Use Attach or Create.")
-                    return
-                }
-            } catch TmuxLaunch.Error.tmuxMissing {
-                presentTmuxError("tmux is not installed.")
-                return
-            } catch {
-                presentTmuxError("Could not talk to tmux.")
-                return
-            }
-        }
-        openTmuxTab(action: action, name: ctx.name, cwd: ctx.cwd)
-    }
-
-    private func prelude() -> (cwd: String, name: String)? {
         guard TmuxLaunch.resolveBinary() != nil else {
             presentTmuxError("tmux is not installed.")
-            return nil
+            return
         }
         guard let cwd = focusedWorkingDirectory() else {
             presentTmuxError("The current pane has no working directory yet.")
-            return nil
+            return
         }
-        guard let name = TmuxLaunch.sessionName(fromCwd: cwd) else {
-            presentTmuxError("Could not make a tmux session name from this folder.")
-            return nil
+
+        Task { [weak self] in
+            let outcome = await Task.detached(priority: .utility) {
+                guard let name = TmuxLaunch.sessionName(fromCwd: cwd) else {
+                    return TmuxSpawnOutcome.invalidName
+                }
+                guard action == .newSession else {
+                    return TmuxSpawnOutcome.ready(name: name)
+                }
+                do {
+                    return try TmuxLaunch.hasSession(name: name)
+                        ? TmuxSpawnOutcome.exists
+                        : TmuxSpawnOutcome.ready(name: name)
+                } catch TmuxLaunch.Error.tmuxMissing {
+                    return TmuxSpawnOutcome.missing
+                } catch {
+                    return TmuxSpawnOutcome.failed
+                }
+            }.value
+            guard let self else { return }
+            switch outcome {
+            case let .ready(name):
+                openTmuxTab(action: action, name: name, cwd: cwd)
+            case .exists:
+                presentTmuxError("A tmux session with that name already exists. Use Attach or Create.")
+            case .missing:
+                presentTmuxError("tmux is not installed.")
+            case .invalidName:
+                presentTmuxError("Could not make a tmux session name from this folder.")
+            case .failed:
+                presentTmuxError("Could not talk to tmux.")
+            }
         }
-        return (cwd, name)
     }
 
     private func openTmuxTab(action: TmuxLaunch.Action, name: String, cwd: String? = nil) {

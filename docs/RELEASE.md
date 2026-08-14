@@ -90,6 +90,34 @@ annotated tag. It never pushes the tag or publishes a release.
 that output cannot pass `Scripts/release.sh` and must never be uploaded as a
 public release.
 
+## Remote build, local signing
+
+If the owner machine lacks full Xcode, manually dispatch **Release candidate
+build** for an immutable ref. This read-only workflow has no publishing
+permission and receives no Apple credentials. It emits a release-optimized,
+ad-hoc candidate ZIP plus `provenance.txt` and `SHA256SUMS`.
+
+```sh
+gh workflow run release-candidate.yml -f ref=main
+# After the run succeeds, download the artifact and verify SHA256SUMS plus the
+# provenance commit against the intended git revision before extracting.
+```
+
+Sign a downloaded app copy with the owner-held local keychain:
+
+```sh
+export HERMINAL_SIGNING_IDENTITY="Developer ID Application: …"
+export HERMINAL_NOTARY_PROFILE="herminal-notarize"
+HERMINAL_SOURCE_APP=/absolute/path/to/herminal.app \
+  Scripts/sign-and-notarize.sh
+```
+
+The imported source must contain Herminal's expected executable and bundle ID,
+and must be outside `.build/release`. The script copies it before signing,
+submits the copy, staples it, and applies the same signature and Gatekeeper
+checks as a local build. This path does **not** create a tag or release; the live
+IME and final owner checklist still apply.
+
 ## GitHub Actions release
 
 Pushing an existing `vX.Y.Z` tag (or manually dispatching the Release workflow
