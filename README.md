@@ -6,9 +6,13 @@
 **Website:** <https://hoang.tech/herminal/> · **Download:** [latest release](https://github.com/hoangperry/herminal/releases/latest) · **Source:** this repo
 
 [![CI](https://github.com/hoangperry/herminal/actions/workflows/ci.yml/badge.svg)](https://github.com/hoangperry/herminal/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/hoangperry/herminal?logo=github&color=52C7BD)](https://github.com/hoangperry/herminal/releases/latest)
+[![Downloads](https://img.shields.io/github/downloads/hoangperry/herminal/total?color=52C7BD)](https://github.com/hoangperry/herminal/releases)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![macOS 14+](https://img.shields.io/badge/macOS-14%2B-black.svg)](https://www.apple.com/macos)
-[![Swift 6](https://img.shields.io/badge/swift-6-orange.svg)](https://swift.org)
+[![macOS 14+](https://img.shields.io/badge/macOS-14%2B-black.svg?logo=apple)](https://www.apple.com/macos)
+[![Swift 6](https://img.shields.io/badge/swift-6-orange.svg?logo=swift&logoColor=white)](https://swift.org)
+[![Homebrew](https://img.shields.io/badge/homebrew-tap-orange?logo=homebrew&logoColor=white)](https://github.com/hoangperry/homebrew-herminal)
+[![Engine](https://img.shields.io/badge/engine-libghostty_1.3.1-52C7BD)](https://github.com/ghostty-org/ghostty)
 
 **Status:** `v1.0.0` release candidate on `main`; latest public release is
 [`v0.4.2`](https://github.com/hoangperry/herminal/releases/tag/v0.4.2).
@@ -17,7 +21,7 @@ See [CHANGELOG](CHANGELOG.md).
 
 > 🇻🇳 Phiên bản tiếng Việt: [`README.vi.md`](README.vi.md)
 
-![The herminal workspace — agent dashboard in the left slot, split terminal panes in the center, per-session notes on the right, status bar along the bottom](docs/assets/window-anatomy.svg)
+![The herminal workspace — agent dashboard in the left slot, split terminal panes in the center, per-session notes on the right, status bar along the bottom](docs/assets/window-anatomy.png)
 
 *Live agents and worktrees on the left, splits in the middle, per-session
 notes on the right. The left slot is one slot: the agent dashboard and the
@@ -54,7 +58,7 @@ engine (Zig, mature, native performance) with a Swift / AppKit shell that
 owns the IME and the chrome. Storage is SQLite for both per-session notes
 and saved SSH hosts. No cloud, no telemetry, no account.
 
-![One NSTextInputClient bridge serving Vietnamese Telex, Korean 2-Set Hangul, Japanese romaji-to-kanji and Chinese Pinyin, plus the Tab-while-preedit case they all share](docs/assets/ime-composition.svg)
+![One NSTextInputClient bridge serving Vietnamese Telex, Korean 2-Set Hangul, Japanese romaji-to-kanji and Chinese Pinyin, plus the Tab-while-preedit case they all share](docs/assets/ime-composition.png)
 
 *The composition APIs live on the terminal surface itself, not in a
 wrapper text field — so one bridge serves every input method macOS
@@ -171,7 +175,7 @@ Agents are detected by walking herminal's process subtree — start
 dashboard within ~2 seconds with a `running` / `idle` / `starting`
 badge tracked via CPU sampling.
 
-![The five stages of one agent poll: timer, sysctl process snapshot, classify by name or argv, annotate with CPU delta and tab hint, render](docs/assets/agent-lifecycle.svg)
+![The five stages of one agent poll: timer, sysctl process snapshot, classify by name or argv, annotate with CPU delta and tab hint, render](docs/assets/agent-lifecycle.png)
 
 *No agent has to cooperate and no API key is involved — the signal is
 derived entirely from the process tree. `argv` is read only to recognise
@@ -189,7 +193,7 @@ to follow one signal end to end.*
 | Storage | SQLite WAL (notes + SSH hosts) | Local-only, atomic, indexable |
 | Distribution | Developer-ID signed + notarized DMG/zip and Homebrew cask | App Store sandbox is incompatible |
 
-![The five dependency layers: HerminalApp, HerminalAgent, HerminalDB, HerminalCore, GhosttyKit.xcframework](docs/assets/architecture.svg)
+![The five dependency layers: HerminalApp, HerminalAgent, HerminalDB, HerminalCore, GhosttyKit.xcframework](docs/assets/architecture.png)
 
 *libghostty is consumed as an upstream release through its published C
 ABI — not vendored as a fork. Full write-up in

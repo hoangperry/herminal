@@ -4,9 +4,13 @@
 > CLIs hằng ngày.
 
 [![CI](https://github.com/hoangperry/herminal/actions/workflows/ci.yml/badge.svg)](https://github.com/hoangperry/herminal/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/hoangperry/herminal?logo=github&color=52C7BD)](https://github.com/hoangperry/herminal/releases/latest)
+[![Downloads](https://img.shields.io/github/downloads/hoangperry/herminal/total?color=52C7BD)](https://github.com/hoangperry/herminal/releases)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![macOS 14+](https://img.shields.io/badge/macOS-14%2B-black.svg)](https://www.apple.com/macos)
-[![Swift 6](https://img.shields.io/badge/swift-6-orange.svg)](https://swift.org)
+[![macOS 14+](https://img.shields.io/badge/macOS-14%2B-black.svg?logo=apple)](https://www.apple.com/macos)
+[![Swift 6](https://img.shields.io/badge/swift-6-orange.svg?logo=swift&logoColor=white)](https://swift.org)
+[![Homebrew](https://img.shields.io/badge/homebrew-tap-orange?logo=homebrew&logoColor=white)](https://github.com/hoangperry/homebrew-herminal)
+[![Engine](https://img.shields.io/badge/engine-libghostty_1.3.1-52C7BD)](https://github.com/ghostty-org/ghostty)
 
 **Trạng thái:** `v1.0.0` release candidate trên `main`; bản public mới nhất là
 [`v0.4.2`](https://github.com/hoangperry/herminal/releases/tag/v0.4.2).
@@ -15,7 +19,7 @@ Xem [CHANGELOG](CHANGELOG.md).
 
 > 🇬🇧 English version: [`README.md`](README.md)
 
-![Workspace herminal — agent dashboard ở slot trái, split terminal panes ở giữa, notes per-session bên phải, status bar dưới cùng](docs/assets/window-anatomy.svg)
+![Workspace herminal — agent dashboard ở slot trái, split terminal panes ở giữa, notes per-session bên phải, status bar dưới cùng](docs/assets/window-anatomy.png)
 
 *Agent đang chạy và worktree bên trái, split ở giữa, notes per-session bên
 phải. Slot trái chỉ có một chỗ: agent dashboard và SSH manager thay nhau
@@ -52,7 +56,7 @@ herminal pair engine [libghostty](https://github.com/ghostty-org/ghostty)
 lý IME và chrome. Lưu trữ dùng SQLite cho cả per-session notes lẫn
 saved SSH hosts. Không cloud, không telemetry, không cần account.
 
-![Một bridge NSTextInputClient phục vụ Telex tiếng Việt, Hangul 2-Set, romaji sang kanji tiếng Nhật và Pinyin tiếng Trung, cùng case Tab-khi-đang-preedit mà cả bốn đều gặp](docs/assets/ime-composition.svg)
+![Một bridge NSTextInputClient phục vụ Telex tiếng Việt, Hangul 2-Set, romaji sang kanji tiếng Nhật và Pinyin tiếng Trung, cùng case Tab-khi-đang-preedit mà cả bốn đều gặp](docs/assets/ime-composition.png)
 
 *Các API composition nằm ngay trên terminal surface, không giả lập trong
 một text field bọc ngoài — nên một bridge phục vụ mọi input method macOS
@@ -161,7 +165,7 @@ sẽ xuất hiện trong dashboard trong ~2 giây với badge
 `running` / `idle` / `starting` (tracking qua CPU sampling) + label
 `Tab N` (tab mà PTY đang ở).
 
-![Năm bước của một lần poll agent: timer, snapshot process qua sysctl, classify theo tên hoặc argv, annotate bằng CPU delta và tab hint, render](docs/assets/agent-lifecycle.svg)
+![Năm bước của một lần poll agent: timer, snapshot process qua sysctl, classify theo tên hoặc argv, annotate bằng CPU delta và tab hint, render](docs/assets/agent-lifecycle.png)
 
 *Không agent nào phải hợp tác và không cần API key — signal được suy ra
 hoàn toàn từ process tree. `argv` chỉ được đọc để nhận ra wrapper `node` /
@@ -179,7 +183,7 @@ hoàn toàn từ process tree. `argv` chỉ được đọc để nhận ra wrap
 | Storage | SQLite WAL (notes + SSH hosts) | Local-only, atomic, indexable |
 | Distribution | DMG/zip ký Developer ID, notarized + Homebrew cask | Sandbox App Store incompatible |
 
-![Năm layer dependency: HerminalApp, HerminalAgent, HerminalDB, HerminalCore, GhosttyKit.xcframework](docs/assets/architecture.svg)
+![Năm layer dependency: HerminalApp, HerminalAgent, HerminalDB, HerminalCore, GhosttyKit.xcframework](docs/assets/architecture.png)
 
 *libghostty được dùng như một upstream release qua C ABI công bố sẵn —
 không fork, không vendor thủ công. Bản đầy đủ ở
