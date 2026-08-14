@@ -20,18 +20,20 @@ Remove the Vietnamese-first release blocker where Tab is consumed while Telex/VN
 - Corrected Homebrew install documentation and synchronized the in-repo cask with public v0.4.2.
 - Corrected roadmap, FAQ, and v1 retrospective release claims.
 - `git diff --check` passes.
+- GitHub CI builds the full app and passes 152 tests, including IME bridge regressions (latest run `31820523804`).
 
 ## Verification blocker
 
-Local `swift test --filter IMEBridgeTests` cannot start because this machine only has `/Library/Developer/CommandLineTools`; its SwiftPM executable cannot load `SWBBuildService.framework`. A full Xcode installation is absent.
+Automated verification is green. CI cannot drive real macOS Telex/VNI input
+sources, and this machine's current non-interactive signing keychain is not
+release-ready.
 
 Required owner/environment actions:
 
-1. Install/select the documented full Xcode toolchain.
-2. Run `swift test --filter IMEBridgeTests`, then `swift test`.
-3. Build and run the dated live Telex/VNI checklist, especially T1/T2/T5/T6/T7.
-4. If green, run the dogfood gate.
-5. Only then cut signed/notarized public v1 using owner-held credentials.
+1. Build and run the dated live Telex/VNI checklist, especially T1/T2/T5/T6/T7.
+2. If green, run the GUI dogfood gate.
+3. Repair/configure owner-held Developer ID and notary credentials without exposing them to logs or prompts.
+4. Only then cut signed/notarized public v1 and verify DMG/Homebrew on a clean install.
 
 Do not claim the IME issue fixed in a public release until the live checklist passes.
 

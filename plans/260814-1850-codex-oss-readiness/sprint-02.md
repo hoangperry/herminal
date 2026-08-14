@@ -16,14 +16,17 @@ Completed in first pass:
 - Updated `SECURITY.md` to use the private advisory path.
 - Added grouped minor/patch Dependabot updates for GitHub Actions. Swift updates remain manual because Dependabot cannot parse the local GhosttyKit binary target.
 - Pinned all third-party Actions in CI, Pages, and Release workflows to reviewed commit SHAs.
-- Added a pinned CodeQL Swift workflow (execution still requires CI verification).
+- Added and verified a pinned CodeQL Swift workflow for independently analyzable targets.
 - Added release SHA-256 and dependency-manifest generation/upload.
 
 Completed afterward: diagnostics minimization, bounded SSH imports + regression,
 verified Zig installation, release hard-fail on missing signing/notary secrets,
 full CI (152 tests, run `31812947567`), targeted CodeQL (run `31812947548`),
-and `docs/SECURITY-REVIEW-2026-08-14.md`. The entitlement experiment is
-correctly deferred as public issue #4 because it requires signed runtime tests.
+and `docs/SECURITY-REVIEW-2026-08-14.md`. Follow-up release guards now reject
+ad-hoc/unnotarized local releases, parse notary JSON robustly, verify the stapled
+artifact, and ensure Actions packages the post-staple ZIP. The entitlement
+experiment is correctly deferred as public issue #4 because it requires signed
+runtime tests.
 
 ## Deliverables
 

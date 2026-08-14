@@ -1,6 +1,6 @@
 # Sprint 5 — Maintainer evidence and application skeleton
 
-**Status:** in progress — policy and truthful draft can proceed; submission remains blocked
+**Status:** in progress — policy and truth-gated draft complete; evidence collection/submission blocked
 **Depends on:** public signed v1, Sprint 4 external evidence
 
 ## Goal
@@ -10,15 +10,15 @@ can be filled from public evidence without inventing adoption.
 
 ## Tasks
 
-1. Publish a maintainer AI policy defining allowed assistance, prohibited data,
-   mandatory human decisions, and validation/disclosure expectations.
-2. Add an application skeleton with an evidence matrix and explicit `NOT READY`
-   gate.
-3. Record real Codex-assisted issue/PR examples only after public links and
+1. [x] Publish a maintainer AI policy defining allowed assistance, prohibited
+   data, mandatory human decisions, and validation/disclosure expectations.
+2. [x] Add an application skeleton with an evidence matrix and explicit
+   `NOT READY` gate.
+3. [ ] Record real Codex-assisted issue/PR examples only after public links and
    validation evidence exist.
-4. Produce launch assets only after the signed release and live IME gate.
-5. Replace every placeholder with a dated public source before submission.
-6. Red-team the final application for unverifiable importance, adoption, impact,
+4. [ ] Produce launch assets only after the signed release and live IME gate.
+5. [ ] Replace every placeholder with a dated public source before submission.
+6. [ ] Red-team the final application for unverifiable importance, adoption, impact,
    security, and maintainer-role claims.
 
 ## Evidence required before submission
