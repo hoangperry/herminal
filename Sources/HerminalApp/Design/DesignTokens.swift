@@ -143,6 +143,9 @@ enum HerminalDesign {
         static let largeTitle = Font.system(size: 22, weight: .bold)
         /// Monospace for note snippets and command echoes in the chrome.
         static let mono = Font.system(size: 12, design: .monospaced)
+        /// Mono caption — tab titles and shortcut chips in the chrome.
+        /// (v1.0 polish: matches the launch-site hero mockup.)
+        static let monoCaption = Font.system(size: 11, weight: .medium, design: .monospaced)
     }
 
     // MARK: - Spacing (4-point grid)

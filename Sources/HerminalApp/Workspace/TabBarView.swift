@@ -51,8 +51,16 @@ private struct TabChip: View {
 
     var body: some View {
         HStack(spacing: HerminalDesign.Spacing.xs) {
+            // v1.0 polish: the active tab carries an accent dot and the
+            // title is monospaced — matches the launch-site hero mockup.
+            if isActive {
+                Circle()
+                    .fill(HerminalDesign.Palette.accent)
+                    .frame(width: 6, height: 6)
+                    .accessibilityHidden(true)
+            }
             Text(tab.title)
-                .font(HerminalDesign.Typography.caption)
+                .font(HerminalDesign.Typography.monoCaption)
                 .foregroundStyle(
                     isActive
                         ? HerminalDesign.Palette.textPrimary
