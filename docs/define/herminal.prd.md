@@ -122,7 +122,7 @@ Acceptance criteria:
 - Users can create, close, rename, and focus terminal tabs and splits with keyboard shortcuts.
 - Each terminal session tracks shell PID, working directory when available, title, creation time, last activity time, and optional Git branch metadata.
 - Herminal can run tmux normally inside a terminal session with correct colors, mouse behavior, alternate screen handling, resize behavior, and clipboard policy.
-- Herminal provides a simple tmux launcher profile: new tmux session, attach existing session, and attach-or-create by repo name.
+- Herminal provides a simple tmux launcher profile: new tmux session, attach existing session, and attach-or-create by repo name. Spec: [`tmux-launcher.md`](tmux-launcher.md).
 - Closing a window warns when sessions contain active foreground processes or agent sessions that appear to be running.
 
 Technical notes:

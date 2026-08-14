@@ -19,6 +19,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Tab jump.** ⌘1…⌘8 select that tab; ⌘9 selects the last tab.
 - **Worktree-aware git branch.** The status bar follows a `.git` *file*
   (linked worktree), not only a `.git` directory.
+- **tmux launcher.** Window menu + command palette: New session, Attach…,
+  and Attach or Create (by repo name). tmux stays inside the PTY.
 
 ## [1.0.0] - Unreleased
 
