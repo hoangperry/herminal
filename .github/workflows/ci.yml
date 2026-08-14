@@ -50,6 +50,9 @@ jobs:
       - name: Verify fail-closed release guards
         run: Scripts/verify-release-guards.sh
 
+      - name: Verify owner gate tools
+        run: Scripts/verify-owner-gate-tools.sh
+
       - name: Check diagnostics privacy
         run: Scripts/check-diagnostics-privacy.py
 

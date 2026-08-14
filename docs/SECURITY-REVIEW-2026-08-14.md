@@ -20,7 +20,7 @@ Terminal/IME input, command spawn and restore, SSH import, diagnostics, workspac
 ## Accepted or deferred risks
 
 - App/Core CodeQL extraction cannot import prebuilt GhosttyKit under CodeQL's DYLD tracer. Full App/Core compilation and tests remain mandatory CI; CodeQL covers HerminalDB and HerminalAgent.
-- Hardened-runtime exceptions require signed-build experiments one at a time; tracked publicly in issue #4.
+- Hardened-runtime exceptions require signed-build experiments one at a time; tracked publicly in issue #4. `Scripts/run-entitlement-experiment.sh` signs only a copied build, removes one named exception, and records the bounded runtime matrix without mutating production entitlements.
 - Live Telex/VNI behavior cannot be automated reliably; tracked in issue #2 and remains a release gate.
 - Herminal cannot defend against commands the user intentionally executes or same-user malware reading local files.
 

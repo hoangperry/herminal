@@ -96,6 +96,19 @@ or duplicated.
 - **0 ❌** of severity **DROP** or **DUP** (those are data-loss class).
 - Any **CURSOR** defect documented for a follow-up bug.
 
+## Privacy-safe release-gate record
+
+For T1–T7, the interactive recorder accepts only pass/fail/skipped and a bounded
+defect class; it never asks for terminal history or typed content:
+
+```sh
+Scripts/record-vietnamese-ime-gate.sh
+```
+
+It writes a timestamped file under `docs/QA/results/` and exits non-zero unless
+T1/T2/T5/T6/T7 pass with no DROP/DUP defect. Review the generated file before
+committing it.
+
 ## After running
 
 1. File any ❌ rows as issues in `docs/backlog/` under the relevant month.
