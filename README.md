@@ -1,7 +1,7 @@
 # herminal
 
-> AI-native macOS terminal cho Vietnamese developers chạy Claude Code và
-> agent CLIs hằng ngày.
+> AI-native macOS terminal for developers who run Claude Code and agent
+> CLIs all day — built Vietnamese-first, IME-correct for every input method.
 
 **Website:** <https://hoang.tech/herminal/> · **Download:** [latest release](https://github.com/hoangperry/herminal/releases/latest) · **Source:** this repo
 
@@ -87,22 +87,25 @@ Built on `main`; public v1 remains a release candidate:
 
 - [x] Native terminal core via libghostty (Metal renderer, p95 keystroke <5ms)
 - [x] Vietnamese IME bridge with automated Tab/preedit regressions; live Telex/VNI release gate pending¹
-- [x] Multi-session workspace + vertical/horizontal splits
-- [x] Agent dashboard with running / idle / starting discrimination
+- [x] Multi-session workspace: tmux-style recursive splits, drag-to-resize dividers, directional pane focus, pane zoom
+- [x] Agent dashboard: running / idle / starting / needs-input badges, npx/python wrapper detection, per-tab attribution
+- [x] Agent worktree cockpit — ⌘⌥W spawns an agent in an isolated git worktree
+- [x] Session continuity: restore-on-launch, named workspaces, Claude session browser (⌘⇧C → `claude --resume`)
 - [x] Per-session notes (SQLite WAL) with Markdown round-trip
-- [x] SSH Connection Manager with one-click spawn
-- [x] Premium dark chrome (Raycast/Linear style)
+- [x] SSH Connection Manager with one-click spawn + `~/.ssh/config` import
+- [x] Dark + light chrome with follow-system (Raycast/Linear style)
 - [x] tmux compatibility verified against vim, less, htop, fzf, lazygit, btop, starship
-- [x] Telemetry-free local crash diary
+- [x] Telemetry-free local crash diary with redacted export
 - [x] Developer-ID codesign + notarize pipeline
 
 ¹ The implementation and state-transition regressions are green, but the
 release-blocking system-input-source matrix still requires a dated human run.
 See [issue #2](https://github.com/hoangperry/herminal/issues/2).
 
-Deferred to post-MVP — see [CHANGELOG.md](CHANGELOG.md) "Known
-limitations": agent↔pane mapping, recursive split trees, drag-to-resize
-dividers, light theme, group/search in SSH manager.
+Still deferred — see [docs/ROADMAP.md](docs/ROADMAP.md) for the feedback
+gates: groups / search / per-host keypair UI in the SSH manager, Sparkle
+auto-update (wiring stub only today), App Store distribution
+(sandbox-incompatible by design), Linux / Windows.
 
 ## Install
 
@@ -149,6 +152,19 @@ integration scripts.
 - **⌘⇧S** — toggle SSH host manager (mutex with the agent dashboard
   in the left slot)
 - **⌘⇧N** — toggle the per-session notes panel on the right
+- **⌘⇧C** — Claude session browser: pick a past session, it reopens
+  with `claude --resume` in the right cwd
+- **⌘⇧L** — toggle light / dark theme
+- **⌥⌘← → ↑ ↓ / ⌘⇧↩** — directional pane focus / zoom the focused pane
+
+Full map in [`docs/KEYBOARD-SHORTCUTS.md`](docs/KEYBOARD-SHORTCUTS.md).
+
+**Agent worktrees:** working on two fixes at once? ⌘⌥W creates an
+isolated checkout under `../<repo>.worktrees/<branch>` via
+`git worktree add` and opens it in a new tab running the agent you pick
+(`claude` / `codex` / `aider`) or a plain shell. The dashboard lists
+every worktree with open / remove — remove always confirms and never
+passes `--force`.
 
 Agents are detected by walking herminal's process subtree — start
 `claude`, `codex`, or `aider` in any tab and they'll appear in the
@@ -184,10 +200,10 @@ ABI — not vendored as a fork. Full write-up in
 ```
 herminal/
 ├── Sources/
-│   ├── HerminalCore/         # libghostty C ABI bridge
-│   ├── HerminalDB/           # NotesStore + SSHHostsStore
-│   ├── HerminalAgent/        # process-subtree + CPU-status detection
-│   └── HerminalApp/          # NSApp, WorkspaceView, panels, Diary
+│   ├── HerminalCore/         # libghostty C ABI bridge + BellRegistry
+│   ├── HerminalDB/           # NotesStore + SSHHostsStore + SSHConfigImporter
+│   ├── HerminalAgent/        # process-subtree detection + status + pane mapping
+│   └── HerminalApp/          # NSApp, WorkspaceView, panels, worktree cockpit, Diary
 ├── App/                       # Info.plist + entitlements
 ├── Tests/                     # 175 Swift Testing tests
 ├── Scripts/                   # bootstrap, bundle, verify-*, dogfood, sign, release, capture-screenshots
@@ -216,7 +232,13 @@ the diary excerpt; security issues go to
 | [CHANGELOG.md](CHANGELOG.md) | Per-version release notes |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | How to propose changes |
 | [SECURITY.md](SECURITY.md) | How to report vulnerabilities |
+| [docs/FAQ.md](docs/FAQ.md) | Install, first-run, and "is this for me" answers |
+| [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) | Crashes, IME double-typing, empty agent dashboard |
+| [docs/KEYBOARD-SHORTCUTS.md](docs/KEYBOARD-SHORTCUTS.md) | The full shortcut map, including conflicts |
+| [docs/ROADMAP.md](docs/ROADMAP.md) | Shipped / next / won't-ship-by-design |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | One-page system overview — read before the first PR |
+| [docs/AGENT-INTEGRATIONS.md](docs/AGENT-INTEGRATIONS.md) | The lifecycle-only agent signal contract |
+| [docs/THREAT-MODEL.md](docs/THREAT-MODEL.md) | What herminal defends against — and what it deliberately doesn't |
 | [docs/MAINTAINER-AI-POLICY.md](docs/MAINTAINER-AI-POLICY.md) | Human boundaries for AI-assisted maintenance |
 | [docs/BETA.md](docs/BETA.md) | Privacy-safe beta protocol and evidence ledger |
 | [docs/RELEASE.md](docs/RELEASE.md) | Cutting a signed + notarized release |
@@ -224,7 +246,7 @@ the diary excerpt; security issues go to
 | [docs/QA/dogfood-checklist.md](docs/QA/dogfood-checklist.md) | What to watch for during daily-driver use |
 | [docs/QA/vietnamese-ime-checklist.md](docs/QA/vietnamese-ime-checklist.md) | 20-phrase Telex/VNI smoke matrix |
 | [docs/QA/cjk-ime-checklist.md](docs/QA/cjk-ime-checklist.md) | Korean / Japanese / Chinese IME smoke matrices |
-| [docs/backlog/](docs/backlog/) | Monthly task lists + retrospectives M1 → M7 |
+| [docs/backlog/](docs/backlog/) | Monthly task lists + retrospectives M1 → M12 |
 
 ---
 
