@@ -8,6 +8,7 @@ set -euo pipefail
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 RELEASE_SCRIPT="$REPO_ROOT/Scripts/release.sh"
 RELEASE_WORKFLOW="$REPO_ROOT/.github/workflows/release.yml"
+CANDIDATE_WORKFLOW="$REPO_ROOT/.github/workflows/release-candidate.yml"
 # shellcheck disable=SC1091 # Path is resolved from this script's repo root.
 source "$REPO_ROOT/Scripts/release-common.sh"
 
@@ -24,6 +25,26 @@ done
 # shellcheck disable=SC2016 # Match the literal workflow variable, not this shell.
 if ! grep -Fq 'ditto -c -k --keepParent .build/release/herminal.app "$ZIP"' "$RELEASE_WORKFLOW"; then
     echo "FAIL: release workflow does not package the post-staple app as its final ZIP" >&2
+    exit 1
+fi
+
+if ! grep -Fq 'contents: read' "$CANDIDATE_WORKFLOW" || \
+   grep -Fq 'contents: write' "$CANDIDATE_WORKFLOW" || \
+   ! grep -Fq 'Scripts/make-app-bundle.sh release' "$CANDIDATE_WORKFLOW" || \
+   ! grep -Fq 'configuration=release' "$CANDIDATE_WORKFLOW" || \
+   ! grep -Fq "commit=\$SOURCE_COMMIT" "$CANDIDATE_WORKFLOW"; then
+    echo "FAIL: release candidate workflow lost its read-only release/provenance contract" >&2
+    exit 1
+fi
+
+set +e
+source_guard_output=$(env HERMINAL_SOURCE_APP="$REPO_ROOT/does-not-exist.app" \
+    "$REPO_ROOT/Scripts/sign-and-notarize.sh" 2>&1)
+source_guard_status=$?
+set -e
+if [ "$source_guard_status" -eq 0 ] || \
+   ! grep -Fq 'source app is missing or incomplete' <<< "$source_guard_output"; then
+    echo "FAIL: external release candidate input does not fail closed" >&2
     exit 1
 fi
 
