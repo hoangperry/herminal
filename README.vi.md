@@ -8,7 +8,9 @@
 [![macOS 14+](https://img.shields.io/badge/macOS-14%2B-black.svg)](https://www.apple.com/macos)
 [![Swift 6](https://img.shields.io/badge/swift-6-orange.svg)](https://swift.org)
 
-**Trạng thái:** v0.1.0 beta — M7/7 ([CHANGELOG](CHANGELOG.md)).
+**Trạng thái:** `v1.0.0` release candidate trên `main`; bản public mới nhất là
+[`v0.4.2`](https://github.com/hoangperry/herminal/releases/tag/v0.4.2).
+Xem [CHANGELOG](CHANGELOG.md).
 **Nền tảng:** macOS 14+ Apple Silicon.
 
 > 🇬🇧 English version: [`README.md`](README.md)
@@ -38,7 +40,7 @@ Năm 2026 không terminal nào hit đủ 5 thứ cùng lúc:
 | Yêu cầu | iTerm2 | Warp | Wave | Ghostty | **herminal** |
 |---|---|---|---|---|---|
 | Tốc độ native macOS | ✓ | partial | partial | ✓ | ✓ |
-| Vietnamese IME đáng tin | ✓ | × | × | ✓ | ✓ |
+| Vietnamese IME + autocomplete khi còn preedit | ✓ | × | × | partial | ✓ |
 | tmux + multi-session | ✓ | partial | × | ✓ | ✓ |
 | Dashboard agent built-in | × | partial | × | × | ✓ |
 | Notes per-session local-only | × | × | × | × | ✓ |
@@ -46,7 +48,7 @@ Năm 2026 không terminal nào hit đủ 5 thứ cùng lúc:
 Xem [`docs/research/`](docs/research/) cho full comparison + scoring
 rubric đã dùng để lập bảng trên.
 
-## Scope MVP (v0.1.0)
+## Scope v1
 
 Tất cả đã ship:
 
@@ -67,13 +69,17 @@ trong SSH manager, candidate post-beta.
 
 ## Cài đặt
 
-### Từ tagged release (khuyến nghị một khi v0.1.0 đã publish)
+### Homebrew (khuyến nghị)
 
-1. Download `herminal-v0.1.0.zip` từ trang
-   [Releases](https://github.com/hoangperry/herminal/releases).
-2. Giải nén → kéo `herminal.app` vào `/Applications`.
-3. Mở. Gatekeeper có thể show cảnh báo lần đầu; các lần sau im
-   lặng (build đã được notarize).
+```sh
+brew install --cask hoangperry/herminal/herminal
+```
+
+### Tải trực tiếp
+
+1. Tải DMG từ [release mới nhất](https://github.com/hoangperry/herminal/releases/latest).
+2. Mở DMG → kéo `herminal.app` vào `/Applications`.
+3. Mở app; binary public đã được ký Developer ID và notarize.
 
 ### Từ source
 
@@ -112,7 +118,7 @@ sẽ xuất hiện trong dashboard trong ~2 giây với badge
 | App | Swift 6 + AppKit + SwiftUI chrome | Real `NSTextInputClient`, real Metal layer |
 | Surface | `NSView` host Metal layer của libghostty | IME pixel-precise |
 | Storage | SQLite WAL (notes + SSH hosts) | Local-only, atomic, indexable |
-| Distribution | Developer-ID signed `.app` zip + (planned) Homebrew | Sandbox App Store incompatible |
+| Distribution | DMG/zip ký Developer ID, notarized + Homebrew cask | Sandbox App Store incompatible |
 
 ## Repo layout
 
@@ -124,7 +130,7 @@ herminal/
 │   ├── HerminalAgent/        # process-subtree detection + status + pane mapping
 │   └── HerminalApp/          # NSApp, WorkspaceView, panels, Diary
 ├── App/                       # Info.plist + entitlements
-├── Tests/                     # 77+ Swift Testing unit tests
+├── Tests/                     # 143+ Swift Testing unit tests
 ├── Scripts/                   # bootstrap, bundle, verify-*, dogfood, sign, release
 ├── Vendor/libghostty/         # git submodule (Ghostty v1.3.1)
 └── docs/

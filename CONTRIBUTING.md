@@ -43,7 +43,18 @@ source of truth for what's in vs out of scope.
    test. If the change exercises a kernel API or libghostty surface,
    add an integration script under `Scripts/verify-*.sh`.
 
-## Development setup
+## 15-minute contribution path
+
+Documentation, agent fixtures, and pure-model tests do not require launching the
+app. Fork/clone the repository, make one focused change, run the narrowest
+available check (for Markdown, `git diff --check`; for workflows, `actionlint`),
+and open a PR using the template. CI builds the pinned libghostty framework and
+runs the complete Swift suite.
+
+Never paste terminal contents, process arguments, tokens, SSH hostnames, or note
+bodies into an issue. Share only the redacted diary export you have reviewed.
+
+## Full development setup
 
 ```bash
 git clone --recurse-submodules https://github.com/hoangperry/herminal
@@ -55,7 +66,7 @@ Scripts/make-app-bundle.sh   # assembles .app with ad-hoc signature
 ```
 
 Prerequisites: macOS 14+ (Apple Silicon), Xcode 26+, Swift 6.2+,
-Zig 0.15.2+ (for libghostty), `clang` for the kernel-probe binaries
+Zig 0.15.2 exactly at `~/.local/zig/0.15.2/zig` (for libghostty), `clang` for the kernel-probe binaries
 the integration scripts use.
 
 ## Code style
@@ -82,8 +93,7 @@ the integration scripts use.
 
 Use the templates under `.github/ISSUE_TEMPLATE/`. The bug template
 prompts for:
-- The diary excerpt (last ~30 lines of
-  `~/Library/Application Support/herminal/diary.log`)
+- An optional, reviewed output from `Diary.exportRedacted()`; raw diary and terminal output are never required
 - Which day of dogfood you were on (per the journal under
   `docs/QA/dogfood/`)
 - `Scripts/dogfood-daily.sh` output

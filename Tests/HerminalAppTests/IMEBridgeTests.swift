@@ -105,4 +105,59 @@ struct IMEBridgeTests {
         // overlays that don't match libghostty's underline preedit.
         #expect(view.validAttributesForMarkedText().isEmpty)
     }
+
+    @Test("Tab that commits marked text is replayed for shell completion")
+    func committedMarkedTextReplaysTab() {
+        let decision = HerminalSurfaceView.imeKeyRoutingDecision(
+            keyCode: 48,
+            hadMarkedText: true,
+            hasMarkedText: false,
+            committedTextCount: 1
+        )
+        #expect(decision == .commitThenReplay)
+    }
+
+    @Test("Tab is not replayed while the IME still owns marked text")
+    func activeCompositionDoesNotReplayTab() {
+        let decision = HerminalSurfaceView.imeKeyRoutingDecision(
+            keyCode: 48,
+            hadMarkedText: true,
+            hasMarkedText: true,
+            committedTextCount: 0
+        )
+        #expect(decision == .standard)
+    }
+
+    @Test("plain Tab without a composition keeps standard routing")
+    func plainTabKeepsStandardRouting() {
+        let decision = HerminalSurfaceView.imeKeyRoutingDecision(
+            keyCode: 48,
+            hadMarkedText: false,
+            hasMarkedText: false,
+            committedTextCount: 0
+        )
+        #expect(decision == .standard)
+    }
+
+    @Test("an empty IME commit does not replay Tab")
+    func emptyCommitDoesNotReplayTab() {
+        let decision = HerminalSurfaceView.imeKeyRoutingDecision(
+            keyCode: 48,
+            hadMarkedText: true,
+            hasMarkedText: false,
+            committedTextCount: 0
+        )
+        #expect(decision == .standard)
+    }
+
+    @Test("non-Tab commit keeps standard IME routing")
+    func nonTabCommitKeepsStandardRouting() {
+        let decision = HerminalSurfaceView.imeKeyRoutingDecision(
+            keyCode: 36, // Return
+            hadMarkedText: true,
+            hasMarkedText: false,
+            committedTextCount: 1
+        )
+        #expect(decision == .standard)
+    }
 }

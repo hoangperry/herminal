@@ -6,9 +6,13 @@ won't ship by design. For the per-month implementation detail see
 
 ---
 
-## Shipped — v0.1.0 beta (M1-M10)
+## Built on `main` — v1.0.0 release candidate
 
-Every PRD MVP feature plus the first post-MVP wave:
+The latest public release is `v0.4.2`. The capabilities below are built on
+`main`; public v1 remains gated by the release-blocking verification listed in
+the next section.
+
+Every PRD v1 feature plus the post-MVP workspace and session waves:
 
 ### Terminal core
 - libghostty 1.3.1 embedded statically via xcframework
@@ -52,33 +56,28 @@ Every PRD MVP feature plus the first post-MVP wave:
   `/Users/<redacted>`, libghostty surface addresses)
 
 ### Distribution infrastructure
-- Developer-ID codesign + notarytool + stapler pipeline (script
-  ready; gates on owner Developer-ID enrolment)
+- Developer-ID codesign + notarytool + stapler pipeline
 - DMG packaging with /Applications symlink
-- Homebrew cask formula template (publishes once first
-  notarized release lands)
-- Sparkle update wiring stub + appcast template (framework
-  integration in v0.2.x)
-- GitHub Actions release workflow: tag-triggered, auto-builds,
-  signs, packages, drafts GH release
+- Homebrew tap live at `hoangperry/homebrew-herminal`
+- Sparkle update wiring stub + appcast template (framework integration deferred)
+- GitHub Actions release workflow: tag-triggered, builds, signs, packages,
+  and drafts the GitHub release
 
 ---
 
-## Next — v0.1.1 + beta cycle (owner-gated)
+## Next — public v1 release blockers
 
-These items unlock once the corresponding owner action lands:
-
-| Item | Unblocked by |
+| Item | Gate |
 |---|---|
-| First notarized release | Apple Developer cert enrolment |
-| Homebrew cask publish | First notarized release |
-| Sparkle framework integration | First notarized release + EdDSA key gen |
-| Beta-feedback-driven slice 4+ | First beta-tester reports |
+| Vietnamese IME Tab completion | Telex/VNI marked text commits once and the same Tab reaches zsh; Shift-Tab and plain Tab do not regress |
+| Test verification | Swift unit suite + dogfood gate green under the documented Xcode toolchain |
+| Signed release | Owner-held Developer ID and notary credentials; never committed to the repository |
+| Homebrew update | Public v1 DMG exists and its SHA-256 is verified |
+| External beta | Real tester reports drive subsequent patch releases |
 
-The dogfood journal under `docs/QA/dogfood/` and any GitHub
-issues opened against the v0.1.0 draft will drive what ships in
-the next slice. Until that signal arrives, the post-MVP roadmap
-items below stay deferred — see "Why deferred" for each.
+The dogfood journal under `docs/QA/dogfood/` and public GitHub issues drive the
+next slices. Feedback-gated items below stay deferred until a real user signal
+confirms their shape.
 
 ---
 

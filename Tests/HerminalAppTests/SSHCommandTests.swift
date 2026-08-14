@@ -3,6 +3,7 @@ import Testing
 @testable import HerminalApp
 import HerminalDB
 
+@MainActor
 @Suite("WorkspaceView.sshCommand")
 struct SSHCommandTests {
     @Test("standard port 22 is omitted from the command")

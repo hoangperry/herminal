@@ -1,0 +1,62 @@
+name: Beta workflow report
+description: Report a multi-day Herminal beta workflow without sharing private terminal data
+title: "[Beta]: "
+labels: ["beta-feedback", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Never paste terminal history, prompts, process arguments, tokens, SSH configuration, hostnames, repository names, or note contents. Use placeholders in reproductions.
+  - type: input
+    id: version
+    attributes:
+      label: Herminal version or commit
+      placeholder: v1.0.0-rc / full commit SHA
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: macOS and Mac model
+      placeholder: macOS 26.3, M2 Pro
+    validations:
+      required: true
+  - type: dropdown
+    id: input
+    attributes:
+      label: Input source used
+      options: [Vietnamese Telex, Vietnamese VNI, US English, Japanese, Korean, Chinese, Other]
+    validations:
+      required: true
+  - type: input
+    id: workflow
+    attributes:
+      label: Shell, tmux, and agent tools
+      placeholder: zsh + tmux + Codex CLI (no project names)
+    validations:
+      required: true
+  - type: dropdown
+    id: duration
+    attributes:
+      label: Real-workflow duration
+      options: [Less than one day, 1–2 days, 3–5 days, More than 5 days]
+    validations:
+      required: true
+  - type: textarea
+    id: worked
+    attributes:
+      label: What worked
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: Minimal sanitized problem or friction
+      description: Use neutral placeholders and include expected versus actual behavior.
+  - type: checkboxes
+    id: privacy
+    attributes:
+      label: Privacy confirmation
+      options:
+        - label: I reviewed this report and removed private terminal, repository, credential, SSH, and note data.
+          required: true

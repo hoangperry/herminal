@@ -39,17 +39,21 @@ jobs:
             echo "tag=${{ github.ref_name }}" >> "$GITHUB_OUTPUT"
           fi
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           ref: ${{ steps.tag.outputs.tag }}
           submodules: recursive
 
-      - name: Install Zig (libghostty toolchain)
-        run: brew install zig
+      - name: Install verified build toolchain
+        run: |
+          Scripts/install-zig-ci.sh
+          if ! xcrun -sdk macosx metal --version >/dev/null 2>&1; then
+            xcodebuild -downloadComponent MetalToolchain
+          fi
 
       - name: Cache libghostty xcframework
         id: cache-ghostty
-        uses: actions/cache@v4
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: Vendor/libghostty/macos/GhosttyKit.xcframework
           key: ghostty-xcframework-${{ hashFiles('.gitmodules', 'Vendor/libghostty/build.zig') }}
@@ -59,7 +63,7 @@ jobs:
         run: Scripts/bootstrap.sh
 
       - name: Cache SPM build
-        uses: actions/cache@v4
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: |
             .build
@@ -69,11 +73,14 @@ jobs:
             ${{ runner.os }}-spm-release-
 
       - name: Import Developer-ID signing certificate
-        if: ${{ secrets.APPLE_DEVELOPER_CERT_P12 != '' }}
         env:
           CERT_P12_BASE64: ${{ secrets.APPLE_DEVELOPER_CERT_P12 }}
           CERT_PASSWORD: ${{ secrets.APPLE_CERT_PASSWORD }}
         run: |
+          if [ -z "$CERT_P12_BASE64" ] || [ -z "$CERT_PASSWORD" ]; then
+            echo "ERROR: Developer ID certificate secrets are required for a release" >&2
+            exit 1
+          fi
           # Create a temporary keychain that the run owns; gets torn
           # down with the runner so secrets never leak into a cached
           # login keychain.
@@ -88,6 +95,7 @@ jobs:
             -P "$CERT_PASSWORD" \
             -A -t cert -f pkcs12 \
             -k "$KEYCHAIN_PATH"
+          # shellcheck disable=SC2046 # security expects the existing paths as separate args.
           security list-keychains -d user -s "$KEYCHAIN_PATH" $(security list-keychains -d user | tr -d '"')
           security set-key-partition-list \
             -S apple-tool:,apple:,codesign: \
@@ -95,12 +103,15 @@ jobs:
           rm -f "$RUNNER_TEMP/cert.p12"
 
       - name: Store notarytool credentials
-        if: ${{ secrets.APPLE_ID != '' }}
         env:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
         run: |
+          if [ -z "$APPLE_ID" ] || [ -z "$APPLE_TEAM_ID" ] || [ -z "$APPLE_APP_SPECIFIC_PASSWORD" ]; then
+            echo "ERROR: Apple notarization secrets are required for a release" >&2
+            exit 1
+          fi
           xcrun notarytool store-credentials herminal-notarize \
             --apple-id "$APPLE_ID" \
             --team-id "$APPLE_TEAM_ID" \
@@ -110,10 +121,39 @@ jobs:
         env:
           HERMINAL_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
           HERMINAL_NOTARY_PROFILE: herminal-notarize
-        run: Scripts/sign-and-notarize.sh
+        run: |
+          if [ -z "$HERMINAL_SIGNING_IDENTITY" ]; then
+            echo "ERROR: APPLE_SIGNING_IDENTITY is required; refusing an ad-hoc release" >&2
+            exit 1
+          fi
+          Scripts/sign-and-notarize.sh
 
       - name: Package as DMG
         run: Scripts/make-dmg.sh "${{ steps.tag.outputs.tag }}"
+
+      - name: Generate release integrity metadata
+        id: integrity
+        env:
+          TAG: ${{ steps.tag.outputs.tag }}
+        run: |
+          CHECKSUMS="$RUNNER_TEMP/SHA256SUMS"
+          DEPENDENCIES="$RUNNER_TEMP/dependency-manifest.txt"
+          (
+            cd .build/release
+            shasum -a 256 "herminal-$TAG.zip" "herminal-$TAG.dmg"
+          ) > "$CHECKSUMS"
+          {
+            echo "tag=$TAG"
+            echo "commit=$(git rev-parse HEAD)"
+            echo
+            echo "[git submodules]"
+            git submodule status --recursive
+            echo
+            echo "[SwiftPM dependencies]"
+            swift package show-dependencies --format json
+          } > "$DEPENDENCIES"
+          echo "checksums=$CHECKSUMS" >> "$GITHUB_OUTPUT"
+          echo "dependencies=$DEPENDENCIES" >> "$GITHUB_OUTPUT"
 
       - name: Extract release notes from CHANGELOG
         id: notes
@@ -144,13 +184,18 @@ jobs:
           if ! gh release view "$TAG" >/dev/null 2>&1; then
             gh release create "$TAG" \
               "$ZIP" "$DMG" \
+              "${{ steps.integrity.outputs.checksums }}" \
+              "${{ steps.integrity.outputs.dependencies }}" \
               --title "herminal $TAG" \
               --notes-file "$NOTES_PATH" \
               --draft
           else
             # Existing release (e.g. workflow_dispatch rerun) — refresh
             # the assets so a re-run replaces stale binaries.
-            gh release upload "$TAG" "$ZIP" "$DMG" --clobber
+            gh release upload "$TAG" "$ZIP" "$DMG" \
+              "${{ steps.integrity.outputs.checksums }}" \
+              "${{ steps.integrity.outputs.dependencies }}" \
+              --clobber
           fi
 
       - name: Generate + upload Sparkle appcast

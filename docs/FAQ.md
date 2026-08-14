@@ -54,24 +54,24 @@ PRD targets.
 
 ### How do I install?
 
-From a tagged release once one is published:
+Homebrew is recommended:
 
-1. Download `herminal-vX.Y.Z.zip` (or `.dmg`) from the
-   [Releases](https://github.com/hoangperry/herminal/releases) page.
-2. Drag `herminal.app` into `/Applications`.
-3. Launch.
+```sh
+brew install --cask hoangperry/herminal/herminal
+```
 
-From source: see "Install" → "From source" in `README.md`.
+Alternatively, download the DMG from the
+[latest release](https://github.com/hoangperry/herminal/releases/latest),
+drag `herminal.app` into `/Applications`, and launch. From source: see
+"Install" → "From source" in `README.md`.
 
 ### Why does Gatekeeper show "downloaded from the internet"?
 
-Until owner Developer-ID enrolment lands, the v0.1.0 build is
-**ad-hoc signed**, not notarized. The warning is one-time per
-download — once you allow the launch, future launches are silent.
-
-The full pipeline for notarized releases (`Scripts/sign-and-notarize.sh`
-+ `.github/workflows/release.yml`) is ready; the next release after
-the Developer ID lands will be Gatekeeper-clean.
+That message identifies an app downloaded from the internet; it is not by
+itself a signature failure. Public Herminal releases are Developer-ID signed,
+notarized, and stapled. If macOS says the developer cannot be verified or the
+app is damaged, do not bypass Gatekeeper—open a bug with the release version
+and the output of `spctl --assess --type execute --verbose herminal.app`.
 
 ### Does herminal work on Intel Macs?
 

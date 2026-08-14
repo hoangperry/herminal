@@ -2,9 +2,10 @@
 
 ## Supported versions
 
-herminal is pre-1.0. Only the `main` branch receives security fixes.
-There is no LTS; users on tagged releases should update to the latest
-release for any reported vulnerability.
+Until public v1 is released, only the latest public release and `main` receive
+security fixes. There is no LTS; users should update to the newest public
+release containing the fix. Supported-version details will be updated when v1
+is published.
 
 ## What's in scope
 
@@ -42,10 +43,13 @@ Security-relevant surfaces:
 
 ## Reporting a vulnerability
 
-**Do not file a public issue** for anything you believe to be a
-security vulnerability.
+**Do not file a public issue** for anything you believe to be a security
+vulnerability.
 
-Email the maintainer directly: **hoangperry@proton.me**
+Preferred: use GitHub's enabled
+[private vulnerability reporting](https://github.com/hoangperry/herminal/security/advisories/new).
+This creates a private advisory visible only to the reporter and maintainers.
+If GitHub is unavailable, email **hoangperry@proton.me**.
 
 Include:
 
@@ -71,5 +75,8 @@ Expected timeline:
 - Demand the issue be reported through any platform other than the
   email above.
 - Treat a coordinated-disclosure delay as a hostile act.
+
+The architecture-level risks and trust boundaries are documented in
+[`docs/THREAT-MODEL.md`](docs/THREAT-MODEL.md).
 
 Thank you for keeping herminal users safe.

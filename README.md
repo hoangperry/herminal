@@ -10,7 +10,9 @@
 [![macOS 14+](https://img.shields.io/badge/macOS-14%2B-black.svg)](https://www.apple.com/macos)
 [![Swift 6](https://img.shields.io/badge/swift-6-orange.svg)](https://swift.org)
 
-**Status:** v1.0.0 — stable ([CHANGELOG](CHANGELOG.md)).
+**Status:** `v1.0.0` release candidate on `main`; latest public release is
+[`v0.4.2`](https://github.com/hoangperry/herminal/releases/tag/v0.4.2).
+See [CHANGELOG](CHANGELOG.md).
 **Platform:** macOS 14+ Apple Silicon.
 
 > 🇻🇳 Phiên bản tiếng Việt: [`README.vi.md`](README.vi.md)
@@ -40,7 +42,7 @@ In 2026 nothing on the market hits all five at once:
 | Need | iTerm2 | Warp | Wave | Ghostty | **herminal** |
 |---|---|---|---|---|---|
 | Native macOS speed | ✓ | partial | partial | ✓ | ✓ |
-| Vietnamese IME reliability | ✓ | × | × | ✓ | ✓ |
+| Vietnamese IME + in-preedit shell completion | ✓ | × | × | partial | ✓ |
 | tmux + multi-session | ✓ | partial | × | ✓ | ✓ |
 | Built-in agent dashboard | × | partial | × | × | ✓ |
 | Local-only persistent notes per session | × | × | × | × | ✓ |
@@ -48,7 +50,7 @@ In 2026 nothing on the market hits all five at once:
 See [`docs/research/`](docs/research/) for the full comparison and
 scoring rubric the table is derived from.
 
-## MVP scope (v0.1.0)
+## v1 scope
 
 All shipped:
 
@@ -122,7 +124,7 @@ badge tracked via CPU sampling.
 | App | Swift 6 + AppKit + SwiftUI chrome | Real `NSTextInputClient`, real Metal layer |
 | Surface | `NSView` hosting libghostty's Metal layer | Pixel-precise IME |
 | Storage | SQLite WAL (notes + SSH hosts) | Local-only, atomic, indexable |
-| Distribution | Developer-ID signed `.app` zip + (planned) Homebrew | App Store sandbox is incompatible |
+| Distribution | Developer-ID signed + notarized DMG/zip and Homebrew cask | App Store sandbox is incompatible |
 
 ## Repo layout
 

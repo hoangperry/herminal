@@ -513,7 +513,10 @@ final class WorkspaceView: NSView {
             app: app, command: command, title: title, workingDirectory: workingDirectory
         ))
         activeTabIndex = tabs.count - 1
-        Diary.shared.log("addTab command=\(command) title=\(title) cwd=\(workingDirectory ?? "-")", category: "tabs")
+        // Commands may contain session IDs, hostnames, or user-provided
+        // arguments. Record only structural metadata in the local diary.
+        Diary.shared.log("addTab customCommand=\(!command.isEmpty) cwdSet=\(workingDirectory != nil)",
+                         category: "tabs")
         refresh()
         persistWorkspaceIfReady()
     }
@@ -777,7 +780,7 @@ final class WorkspaceView: NSView {
     /// session; the working directory is set on the libghostty surface
     /// so relative paths in the conversation still resolve.
     private func resumeClaude(_ session: ClaudeProjectSession) {
-        Diary.shared.log("resume claude \(session.projectName) session=\(session.sessionId)", category: "claude")
+        Diary.shared.log("resume claude session requested", category: "claude")
         addTab(
             command: "claude --resume \(session.sessionId)",
             title: session.projectName,
@@ -787,7 +790,7 @@ final class WorkspaceView: NSView {
 
     /// Opens a plain login shell already cd'd into `cwd`.
     private func openShell(in cwd: String, title: String) {
-        Diary.shared.log("open shell in \(cwd)", category: "claude")
+        Diary.shared.log("open project shell requested", category: "claude")
         addTab(command: "", title: title, workingDirectory: cwd)
     }
 
@@ -801,7 +804,7 @@ final class WorkspaceView: NSView {
         do {
             return try sshHostsStore.allHosts()
         } catch {
-            Self.sshLog.error("hosts load failed: \(error, privacy: .public)")
+            Self.sshLog.error("hosts load failed: \(error, privacy: .private(mask: .hash))")
             return []
         }
     }
@@ -822,7 +825,7 @@ final class WorkspaceView: NSView {
         do {
             try sshHostsStore.upsert(host)
         } catch {
-            Self.sshLog.error("host save failed: \(error, privacy: .public)")
+            Self.sshLog.error("host save failed: \(error, privacy: .private(mask: .hash))")
         }
         refreshSSHPanel()
     }
@@ -831,7 +834,7 @@ final class WorkspaceView: NSView {
         do {
             try sshHostsStore.delete(id: id)
         } catch {
-            Self.sshLog.error("host delete failed: \(error, privacy: .public)")
+            Self.sshLog.error("host delete failed: \(error, privacy: .private(mask: .hash))")
         }
         refreshSSHPanel()
     }
@@ -857,11 +860,11 @@ final class WorkspaceView: NSView {
                 refreshSSHPanel()
             }
         } catch SSHConfigImporter.ImportError.fileMissing(let path) {
-            Diary.shared.log("ssh config not found at \(path)", category: "ssh")
-            Self.sshLog.info("ssh config not found at \(path, privacy: .public)")
+            Diary.shared.log("ssh config not found", category: "ssh")
+            Self.sshLog.info("ssh config not found at \(path, privacy: .private(mask: .hash))")
         } catch {
-            Diary.shared.log("ssh config import failed: \(error)", category: "ssh")
-            Self.sshLog.error("ssh config import failed: \(error, privacy: .public)")
+            Diary.shared.log("ssh config import failed", category: "ssh")
+            Self.sshLog.error("ssh config import failed: \(error, privacy: .private(mask: .hash))")
         }
     }
 
@@ -870,15 +873,14 @@ final class WorkspaceView: NSView {
     /// updates immediately.
     private func connectSSH(_ host: SSHHost) {
         let command = Self.sshCommand(for: host)
-        Self.sshLog.info("opening ssh tab: \(command, privacy: .public)")
-        Diary.shared.log("ssh connect \(host.nickname) (\(host.user)@\(host.hostname):\(host.port))",
-                         category: "ssh")
+        Self.sshLog.info("opening ssh tab on port \(host.port)")
+        Diary.shared.log("ssh connect requested port=\(host.port)", category: "ssh")
         addTab(command: command, title: host.nickname)
         do {
             try sshHostsStore.touchLastConnected(id: host.id)
         } catch {
-            Self.sshLog.error("last-connected stamp failed: \(error, privacy: .public)")
-            Diary.shared.log("ssh last-connected stamp failed: \(error)", category: "ssh")
+            Self.sshLog.error("last-connected stamp failed: \(error, privacy: .private(mask: .hash))")
+            Diary.shared.log("ssh last-connected stamp failed", category: "ssh")
         }
         refreshSSHPanel()
     }
@@ -913,7 +915,7 @@ final class WorkspaceView: NSView {
         do {
             return try notesStore.note(forSession: sessionID)
         } catch {
-            Self.notesLog.error("note load failed: \(error, privacy: .public)")
+            Self.notesLog.error("note load failed: \(error, privacy: .private(mask: .hash))")
             return nil
         }
     }
@@ -923,7 +925,7 @@ final class WorkspaceView: NSView {
         do {
             try notesStore.upsert(note)
         } catch {
-            Self.notesLog.error("note save failed: \(error, privacy: .public)")
+            Self.notesLog.error("note save failed: \(error, privacy: .private(mask: .hash))")
         }
     }
 
@@ -1410,7 +1412,7 @@ final class WorkspaceView: NSView {
         do {
             try NotesExporter.exportMarkdown(note, to: url)
         } catch {
-            Self.notesLog.error("note export failed: \(error, privacy: .public)")
+            Self.notesLog.error("note export failed: \(error, privacy: .private(mask: .hash))")
         }
     }
 
@@ -1424,7 +1426,7 @@ final class WorkspaceView: NSView {
         do {
             imported = try NotesExporter.importMarkdown(from: url, sessionID: session.id)
         } catch {
-            Self.notesLog.error("note import failed: \(error, privacy: .public)")
+            Self.notesLog.error("note import failed: \(error, privacy: .private(mask: .hash))")
             return
         }
         // Keep the existing note's identity; replace its body.
