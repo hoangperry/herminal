@@ -298,13 +298,8 @@ struct GitRunner: Sendable {
             func readPrefix(_ url: URL) -> String {
                 guard let handle = try? FileHandle(forReadingFrom: url) else { return "" }
                 defer { try? handle.close() }
-                let data: Data
-                do {
-                    data = try handle.read(upToCount: 1_048_576) ?? Data()
-                } catch {
-                    return ""
-                }
-                return String(data: data, encoding: .utf8) ?? ""
+                let data = handle.readData(ofLength: 1_048_576)
+                return String(decoding: data, as: UTF8.self)
             }
             let stdout = readPrefix(stdoutURL)
             let stderr = readPrefix(stderrURL)

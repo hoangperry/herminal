@@ -215,7 +215,7 @@ public final class Diary: @unchecked Sendable {
             fm.createFile(atPath: url.path, contents: nil)
         }
         guard let handle = try? FileHandle(forWritingTo: url) else { return nil }
-        try? handle.seekToEnd()
+        _ = try? handle.seekToEnd()
         return handle
     }
 
