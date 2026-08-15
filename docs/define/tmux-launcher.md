@@ -118,13 +118,15 @@ panes, or layouts.
 - Session name derived from git repo basename, else cwd basename,
   then slugged and validated.
 - Attach… uses a small picker (alert + popup), not a new sidebar.
+- Agent dashboard lists live sessions: click to attach, trash to
+  confirm-kill (`kill-session -t =<name>`). Unsafe names are hidden.
 
 **Out**
 
 - Control mode, mux server, detach-without-kill.
 - synchronize-panes / broadcast.
 - choose-tree, window/pane navigation of tmux from the GUI.
-- Shell history, session rename UI, killing sessions from herminal.
+- Shell history, session rename UI.
 - Changing IME, restore policy, or agent detection.
 
 ## 6. Constraints

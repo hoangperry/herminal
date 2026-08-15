@@ -88,6 +88,14 @@ final class WorkspaceView: NSView {
     private var primaryWorktreePath: String?
     /// Discards stale async git results after focus/cwd changes.
     private var worktreeRefreshGeneration = 0
+    /// Last `tmux list-sessions`, same cadence as worktrees (open /
+    /// cwd / spawn / kill) — never the 2s agent poll. Debounced so OSC 7
+    /// storms do not spawn a Process per prompt.
+    private var tmuxSessions: [String] = []
+    private var tmuxAvailable = false
+    /// Discards stale async `tmux list-sessions` results.
+    private var tmuxRefreshGeneration = 0
+    private var lastTmuxRefreshAt: Date?
     /// Gates session-restore persistence. False during init + restore so
     /// the default/launch tab churn doesn't clobber the saved snapshot;
     /// AppDelegate flips it true once the launch decision is made.
@@ -725,9 +733,48 @@ final class WorkspaceView: NSView {
         dashboardHost.rootView = makeAgentDashboard(agents: final)
     }
 
+    func refreshTmuxSessions(optimistic name: String? = nil, force: Bool = false) {
+        if let name, (try? TmuxLaunch.validateName(name)) != nil,
+           !tmuxSessions.contains(name) {
+            tmuxSessions.append(name)
+        }
+
+        tmuxAvailable = TmuxLaunch.resolveBinary() != nil
+        if !tmuxAvailable {
+            tmuxSessions = []
+            tmuxRefreshGeneration += 1
+            applyTmuxDashboardIfVisible()
+            return
+        }
+
+        applyTmuxDashboardIfVisible()
+
+        if !force, let last = lastTmuxRefreshAt, Date().timeIntervalSince(last) < 2 {
+            return
+        }
+        lastTmuxRefreshAt = Date()
+        tmuxRefreshGeneration += 1
+        let generation = tmuxRefreshGeneration
+        Task { [weak self] in
+            let names = await Task.detached(priority: .utility) {
+                let raw = (try? TmuxLaunch.listSessions()) ?? []
+                return TmuxLaunch.displayableSessions(raw)
+            }.value
+            guard let self, generation == self.tmuxRefreshGeneration else { return }
+            self.tmuxSessions = names
+            self.applyTmuxDashboardIfVisible()
+        }
+    }
+
+    private func applyTmuxDashboardIfVisible() {
+        guard leftSidebar == .agents else { return }
+        dashboardHost.rootView = makeAgentDashboard(agents: latestDisplayedAgents)
+    }
+
     func refreshWorktrees() {
         worktreeRefreshGeneration += 1
         let generation = worktreeRefreshGeneration
+        refreshTmuxSessions()
         guard let cwd = focusedWorkingDirectory() else {
             worktreeEntries = []
             worktreesInGitRepo = false
@@ -776,7 +823,11 @@ final class WorkspaceView: NSView {
             onOpenLazygit: { [weak self] in self?.openLazygit(nil) },
             onOpenWorktree: { [weak self] tree in self?.openWorktree(tree, kind: .shell) },
             onAgentInWorktree: { [weak self] tree in self?.openWorktree(tree, kind: .claude) },
-            onRemoveWorktree: { [weak self] tree in self?.confirmRemoveWorktree(tree) }
+            onRemoveWorktree: { [weak self] tree in self?.confirmRemoveWorktree(tree) },
+            tmuxSessions: tmuxSessions,
+            tmuxAvailable: tmuxAvailable,
+            onAttachTmux: { [weak self] name in self?.attachTmuxNamed(name) },
+            onKillTmux: { [weak self] name in self?.confirmKillTmux(name) }
         )
     }
 

@@ -78,13 +78,13 @@ enum TmuxLaunch {
     }
 
     static func command(action: Action, name: String) throws -> String {
-        try validateName(name)
+        let name = try canonicalName(name)
         let quoted = quote(name)
         switch action {
         case .newSession:
             return "tmux new-session -s \(quoted)"
         case .attach:
-            return "tmux attach-session -t \(quoted)"
+            return "tmux attach-session -t \(quote("=\(name)"))"
         case .attachOrCreate:
             return "tmux new-session -A -s \(quoted)"
         }
@@ -96,6 +96,12 @@ enum TmuxLaunch {
             .filter { !$0.isEmpty }
     }
 
+    /// Names the dashboard and Attach… picker may show (and therefore attach/kill).
+    static func displayableSessions(_ names: [String]) -> [String] {
+        names.filter { (try? validateName($0)) != nil }
+    }
+
+    /// Call from a background queue — this blocks on `Process` for up to 8s.
     static func listSessions(
         binary: String? = nil,
         runner: TmuxRunner = .live
@@ -111,10 +117,30 @@ enum TmuxLaunch {
         binary: String? = nil,
         runner: TmuxRunner = .live
     ) throws -> Bool {
-        try validateName(name)
+        let name = try canonicalName(name)
         let exe = try resolved(binary)
         let result = runner.run(["has-session", "-t", "=\(name)"], binary: exe, in: "/")
         return result.status == 0
+    }
+
+    /// argv-only. Validates the name, then `kill-session -t =<name>`.
+    /// Call from a background queue — this blocks on `Process` for up to 8s.
+    static func killSession(
+        name: String,
+        binary: String? = nil,
+        runner: TmuxRunner = .live
+    ) throws {
+        let name = try canonicalName(name)
+        let exe = try resolved(binary)
+        let result = runner.run(["kill-session", "-t", "=\(name)"], binary: exe, in: "/")
+        guard result.status == 0 else {
+            throw Error.tmuxFailed("kill-session failed")
+        }
+    }
+
+    private static func canonicalName(_ name: String) throws -> String {
+        try validateName(name)
+        return name.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     private static func resolved(_ binary: String?) throws -> String {

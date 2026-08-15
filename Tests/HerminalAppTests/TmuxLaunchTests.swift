@@ -2,6 +2,11 @@ import Foundation
 import Testing
 @testable import HerminalApp
 
+/// Captures runner argv from a `@Sendable` TmuxRunner without a Swift 6 warning.
+private final class ArgCapture: @unchecked Sendable {
+    var value: [String] = []
+}
+
 @Suite("TmuxLaunch.names")
 struct TmuxLaunchNameTests {
     @Test("accepts everyday session names")
@@ -48,7 +53,7 @@ struct TmuxLaunchCommandTests {
         #expect(try TmuxLaunch.command(action: .newSession, name: "foo")
                 == "tmux new-session -s 'foo'")
         #expect(try TmuxLaunch.command(action: .attach, name: "foo")
-                == "tmux attach-session -t 'foo'")
+                == "tmux attach-session -t '=foo'")
         #expect(try TmuxLaunch.command(action: .attachOrCreate, name: "foo")
                 == "tmux new-session -A -s 'foo'")
     }
@@ -89,6 +94,11 @@ struct TmuxLaunchListTests {
         #expect(try TmuxLaunch.listSessions(binary: "/bin/tmux", runner: runner) == ["api", "web"])
     }
 
+    @Test("displayableSessions drops names that would fail validateName")
+    func displayableSessions() {
+        #expect(TmuxLaunch.displayableSessions(["api", "foo;rm", "web", "a b"]) == ["api", "web"])
+    }
+
     @Test("binaryCandidates are the Homebrew-then-system list")
     func candidateOrder() {
         #expect(TmuxLaunch.binaryCandidates == [
@@ -96,6 +106,50 @@ struct TmuxLaunchListTests {
             "/usr/local/bin/tmux",
             "/usr/bin/tmux",
         ])
+    }
+}
+
+@Suite("TmuxLaunch.kill")
+struct TmuxLaunchKillTests {
+    @Test("killSession sends kill-session -t =name")
+    func killSessionArgs() throws {
+        let seen = ArgCapture()
+        let runner = TmuxRunner { args, _, _ in
+            seen.value = args
+            return (0, "", "")
+        }
+        try TmuxLaunch.killSession(name: "foo", binary: "/bin/tmux", runner: runner)
+        #expect(seen.value == ["kill-session", "-t", "=foo"])
+    }
+
+    @Test("killSession trims before building argv")
+    func killSessionTrims() throws {
+        let seen = ArgCapture()
+        let runner = TmuxRunner { args, _, _ in
+            seen.value = args
+            return (0, "", "")
+        }
+        try TmuxLaunch.killSession(name: " foo ", binary: "/bin/tmux", runner: runner)
+        #expect(seen.value == ["kill-session", "-t", "=foo"])
+    }
+
+    @Test("killSession rejects an illegal name without calling tmux")
+    func killRejectsBadName() {
+        let runner = TmuxRunner { _, _, _ in
+            Issue.record("runner should not run")
+            return (0, "", "")
+        }
+        #expect(throws: TmuxLaunch.ValidationError.self) {
+            try TmuxLaunch.killSession(name: "foo;rm", binary: "/bin/tmux", runner: runner)
+        }
+    }
+
+    @Test("killSession throws when tmux exits nonzero")
+    func killSessionFailed() {
+        let runner = TmuxRunner { _, _, _ in (1, "", "can't find session") }
+        #expect(throws: TmuxLaunch.Error.tmuxFailed("kill-session failed")) {
+            try TmuxLaunch.killSession(name: "foo", binary: "/bin/tmux", runner: runner)
+        }
     }
 }
 

@@ -42,11 +42,12 @@ extension WorkspaceView {
             guard let self else { return }
             switch outcome {
             case let .sessions(names):
-                guard !names.isEmpty else {
+                let shown = TmuxLaunch.displayableSessions(names)
+                guard !shown.isEmpty else {
                     presentTmuxError("No tmux sessions. Create one first.")
                     return
                 }
-                guard let chosen = pickSession(from: names) else { return }
+                guard let chosen = pickSession(from: shown) else { return }
                 do {
                     try TmuxLaunch.validateName(chosen)
                     openTmuxTab(action: .attach, name: chosen, cwd: focusedWorkingDirectory())
@@ -63,6 +64,48 @@ extension WorkspaceView {
 
     @objc func attachOrCreateTmuxSession(_ sender: Any?) {
         spawnTmux(action: .attachOrCreate)
+    }
+
+    func attachTmuxNamed(_ name: String) {
+        do {
+            try TmuxLaunch.validateName(name)
+            openTmuxTab(action: .attach, name: name, cwd: focusedWorkingDirectory())
+        } catch {
+            presentTmuxError("That session name is not safe to attach.")
+        }
+    }
+
+    func confirmKillTmux(_ name: String) {
+        do {
+            try TmuxLaunch.validateName(name)
+        } catch {
+            presentTmuxError("That session name is not safe to kill.")
+            return
+        }
+        let alert = NSAlert()
+        alert.alertStyle = .warning
+        alert.messageText = "Kill tmux session “\(name)”?"
+        alert.informativeText = "Attached clients detach. Processes in that session stop."
+        alert.addButton(withTitle: "Kill")
+        alert.addButton(withTitle: "Cancel")
+        guard alert.runModal() == .alertFirstButtonReturn else { return }
+        Task { [weak self] in
+            let killed = await Task.detached(priority: .userInitiated) {
+                do {
+                    try TmuxLaunch.killSession(name: name)
+                    return true
+                } catch {
+                    return false
+                }
+            }.value
+            guard let self else { return }
+            if killed {
+                Diary.shared.log("tmux kill", category: "tmux")
+                self.refreshTmuxSessions(force: true)
+            } else {
+                self.presentTmuxError("Could not kill the tmux session.")
+            }
+        }
     }
 
     private func spawnTmux(action: TmuxLaunch.Action) {
@@ -114,6 +157,7 @@ extension WorkspaceView {
             let command = try TmuxLaunch.command(action: action, name: name)
             let directory = cwd ?? focusedWorkingDirectory()
             addTab(command: command, title: "tmux · \(name)", workingDirectory: directory)
+            refreshTmuxSessions(optimistic: name, force: true)
             let label: String
             switch action {
             case .newSession: label = "new"
