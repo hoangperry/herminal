@@ -43,14 +43,16 @@ struct NotesPanelView: View {
             Spacer(minLength: 0)
         }
         .padding(.horizontal, HerminalDesign.Spacing.md)
-        .frame(height: 24)
+        .frame(height: Self.footerHeight)
     }
+
+    private static let footerHeight: CGFloat = 24
 
     private var header: some View {
         HStack {
             Text("NOTES")
                 .font(HerminalDesign.Typography.caption)
-                .tracking(1.2)
+                .tracking(HerminalDesign.Typography.headerTracking)
                 .foregroundStyle(HerminalDesign.Palette.textTertiary)
                 .accessibilityAddTraits(.isHeader)
             Spacer()
