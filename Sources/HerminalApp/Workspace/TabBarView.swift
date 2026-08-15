@@ -53,12 +53,13 @@ private struct TabChip: View {
         HStack(spacing: HerminalDesign.Spacing.xs) {
             // v1.0 polish: the active tab carries an accent dot and the
             // title is monospaced — matches the launch-site hero mockup.
-            if isActive {
-                Circle()
-                    .fill(HerminalDesign.Palette.accent)
-                    .frame(width: 6, height: 6)
-                    .accessibilityHidden(true)
-            }
+            // The dot is always laid out and only faded, so switching
+            // tabs never changes chip width or reflows the strip.
+            Circle()
+                .fill(HerminalDesign.Palette.accent)
+                .frame(width: 6, height: 6)
+                .opacity(isActive ? 1 : 0)
+                .accessibilityHidden(true)
             Text(tab.title)
                 .font(HerminalDesign.Typography.monoCaption)
                 .foregroundStyle(

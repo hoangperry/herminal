@@ -54,7 +54,7 @@ struct AgentDashboardView: View {
         HStack(spacing: HerminalDesign.Spacing.xs) {
             Text("AGENTS")
                 .font(HerminalDesign.Typography.caption)
-                .tracking(1.2)
+                .tracking(HerminalDesign.Typography.headerTracking)
                 .foregroundStyle(HerminalDesign.Palette.textTertiary)
                 .accessibilityAddTraits(.isHeader)
             Text("\(agents.count)")
@@ -68,6 +68,11 @@ struct AgentDashboardView: View {
         }
         .padding(.horizontal, HerminalDesign.Spacing.sm)
         .frame(height: TabBarView.barHeight)
+    }
+
+    /// One hairline construction for every per-row separator in this panel.
+    private var rowDivider: some View {
+        HerminalDesign.Palette.divider.frame(height: 1)
     }
 
     private func headerButton(_ systemName: String, label: String, action: (() -> Void)?) -> some View {
@@ -119,7 +124,7 @@ struct AgentDashboardView: View {
                     .font(HerminalDesign.Typography.caption)
                     .foregroundStyle(HerminalDesign.Palette.accent)
                     .padding(.horizontal, 4)
-                    .padding(.vertical, 2)
+                    .padding(.vertical, HerminalDesign.Spacing.xxs)
                     .background(
                         RoundedRectangle(cornerRadius: 3)
                             .fill(HerminalDesign.Palette.accent.opacity(0.15))
@@ -129,9 +134,7 @@ struct AgentDashboardView: View {
         .padding(.horizontal, HerminalDesign.Spacing.sm)
         .padding(.vertical, HerminalDesign.Spacing.xs)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .overlay(alignment: .bottom) {
-            HerminalDesign.Palette.divider.frame(height: 1)
-        }
+        .overlay(alignment: .bottom) { rowDivider }
         .contentShape(Rectangle())
         .onTapGesture { onSelectAgent?(agent) }
         .accessibilityElement(children: .combine)
@@ -144,7 +147,7 @@ struct AgentDashboardView: View {
             HStack {
                 Text("WORKTREES")
                     .font(HerminalDesign.Typography.caption)
-                    .tracking(1.2)
+                    .tracking(HerminalDesign.Typography.headerTracking)
                     .foregroundStyle(HerminalDesign.Palette.textTertiary)
                 Spacer(minLength: 0)
                 // Functional shortcut chip — same affordance the hero
@@ -154,7 +157,7 @@ struct AgentDashboardView: View {
                         .font(HerminalDesign.Typography.monoCaption)
                         .foregroundStyle(HerminalDesign.Palette.textSecondary)
                         .padding(.horizontal, HerminalDesign.Spacing.xs)
-                        .padding(.vertical, 2)
+                        .padding(.vertical, HerminalDesign.Spacing.xxs)
                         .background(
                             RoundedRectangle(cornerRadius: HerminalDesign.Radius.sm)
                                 .fill(HerminalDesign.Palette.surfaceOverlay)
@@ -163,7 +166,10 @@ struct AgentDashboardView: View {
                 }
                 .buttonStyle(.plain)
                 .disabled(onNewWorktree == nil)
-                .accessibilityLabel("New agent worktree")
+                // The header's square.stack.3d.up button already exposes
+                // this action to assistive tech; a second identically
+                // labelled control would read as a duplicate in VoiceOver.
+                .accessibilityHidden(true)
             }
             .padding(.top, HerminalDesign.Spacing.xs)
             if !inGitRepo {
@@ -184,20 +190,15 @@ struct AgentDashboardView: View {
 
     private func worktreeRow(_ tree: GitWorktree.Entry) -> some View {
         HStack(spacing: HerminalDesign.Spacing.xs) {
-            Image(systemName: "arrow.triangle.branch")
-                .font(.system(size: 10, weight: .semibold))
-                .foregroundStyle(HerminalDesign.Palette.accent)
-                .accessibilityHidden(true)
+            // Glyph lives inside the button so the row's leading edge is
+            // part of the click target, not a dead zone.
             Button { onOpenWorktree?(tree) } label: {
-                VStack(alignment: .leading, spacing: 1) {
-                    Text(tree.label)
-                        .font(HerminalDesign.Typography.bodyEmphasis)
-                        .foregroundStyle(HerminalDesign.Palette.textPrimary)
-                        .lineLimit(1)
-                    Text((tree.path as NSString).lastPathComponent)
-                        .font(HerminalDesign.Typography.caption)
-                        .foregroundStyle(HerminalDesign.Palette.textTertiary)
-                        .lineLimit(1)
+                HStack(spacing: HerminalDesign.Spacing.xs) {
+                    Image(systemName: "arrow.triangle.branch")
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundStyle(HerminalDesign.Palette.accent)
+                        .accessibilityHidden(true)
+                    worktreeRowText(tree)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .contentShape(Rectangle())
@@ -216,8 +217,19 @@ struct AgentDashboardView: View {
         .padding(.horizontal, HerminalDesign.Spacing.sm)
         .padding(.vertical, HerminalDesign.Spacing.xs)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .overlay(alignment: .bottom) {
-            HerminalDesign.Palette.divider.frame(height: 1)
+        .overlay(alignment: .bottom) { rowDivider }
+    }
+
+    private func worktreeRowText(_ tree: GitWorktree.Entry) -> some View {
+        VStack(alignment: .leading, spacing: 1) {
+            Text(tree.label)
+                .font(HerminalDesign.Typography.bodyEmphasis)
+                .foregroundStyle(HerminalDesign.Palette.textPrimary)
+                .lineLimit(1)
+            Text((tree.path as NSString).lastPathComponent)
+                .font(HerminalDesign.Typography.caption)
+                .foregroundStyle(HerminalDesign.Palette.textTertiary)
+                .lineLimit(1)
         }
     }
 
@@ -225,7 +237,7 @@ struct AgentDashboardView: View {
         VStack(alignment: .leading, spacing: HerminalDesign.Spacing.xxs) {
             Text("TMUX")
                 .font(HerminalDesign.Typography.caption)
-                .tracking(1.2)
+                .tracking(HerminalDesign.Typography.headerTracking)
                 .foregroundStyle(HerminalDesign.Palette.textTertiary)
                 .padding(.top, HerminalDesign.Spacing.xs)
                 .accessibilityAddTraits(.isHeader)
@@ -268,9 +280,7 @@ struct AgentDashboardView: View {
         .padding(.horizontal, HerminalDesign.Spacing.sm)
         .padding(.vertical, HerminalDesign.Spacing.xs)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .overlay(alignment: .bottom) {
-            HerminalDesign.Palette.divider.frame(height: 1)
-        }
+        .overlay(alignment: .bottom) { rowDivider }
     }
 
     private func tinyButton(_ systemName: String, label: String, action: @escaping () -> Void) -> some View {

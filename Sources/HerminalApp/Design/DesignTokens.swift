@@ -146,6 +146,8 @@ enum HerminalDesign {
         /// Mono caption — tab titles and shortcut chips in the chrome.
         /// (v1.0 polish: matches the launch-site hero mockup.)
         static let monoCaption = Font.system(size: 11, weight: .medium, design: .monospaced)
+        /// Letter-spacing for section headers (AGENTS / WORKTREES / NOTES).
+        static let headerTracking: CGFloat = 1.2
     }
 
     // MARK: - Spacing (4-point grid)
