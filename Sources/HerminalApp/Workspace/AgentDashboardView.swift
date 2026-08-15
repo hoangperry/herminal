@@ -1,6 +1,6 @@
 // AgentDashboardView — sidebar panel listing the agent CLIs running under
 // herminal, plus the worktree cockpit (new agent pane, isolated
-// worktrees, lazygit).
+// worktrees, lazygit) and live tmux sessions (attach / confirm-kill).
 //
 // Lifecycle status is inferred outside the view from CPU deltas and recent
 // terminal bells. This view only renders privacy-minimized DetectedAgent values.
@@ -20,6 +20,10 @@ struct AgentDashboardView: View {
     var onOpenWorktree: ((GitWorktree.Entry) -> Void)?
     var onAgentInWorktree: ((GitWorktree.Entry) -> Void)?
     var onRemoveWorktree: ((GitWorktree.Entry) -> Void)?
+    var tmuxSessions: [String] = []
+    var tmuxAvailable: Bool = false
+    var onAttachTmux: ((String) -> Void)?
+    var onKillTmux: ((String) -> Void)?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -37,6 +41,7 @@ struct AgentDashboardView: View {
                         }
                     }
                     worktreeSection
+                    tmuxSection
                 }
                 .padding(HerminalDesign.Spacing.sm)
             }
@@ -206,6 +211,58 @@ struct AgentDashboardView: View {
                 tinyButton("trash", label: "Remove worktree \(tree.label)") {
                     onRemoveWorktree?(tree)
                 }
+            }
+        }
+        .padding(.horizontal, HerminalDesign.Spacing.sm)
+        .padding(.vertical, HerminalDesign.Spacing.xs)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .overlay(alignment: .bottom) {
+            HerminalDesign.Palette.divider.frame(height: 1)
+        }
+    }
+
+    private var tmuxSection: some View {
+        VStack(alignment: .leading, spacing: HerminalDesign.Spacing.xxs) {
+            Text("TMUX")
+                .font(HerminalDesign.Typography.caption)
+                .tracking(1.2)
+                .foregroundStyle(HerminalDesign.Palette.textTertiary)
+                .padding(.top, HerminalDesign.Spacing.xs)
+                .accessibilityAddTraits(.isHeader)
+            if !tmuxAvailable {
+                Text("tmux is not installed")
+                    .font(HerminalDesign.Typography.caption)
+                    .foregroundStyle(HerminalDesign.Palette.textTertiary)
+            } else if tmuxSessions.isEmpty {
+                Text("No tmux sessions")
+                    .font(HerminalDesign.Typography.caption)
+                    .foregroundStyle(HerminalDesign.Palette.textTertiary)
+            } else {
+                ForEach(tmuxSessions, id: \.self) { name in
+                    tmuxRow(name)
+                }
+            }
+        }
+    }
+
+    private func tmuxRow(_ name: String) -> some View {
+        HStack(spacing: HerminalDesign.Spacing.xs) {
+            Image(systemName: "square.split.2x1")
+                .font(.system(size: 10, weight: .semibold))
+                .foregroundStyle(HerminalDesign.Palette.accent)
+                .accessibilityHidden(true)
+            Button { onAttachTmux?(name) } label: {
+                Text(name)
+                    .font(HerminalDesign.Typography.bodyEmphasis)
+                    .foregroundStyle(HerminalDesign.Palette.textPrimary)
+                    .lineLimit(1)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Attach tmux session \(name)")
+            tinyButton("trash", label: "Kill tmux session \(name)") {
+                onKillTmux?(name)
             }
         }
         .padding(.horizontal, HerminalDesign.Spacing.sm)

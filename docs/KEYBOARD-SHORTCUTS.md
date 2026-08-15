@@ -115,7 +115,9 @@ window inside the active herminal pane. No conflict.
 The Window menu and command palette (`⌘⇧P`) can start or rejoin a
 named session (New / Attach… / Attach or Create). Those actions have
 no extra shortcut — `⌃B` is unchanged. The tmux *client* lives in the
-new tab; the tmux *server* survives that tab closing.
+new tab; the tmux *server* survives that tab closing. The agent
+dashboard lists live sessions: click to attach, trash to kill
+(with confirm).
 
 ---
 
