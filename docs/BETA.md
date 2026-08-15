@@ -4,7 +4,7 @@ The beta validates whether Herminal works as a real terminal for Vietnamese macO
 
 ## Entry status
 
-Engineering gates are green: CI build, 189 tests, targeted CodeQL, and an accepted notarized owner-gate candidate. Distribution begins only after the live Telex/VNI marked-text checklist and final clean-install gates pass.
+Engineering gates are green: CI build, 194 tests, targeted CodeQL, and an accepted notarized owner-gate candidate. Distribution begins only after the live Telex/VNI marked-text checklist and final clean-install gates pass.
 
 ## Current distribution blockers
 
@@ -36,7 +36,7 @@ Counts must link to public evidence or a privacy-preserving opt-in record. One p
 
 | Date | Evidence | Count | Public link/verification | Notes |
 |---|---|---:|---|---|
-| 2026-08-14 | CI full suite | 189 tests | GitHub Actions run 31828682778 | Green; includes tmux, worktree, manifest, and diagnostics guards |
+| 2026-08-15 | CI full suite | 194 tests | GitHub Actions run 31867959285 | Green; includes tmux lifecycle, worktree, manifest, and diagnostics guards |
 | 2026-08-14 | CodeQL | 1 run | GitHub Actions run 31828682659 | DB + Agent targets |
 | 2026-08-15 | Release candidate | 1 run | GitHub Actions run 31830331678 + local owner gate | Checksums, Developer ID, notarization, staple, Gatekeeper, signed DMG passed; unpublished |
 | 2026-08-14 | CI artifact local launch | 1 smoke | PR #1 / CI run 31814582438 | Signature structure verified; version 1.0.0 build 23; launched without immediate crash |

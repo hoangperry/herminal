@@ -196,7 +196,7 @@ never branch on them.
 ```
 Scripts/bootstrap.sh        → Vendor/libghostty → GhosttyKit.xcframework  (~5-15 min cold)
 swift build                 → SPM core libraries
-swift test                  → 189 tests
+swift test                  → 194 tests
 Scripts/make-app-bundle.sh  → .build/herminal.app (ad-hoc signed)
 Scripts/sign-and-notarize.sh→ .build/release/herminal.app (Developer-ID + notarytool)
 Scripts/make-dmg.sh         → .build/release/herminal-vX.Y.Z.dmg

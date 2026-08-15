@@ -129,7 +129,7 @@
     <text x="356" y="140" class="mono term"><tspan class="ac">~/projects/api ❯</tspan><tspan class="t1"> claude</tspan></text>
     <text x="356" y="160" class="mono term t2">✻ Reading Sources/HerminalAgent/</text>
     <text x="356" y="180" class="mono term t3">  AgentDetector.swift  +18 −4</text>
-    <text x="356" y="200" class="mono term done">✓ 189 tests passed</text>
+    <text x="356" y="200" class="mono term done">✓ full test suite passed</text>
     <text x="356" y="220" class="mono term ac">❯</text>
     <rect x="368" y="210" width="7" height="13" class="ac" fill-opacity="0.85"/>
 
