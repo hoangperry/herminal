@@ -70,7 +70,7 @@
     <text x="100" y="172" class="ui t1 row-name">Claude Code</text>
     <text x="100" y="189" class="mono t3 row-sub">pid 48231 · running</text>
     <rect x="276" y="163" width="50" height="18" rx="5" class="surface-ov"/>
-    <text x="301" y="176" text-anchor="middle" class="ui t2 chip-t">Tab 1</text>
+    <text x="301" y="176" text-anchor="middle" class="ui t2 chip-t">Pane 1</text>
     <rect x="76" y="206" width="248" height="1" class="dv"/>
 
     <!-- row 2 — idle -->
@@ -78,7 +78,7 @@
     <text x="100" y="232" class="ui t1 row-name">Codex</text>
     <text x="100" y="249" class="mono t3 row-sub">pid 48992 · idle</text>
     <rect x="276" y="223" width="50" height="18" rx="5" class="surface-ov"/>
-    <text x="301" y="236" text-anchor="middle" class="ui t2 chip-t">Tab 2</text>
+    <text x="301" y="236" text-anchor="middle" class="ui t2 chip-t">Pane 2</text>
     <rect x="76" y="266" width="248" height="1" class="dv"/>
 
     <!-- row 3 — done -->
@@ -86,7 +86,7 @@
     <text x="100" y="292" class="ui t1 row-name">Aider</text>
     <text x="100" y="309" class="mono t3 row-sub">pid 49104 · done</text>
     <rect x="276" y="283" width="50" height="18" rx="5" class="surface-ov"/>
-    <text x="301" y="296" text-anchor="middle" class="ui t2 chip-t">Tab 2</text>
+    <text x="301" y="296" text-anchor="middle" class="ui t2 chip-t">Pane 2</text>
     <rect x="76" y="326" width="248" height="1" class="dv"/>
 
     <text x="76" y="352" class="ui t2 hdr">WORKTREES</text>
@@ -129,7 +129,7 @@
     <text x="356" y="140" class="mono term"><tspan class="ac">~/projects/api ❯</tspan><tspan class="t1"> claude</tspan></text>
     <text x="356" y="160" class="mono term t2">✻ Reading Sources/HerminalAgent/</text>
     <text x="356" y="180" class="mono term t3">  AgentDetector.swift  +18 −4</text>
-    <text x="356" y="200" class="mono term done">✓ 175 tests passed</text>
+    <text x="356" y="200" class="mono term done">✓ 189 tests passed</text>
     <text x="356" y="220" class="mono term ac">❯</text>
     <rect x="368" y="210" width="7" height="13" class="ac" fill-opacity="0.85"/>
 
@@ -161,8 +161,7 @@
     <rect x="936" y="272" width="212" height="24" rx="4" class="surface-ov"/>
     <text x="946" y="288" class="mono t1" font-size="11">swift test --filter Agent</text>
 
-    <circle cx="940" cy="545" r="3" class="done"/>
-    <text x="952" y="549" class="ui t3" font-size="10">Saved to SQLite WAL · session-scoped</text>
+    <text x="936" y="549" class="ui t3" font-size="10">Local SQLite · session-scoped</text>
 
     <!-- ===== status bar ===== -->
     <rect x="60" y="562" width="1120" height="38" class="surface-el"/>
