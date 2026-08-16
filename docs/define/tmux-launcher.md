@@ -120,6 +120,8 @@ panes, or layouts.
 - Attach… uses a small picker (alert + popup), not a new sidebar.
 - Agent dashboard lists live sessions: click to attach, trash to
   confirm-kill (`kill-session -t =<name>`). Unsafe names are hidden.
+  **New** attach-or-creates the repo session. A second attach
+  focuses the tab that already spawned that session.
 
 **Out**
 

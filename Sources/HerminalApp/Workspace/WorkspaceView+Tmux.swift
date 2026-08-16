@@ -153,6 +153,10 @@ extension WorkspaceView {
     }
 
     private func openTmuxTab(action: TmuxLaunch.Action, name: String, cwd: String? = nil) {
+        if focusTabSpawningTmux(named: name) {
+            Diary.shared.log("tmux focus existing", category: "tmux")
+            return
+        }
         do {
             let command = try TmuxLaunch.command(action: action, name: name)
             let directory = cwd ?? focusedWorkingDirectory()

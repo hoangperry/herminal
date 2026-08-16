@@ -64,6 +64,18 @@ struct TmuxLaunchCommandTests {
             try TmuxLaunch.command(action: .newSession, name: "foo;rm")
         }
     }
+
+    @Test("sessionName recovers the name from each spawn string")
+    func sessionNameFromSpawnCommand() throws {
+        let newCmd = try TmuxLaunch.command(action: .newSession, name: "foo")
+        let attach = try TmuxLaunch.command(action: .attach, name: "foo")
+        let either = try TmuxLaunch.command(action: .attachOrCreate, name: "foo")
+        #expect(TmuxLaunch.sessionName(fromSpawnCommand: newCmd) == "foo")
+        #expect(TmuxLaunch.sessionName(fromSpawnCommand: attach) == "foo")
+        #expect(TmuxLaunch.sessionName(fromSpawnCommand: either) == "foo")
+        #expect(TmuxLaunch.sessionName(fromSpawnCommand: "zsh") == nil)
+        #expect(TmuxLaunch.sessionName(fromSpawnCommand: "tmux attach-session -t 'foo;rm'") == nil)
+    }
 }
 
 @Suite("TmuxLaunch.list")

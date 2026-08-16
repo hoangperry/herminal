@@ -24,6 +24,7 @@ struct AgentDashboardView: View {
     var tmuxAvailable: Bool = false
     var onAttachTmux: ((String) -> Void)?
     var onKillTmux: ((String) -> Void)?
+    var onAttachOrCreateTmux: (() -> Void)?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -235,12 +236,30 @@ struct AgentDashboardView: View {
 
     private var tmuxSection: some View {
         VStack(alignment: .leading, spacing: HerminalDesign.Spacing.xxs) {
-            Text("TMUX")
-                .font(HerminalDesign.Typography.caption)
-                .tracking(HerminalDesign.Typography.headerTracking)
-                .foregroundStyle(HerminalDesign.Palette.textTertiary)
-                .padding(.top, HerminalDesign.Spacing.xs)
-                .accessibilityAddTraits(.isHeader)
+            HStack {
+                Text("TMUX")
+                    .font(HerminalDesign.Typography.caption)
+                    .tracking(HerminalDesign.Typography.headerTracking)
+                    .foregroundStyle(HerminalDesign.Palette.textTertiary)
+                    .accessibilityAddTraits(.isHeader)
+                Spacer(minLength: 0)
+                Button { onAttachOrCreateTmux?() } label: {
+                    Text("New")
+                        .font(HerminalDesign.Typography.monoCaption)
+                        .foregroundStyle(HerminalDesign.Palette.textSecondary)
+                        .padding(.horizontal, HerminalDesign.Spacing.xs)
+                        .padding(.vertical, HerminalDesign.Spacing.xxs)
+                        .background(
+                            RoundedRectangle(cornerRadius: HerminalDesign.Radius.sm)
+                                .fill(HerminalDesign.Palette.surfaceOverlay)
+                        )
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .disabled(onAttachOrCreateTmux == nil)
+                .accessibilityLabel("Attach or create tmux session")
+            }
+            .padding(.top, HerminalDesign.Spacing.xs)
             if !tmuxAvailable {
                 Text("tmux is not installed")
                     .font(HerminalDesign.Typography.caption)

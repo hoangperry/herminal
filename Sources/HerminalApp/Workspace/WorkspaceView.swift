@@ -640,6 +640,21 @@ final class WorkspaceView: NSView {
         refresh()
     }
 
+    /// True when a pane in this window already spawned this named session.
+    func focusTabSpawningTmux(named name: String) -> Bool {
+        for (index, tab) in tabs.enumerated() {
+            let hit = tab.panes.contains { pane in
+                guard let command = pane.command else { return false }
+                return TmuxLaunch.sessionName(fromSpawnCommand: command) == name
+            }
+            if hit {
+                selectTab(at: index)
+                return true
+            }
+        }
+        return false
+    }
+
     /// `tabHint` from AgentPaneMapper is a flattened pane index
     /// (`tabs.flatMap(\.panes)`), not a tab strip index.
     func focusSession(flatIndex: Int) {
@@ -827,7 +842,10 @@ final class WorkspaceView: NSView {
             tmuxSessions: tmuxSessions,
             tmuxAvailable: tmuxAvailable,
             onAttachTmux: { [weak self] name in self?.attachTmuxNamed(name) },
-            onKillTmux: { [weak self] name in self?.confirmKillTmux(name) }
+            onKillTmux: { [weak self] name in self?.confirmKillTmux(name) },
+            onAttachOrCreateTmux: tmuxAvailable
+                ? { [weak self] in self?.attachOrCreateTmuxSession(nil) }
+                : nil
         )
     }
 
