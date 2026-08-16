@@ -22,7 +22,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **tmux launcher.** Window menu + command palette: New session, Attach…,
   and Attach or Create (by repo name). tmux stays inside the PTY.
 - **tmux on the agent dashboard.** Live sessions list with attach and
-  confirm-to-kill. Unsafe names are hidden.
+  confirm-to-kill. Unsafe names are hidden. **New** attach-or-creates
+  the repo session; a second click focuses the tab already attached.
 
 ## [1.0.0] - Unreleased
 

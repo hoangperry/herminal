@@ -101,6 +101,26 @@ enum TmuxLaunch {
         names.filter { (try? validateName($0)) != nil }
     }
 
+    /// Inverse of `command(action:name:)` for validated names (no quotes
+    /// inside the name). Used to reuse an already-open attach tab.
+    static func sessionName(fromSpawnCommand command: String) -> String? {
+        let prefixes = [
+            "tmux new-session -A -s ",
+            "tmux new-session -s ",
+            "tmux attach-session -t ",
+        ]
+        for prefix in prefixes {
+            guard command.hasPrefix(prefix) else { continue }
+            let rest = String(command.dropFirst(prefix.count))
+            guard rest.count >= 2, rest.first == "'", rest.last == "'" else { return nil }
+            var inner = String(rest.dropFirst().dropLast())
+            if inner.hasPrefix("=") { inner.removeFirst() }
+            guard (try? validateName(inner)) != nil else { return nil }
+            return inner
+        }
+        return nil
+    }
+
     /// Call from a background queue — this blocks on `Process` for up to 8s.
     static func listSessions(
         binary: String? = nil,
