@@ -13,6 +13,10 @@ struct TabBarView: View {
 
     let tabs: [Tab]
     let activeID: UUID?
+    /// Space to keep clear at the leading edge for the window's traffic
+    /// lights. The strip's *background* still spans the full width so the
+    /// titlebar row reads as one continuous surface; only the chips move.
+    var leadingInset: CGFloat = 0
     let onSelect: (UUID) -> Void
     let onClose: (UUID) -> Void
     let onNew: () -> Void
@@ -28,7 +32,8 @@ struct TabBarView: View {
             NewTabButton(action: onNew)
             Spacer(minLength: 0)
         }
-        .padding(.horizontal, HerminalDesign.Spacing.sm)
+        .padding(.leading, HerminalDesign.Spacing.sm + leadingInset)
+        .padding(.trailing, HerminalDesign.Spacing.sm)
         .frame(height: Self.barHeight)
         .frame(maxWidth: .infinity)
         .background(HerminalDesign.Palette.surfaceElevated)

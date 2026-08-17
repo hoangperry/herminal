@@ -261,6 +261,10 @@ final class WorkspaceView: NSView {
     override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()
         if window != nil {
+            // trafficLightInset can only be measured once there is a window;
+            // the strip was first built with the fallback, so rebuild it now
+            // that the real window-control metrics are readable.
+            tabHost.rootView = makeTabBar()
             focusActivePane()
             showWelcomeOverlayIfNeeded()
         }
@@ -337,13 +341,14 @@ final class WorkspaceView: NSView {
 
         let contentX = leftWidth
         let contentWidth = max(bounds.width - leftWidth - rightSidebar, 0)
-        // The tab strip owns the titlebar row edge to edge, starting where
-        // the traffic lights end. It no longer starts at the content column
-        // because that row is now shared with the window's own controls.
-        let tabLeading = trafficLightInset
+        // The tab strip owns the whole titlebar row: its frame spans edge to
+        // edge so the row is one continuous surface, and the view keeps its
+        // chips clear of the traffic lights via leadingInset. Framing it at
+        // the inset instead would leave the window controls sitting on a
+        // visibly different patch.
         tabHost.frame = CGRect(
-            x: tabLeading, y: bounds.height - barHeight,
-            width: max(bounds.width - tabLeading, 0), height: barHeight
+            x: 0, y: bounds.height - barHeight,
+            width: bounds.width, height: barHeight
         )
         let surfaceHeight = max(bounds.height - barHeight - statusHeight, 0)
         // v0.3 polish: 6 px inset between the libghostty Metal surface
@@ -1742,6 +1747,7 @@ final class WorkspaceView: NSView {
         TabBarView(
             tabs: tabs.map { TabBarView.Tab(id: $0.id, title: $0.title) },
             activeID: activeTab?.id,
+            leadingInset: trafficLightInset,
             onSelect: { [weak self] id in self?.selectTab(id: id) },
             onClose: { [weak self] id in self?.closeTab(id: id) },
             onNew: { [weak self] in self?.addTab() }
