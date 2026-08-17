@@ -28,16 +28,19 @@ Xem [CHANGELOG](CHANGELOG.md).
 phải. Slot trái chỉ có một chỗ: agent dashboard và SSH manager thay nhau
 chiếm nó.*
 
-<!-- Screenshot app thật sẽ nằm ở đây. Chạy
-     Scripts/capture-screenshots.sh (cần cấp Screen Recording +
-     Accessibility cho terminal), rồi xoá cặp comment này.
+![App thật: split panes với agent dashboard đang mở — một process Claude Code được phát hiện, kèm badge trạng thái và chip pane](docs/assets/screenshot-workspace.png)
 
 | | |
 |---|---|
-| ![Split panes với agent dashboard đang mở](docs/assets/screenshot-workspace.png) | ![SSH host manager](docs/assets/screenshot-ssh-manager.png) |
-| ![Notes panel per-session](docs/assets/screenshot-notes.png) | ![Preedit Telex đang sống tại shell prompt](docs/assets/screenshot-ime.png) |
+| ![Panel SSH host manager](docs/assets/screenshot-ssh-manager.png) | ![Panel notes per-session với footer local-SQLite](docs/assets/screenshot-notes.png) |
 
--->
+*Screenshot thật, chụp từ app CI build bằng
+[workflow screenshots](.github/workflows/screenshots.yml) — đổi chrome
+xong chạy lại workflow là có bộ ảnh mới.*
+
+<!-- screenshot-ime.png vẫn cần chụp tay: đổi input source sang Telex,
+     gõ `tieesng vieejt`, chụp cửa sổ khi preedit còn gạch chân. Công thức
+     in ra bởi Scripts/capture-screenshots.sh. -->
 
 ---
 

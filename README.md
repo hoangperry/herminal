@@ -30,16 +30,20 @@ See [CHANGELOG](CHANGELOG.md).
 notes on the right. The left slot is one slot: the agent dashboard and the
 SSH manager take turns in it.*
 
-<!-- Screenshots of the running app land here. Run
-     Scripts/capture-screenshots.sh (needs Screen Recording + Accessibility
-     granted to your terminal), then delete this comment wrapper.
+![The real app: split panes with the agent dashboard open — a detected Claude Code process with its status badge and pane chip](docs/assets/screenshot-workspace.png)
 
 | | |
 |---|---|
-| ![Split panes with the agent dashboard open](docs/assets/screenshot-workspace.png) | ![SSH host manager](docs/assets/screenshot-ssh-manager.png) |
-| ![Per-session notes panel](docs/assets/screenshot-notes.png) | ![A live Telex preedit at the shell prompt](docs/assets/screenshot-ime.png) |
+| ![SSH host manager panel](docs/assets/screenshot-ssh-manager.png) | ![Per-session notes panel with the local-SQLite footer](docs/assets/screenshot-notes.png) |
 
--->
+*Real screenshots, captured from the CI-built app by the
+[screenshots workflow](.github/workflows/screenshots.yml) — re-run it
+after any chrome change and they regenerate.*
+
+<!-- screenshot-ime.png still needs a manual run: switch the input source
+     to Vietnamese Telex, type `tieesng vieejt`, and grab the window while
+     the preedit is underlined. Recipe printed by
+     Scripts/capture-screenshots.sh. -->
 
 ---
 
