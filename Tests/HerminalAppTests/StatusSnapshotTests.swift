@@ -23,9 +23,12 @@ struct StatusSnapshotTests {
         #expect(snapshot(latencyP95: 0.042).latencyText == "42 µs")
     }
 
+    // 4.28, not 4.25: a value exactly on the .x5 boundary is representable
+    // in binary and %.1f rounds it half-to-even, so 4.25 formats as "4.2".
     @Test("Milliseconds keep one decimal")
     func millisecondsKeepOneDecimal() {
-        #expect(snapshot(latencyP95: 4.25).latencyText == "4.3 ms")
+        #expect(snapshot(latencyP95: 4.28).latencyText == "4.3 ms")
+        #expect(snapshot(latencyP95: 12.0).latencyText == "12.0 ms")
     }
 
     @Test("The unit switches at exactly 1 ms")
