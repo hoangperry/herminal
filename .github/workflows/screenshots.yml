@@ -25,13 +25,20 @@ jobs:
     steps:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
 
-      - name: Locate the newest CI app build on main
+      # Uses the ref this run was dispatched on, so a UI branch can be
+      # reviewed visually before it merges. Dispatching on main behaves as
+      # before; the branch's own CI must have gone green first.
+      - name: Locate the newest CI app build for this ref
         id: locate
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          run=$(gh api "repos/${{ github.repository }}/actions/workflows/ci.yml/runs?branch=main&status=success&per_page=1" \
+          run=$(gh api "repos/${{ github.repository }}/actions/workflows/ci.yml/runs?branch=${{ github.ref_name }}&status=success&per_page=1" \
             --jq '.workflow_runs[0]')
+          if [ "$run" = "null" ] || [ -z "$run" ]; then
+            echo "::error::No successful ci.yml run on ${{ github.ref_name }} yet."
+            exit 1
+          fi
           echo "run_id=$(echo "$run" | jq -r .id)" >> "$GITHUB_OUTPUT"
           echo "sha=$(echo "$run" | jq -r .head_sha)" >> "$GITHUB_OUTPUT"
 
