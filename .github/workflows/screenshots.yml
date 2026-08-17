@@ -65,9 +65,15 @@ jobs:
           osascript -e 'tell application "System Events" to tell (first process whose name contains "UserNotificationCenter") to click button "Allow" of window 1' || true
           sleep 1
 
+      - name: Stub an agent CLI for the dashboard shot
+        run: |
+          printf '#!/bin/bash\nsleep 300\n' | sudo tee /usr/local/bin/claude >/dev/null
+          sudo chmod +x /usr/local/bin/claude
+
       - name: Capture
         env:
           HERMINAL_SHOT_CWD: ${{ github.workspace }}
+          HERMINAL_SHOT_SPAWN_AGENT: "1"
         run: Scripts/capture-screenshots.sh
 
       - name: Upload screenshots

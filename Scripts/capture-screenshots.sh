@@ -126,6 +126,13 @@ if [ -n "${HERMINAL_SHOT_CWD:-}" ]; then
 fi
 type_line "git -c color.ui=always status -sb && ls Sources/"
 sleep 2
+# HERMINAL_SHOT_SPAWN_AGENT (optional): start a process named `claude`
+# so the dashboard has a real detection to show. CI provides a stub
+# binary; on a dev machine the real CLI works the same.
+if [ -n "${HERMINAL_SHOT_SPAWN_AGENT:-}" ]; then
+    type_line "claude >/dev/null 2>&1 &"
+    sleep 6   # three detector polls: appear + settle past "starting"
+fi
 keystroke "a" "command down, shift down"     # ⌘⇧A — agent dashboard
 shoot "screenshot-workspace"
 
