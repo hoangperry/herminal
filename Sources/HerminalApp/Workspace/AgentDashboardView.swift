@@ -20,7 +20,8 @@ struct AgentDashboardView: View {
     var onOpenWorktree: ((GitWorktree.Entry) -> Void)?
     var onAgentInWorktree: ((GitWorktree.Entry) -> Void)?
     var onRemoveWorktree: ((GitWorktree.Entry) -> Void)?
-    var tmuxSessions: [String] = []
+    var tmuxSessions: [TmuxLaunch.Session] = []
+    var tmuxAttachedHere: Set<String> = []
     var tmuxAvailable: Bool = false
     var onAttachTmux: ((String) -> Void)?
     var onKillTmux: ((String) -> Void)?
@@ -269,31 +270,50 @@ struct AgentDashboardView: View {
                     .font(HerminalDesign.Typography.caption)
                     .foregroundStyle(HerminalDesign.Palette.textTertiary)
             } else {
-                ForEach(tmuxSessions, id: \.self) { name in
-                    tmuxRow(name)
+                ForEach(tmuxSessions) { session in
+                    tmuxRow(session)
                 }
             }
         }
     }
 
-    private func tmuxRow(_ name: String) -> some View {
-        HStack(spacing: HerminalDesign.Spacing.xs) {
+    private func tmuxRow(_ session: TmuxLaunch.Session) -> some View {
+        let openHere = tmuxAttachedHere.contains(session.name)
+        return HStack(spacing: HerminalDesign.Spacing.xs) {
             Image(systemName: "square.split.2x1")
                 .font(.system(size: 10, weight: .semibold))
                 .foregroundStyle(HerminalDesign.Palette.accent)
                 .accessibilityHidden(true)
-            Button { onAttachTmux?(name) } label: {
-                Text(name)
-                    .font(HerminalDesign.Typography.bodyEmphasis)
-                    .foregroundStyle(HerminalDesign.Palette.textPrimary)
-                    .lineLimit(1)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .contentShape(Rectangle())
+            Button { onAttachTmux?(session.name) } label: {
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(session.name)
+                        .font(HerminalDesign.Typography.bodyEmphasis)
+                        .foregroundStyle(HerminalDesign.Palette.textPrimary)
+                        .lineLimit(1)
+                    Text(Self.tmuxSubtitle(session))
+                        .font(HerminalDesign.Typography.caption)
+                        .foregroundStyle(HerminalDesign.Palette.textTertiary)
+                        .lineLimit(1)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .accessibilityLabel("Attach tmux session \(name)")
-            tinyButton("trash", label: "Kill tmux session \(name)") {
-                onKillTmux?(name)
+            .accessibilityLabel(Self.tmuxA11yLabel(session, openHere: openHere))
+            if openHere {
+                Text("Here")
+                    .font(HerminalDesign.Typography.caption)
+                    .foregroundStyle(HerminalDesign.Palette.accent)
+                    .padding(.horizontal, 4)
+                    .padding(.vertical, HerminalDesign.Spacing.xxs)
+                    .background(
+                        RoundedRectangle(cornerRadius: 3)
+                            .fill(HerminalDesign.Palette.accent.opacity(0.15))
+                    )
+                    .accessibilityHidden(true)
+            }
+            tinyButton("trash", label: "Kill tmux session \(session.name)") {
+                onKillTmux?(session.name)
             }
         }
         .padding(.horizontal, HerminalDesign.Spacing.sm)
@@ -311,6 +331,20 @@ struct AgentDashboardView: View {
         }
         .buttonStyle(.plain)
         .accessibilityLabel(label)
+    }
+
+    private static func tmuxSubtitle(_ session: TmuxLaunch.Session) -> String {
+        let windows = session.windows == 1 ? "1 window" : "\(session.windows) windows"
+        if session.attachedClients > 0 {
+            return "\(windows) · attached"
+        }
+        return windows
+    }
+
+    private static func tmuxA11yLabel(_ session: TmuxLaunch.Session, openHere: Bool) -> String {
+        var label = "Attach tmux session \(session.name), \(tmuxSubtitle(session))"
+        if openHere { label += ", open in this window" }
+        return label
     }
 
     private static func a11yLabel(for agent: DetectedAgent) -> String {

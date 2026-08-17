@@ -117,7 +117,8 @@ named session (New / Attach… / Attach or Create). Those actions have
 no extra shortcut — `⌃B` is unchanged. The tmux *client* lives in the
 new tab; the tmux *server* survives that tab closing. The agent
 dashboard lists live sessions: click to attach, trash to kill
-(with confirm). **New** on that section attach-or-creates the
+(with confirm). Rows show window count and a **Here** chip when
+this window already attached. **New** attach-or-creates the
 repo-named session. A second attach focuses the existing tab.
 
 ---

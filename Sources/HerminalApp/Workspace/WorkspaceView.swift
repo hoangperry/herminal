@@ -91,7 +91,7 @@ final class WorkspaceView: NSView {
     /// Last `tmux list-sessions`, same cadence as worktrees (open /
     /// cwd / spawn / kill) — never the 2s agent poll. Debounced so OSC 7
     /// storms do not spawn a Process per prompt.
-    private var tmuxSessions: [String] = []
+    private var tmuxSessions: [TmuxLaunch.Session] = []
     private var tmuxAvailable = false
     /// Discards stale async `tmux list-sessions` results.
     private var tmuxRefreshGeneration = 0
@@ -640,6 +640,15 @@ final class WorkspaceView: NSView {
         refresh()
     }
 
+    /// Session names this window already has a spawned tmux client for.
+    private var tmuxAttachedHere: Set<String> {
+        Set(tabs.flatMap { tab in
+            tab.panes.compactMap { pane in
+                pane.command.flatMap(TmuxLaunch.sessionName(fromSpawnCommand:))
+            }
+        })
+    }
+
     /// True when a pane in this window already spawned this named session.
     func focusTabSpawningTmux(named name: String) -> Bool {
         for (index, tab) in tabs.enumerated() {
@@ -750,8 +759,10 @@ final class WorkspaceView: NSView {
 
     func refreshTmuxSessions(optimistic name: String? = nil, force: Bool = false) {
         if let name, (try? TmuxLaunch.validateName(name)) != nil,
-           !tmuxSessions.contains(name) {
-            tmuxSessions.append(name)
+           !tmuxSessions.contains(where: { $0.name == name }) {
+            tmuxSessions.append(
+                TmuxLaunch.Session(name: name, windows: 1, attachedClients: 1)
+            )
         }
 
         tmuxAvailable = TmuxLaunch.resolveBinary() != nil
@@ -771,12 +782,12 @@ final class WorkspaceView: NSView {
         tmuxRefreshGeneration += 1
         let generation = tmuxRefreshGeneration
         Task { [weak self] in
-            let names = await Task.detached(priority: .utility) {
-                let raw = (try? TmuxLaunch.listSessions()) ?? []
+            let records = await Task.detached(priority: .utility) {
+                let raw = (try? TmuxLaunch.listSessionRecords()) ?? []
                 return TmuxLaunch.displayableSessions(raw)
             }.value
             guard let self, generation == self.tmuxRefreshGeneration else { return }
-            self.tmuxSessions = names
+            self.tmuxSessions = records
             self.applyTmuxDashboardIfVisible()
         }
     }
@@ -840,6 +851,7 @@ final class WorkspaceView: NSView {
             onAgentInWorktree: { [weak self] tree in self?.openWorktree(tree, kind: .claude) },
             onRemoveWorktree: { [weak self] tree in self?.confirmRemoveWorktree(tree) },
             tmuxSessions: tmuxSessions,
+            tmuxAttachedHere: tmuxAttachedHere,
             tmuxAvailable: tmuxAvailable,
             onAttachTmux: { [weak self] name in self?.attachTmuxNamed(name) },
             onKillTmux: { [weak self] name in self?.confirmKillTmux(name) },
