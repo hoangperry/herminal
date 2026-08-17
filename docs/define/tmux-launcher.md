@@ -126,7 +126,7 @@ panes, or layouts.
 - Agent dashboard lists live sessions: click to attach, trash to
   confirm-kill (`kill-session -t =<name>`). Unsafe names are hidden.
   **New** attach-or-creates the repo session. A second attach
-  focuses the tab that already spawned that session. Rows show
+  focuses the exact pane that already spawned that session. Rows show
   window count, attached clients, last activity, and a Here chip
   for a tab already open in this window. Newest activity first.
 

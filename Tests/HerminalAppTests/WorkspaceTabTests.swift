@@ -108,6 +108,32 @@ struct WorkspaceTabTests {
         #expect(tab.focusedPane.id == tab.panes[0].id)
     }
 
+    @Test("focusPaneSpawningTmux selects the matching split pane")
+    func focusPaneSpawningTmux() {
+        let tab = WorkspaceTab(app: dummyApp)
+        tab.split(
+            app: dummyApp,
+            vertical: true,
+            command: "tmux attach-session -t '=api'",
+            title: "tmux · api"
+        )
+        let tmuxPaneID = tab.focusedPane.id
+        tab.focusPane(id: tab.panes[0].id)
+
+        #expect(tab.focusPane(spawningTmuxNamed: "api"))
+        #expect(tab.focusedPane.id == tmuxPaneID)
+    }
+
+    @Test("focusPaneSpawningTmux preserves focus when no pane matches")
+    func focusPaneSpawningTmuxNoMatch() {
+        let tab = WorkspaceTab(app: dummyApp)
+        tab.split(app: dummyApp, vertical: true, command: "zsh")
+        let before = tab.focusedPane.id
+
+        #expect(!tab.focusPane(spawningTmuxNamed: "missing"))
+        #expect(tab.focusedPane.id == before)
+    }
+
     @Test("title shows the pane count once a tab is split")
     func titleShowsCount() {
         let tab = WorkspaceTab(app: dummyApp)

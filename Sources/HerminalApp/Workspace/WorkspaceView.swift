@@ -649,15 +649,12 @@ final class WorkspaceView: NSView {
         })
     }
 
-    /// True when a pane in this window already spawned this named session.
+    /// Focuses the exact pane in this window that spawned the named session.
     func focusTabSpawningTmux(named name: String) -> Bool {
         for (index, tab) in tabs.enumerated() {
-            let hit = tab.panes.contains { pane in
-                guard let command = pane.command else { return false }
-                return TmuxLaunch.sessionName(fromSpawnCommand: command) == name
-            }
-            if hit {
-                selectTab(at: index)
+            if tab.focusPane(spawningTmuxNamed: name) {
+                activeTabIndex = index
+                refresh()
                 return true
             }
         }

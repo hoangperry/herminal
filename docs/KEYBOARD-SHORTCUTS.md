@@ -121,7 +121,7 @@ live sessions: click to attach, trash to kill (with confirm). Rows
 show window count, last activity, and a **Here** chip when this
 window already attached. Newest activity is listed first. Dashboard
 **New** attach-or-creates the repo-named session. A second attach
-focuses the existing tab.
+focuses the exact existing pane.
 
 ---
 

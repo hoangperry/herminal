@@ -24,7 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   repo slug prefilled. tmux stays inside the PTY.
 - **tmux on the agent dashboard.** Live sessions list with attach and
   confirm-to-kill. Unsafe names are hidden. **New** attach-or-creates
-  the repo session; a second click focuses the tab already attached.
+  the repo session; a second click focuses the exact pane already attached.
   Rows show window count, whether clients are attached, last activity
   (`2m ago`), and a **Here** chip when this window already has that
   session open. The list is newest-activity first.

@@ -139,6 +139,18 @@ final class WorkspaceTab: Identifiable {
         }
     }
 
+    /// Focuses the pane whose original spawn command targets `name`.
+    /// This matters when a tmux client lives in a split: selecting only its
+    /// tab would leave keyboard focus in an unrelated sibling pane.
+    @discardableResult
+    func focusPane(spawningTmuxNamed name: String) -> Bool {
+        guard let pane = panes.first(where: { pane in
+            pane.command.flatMap(TmuxLaunch.sessionName(fromSpawnCommand:)) == name
+        }) else { return false }
+        focusPane(id: pane.id)
+        return true
+    }
+
     /// Toggles "zoom" on the focused pane: maximize it to fill the tab, or
     /// restore the split layout. No-op for a single-pane tab. (v1.0.)
     func toggleZoom() {
