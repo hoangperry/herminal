@@ -261,6 +261,10 @@ final class WorkspaceView: NSView {
     override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()
         if window != nil {
+            // trafficLightInset can only be measured once there is a window;
+            // the strip was first built with the fallback, so rebuild it now
+            // that the real window-control metrics are readable.
+            tabHost.rootView = makeTabBar()
             focusActivePane()
             showWelcomeOverlayIfNeeded()
         }
@@ -272,6 +276,18 @@ final class WorkspaceView: NSView {
     /// toggle — `layout()` switches to the animator proxy in this case so
     /// the slide is smooth instead of snapping.
     private var isAnimatingLayout = false
+
+    /// Where the tab strip may start without sitting under the close /
+    /// minimise / zoom buttons.
+    ///
+    /// Measured from the window rather than hard-coded: the buttons move
+    /// with the system's window-control metrics, and a stale constant here
+    /// would either clip a tab or leave a gap. The fallback covers the
+    /// pre-window layout pass.
+    private var trafficLightInset: CGFloat {
+        guard let zoom = window?.standardWindowButton(.zoomButton) else { return 78 }
+        return zoom.frame.maxX + HerminalDesign.Spacing.md
+    }
 
     override func layout() {
         super.layout()
@@ -298,10 +314,11 @@ final class WorkspaceView: NSView {
         }
         statusBarHost.isHidden = !Preferences.showStatusBar
 
-        // Sidebars + status bar share the full window height — sidebars
-        // sit ABOVE the status strip so the strip spans the full width
-        // (uniform across content + sidebars, like Xcode's bottom bar).
-        let sidebarTop = bounds.height
+        // Sidebars sit ABOVE the status strip so the strip spans the full
+        // width (uniform across content + sidebars, like Xcode's bottom
+        // bar), and BELOW the tab strip, which now spans the full width in
+        // the titlebar row.
+        let sidebarTop = bounds.height - barHeight
         let sidebarBottom: CGFloat = statusHeight
         let sidebarHeight = max(sidebarTop - sidebarBottom, 0)
         let leftTarget = CGRect(x: 0, y: sidebarBottom, width: leftWidth, height: sidebarHeight)
@@ -324,9 +341,14 @@ final class WorkspaceView: NSView {
 
         let contentX = leftWidth
         let contentWidth = max(bounds.width - leftWidth - rightSidebar, 0)
+        // The tab strip owns the whole titlebar row: its frame spans edge to
+        // edge so the row is one continuous surface, and the view keeps its
+        // chips clear of the traffic lights via leadingInset. Framing it at
+        // the inset instead would leave the window controls sitting on a
+        // visibly different patch.
         tabHost.frame = CGRect(
-            x: contentX, y: bounds.height - barHeight,
-            width: contentWidth, height: barHeight
+            x: 0, y: bounds.height - barHeight,
+            width: bounds.width, height: barHeight
         )
         let surfaceHeight = max(bounds.height - barHeight - statusHeight, 0)
         // v0.3 polish: 6 px inset between the libghostty Metal surface
@@ -1723,6 +1745,7 @@ final class WorkspaceView: NSView {
         TabBarView(
             tabs: tabs.map { TabBarView.Tab(id: $0.id, title: $0.title) },
             activeID: activeTab?.id,
+            leadingInset: trafficLightInset,
             onSelect: { [weak self] id in self?.selectTab(id: id) },
             onClose: { [weak self] id in self?.closeTab(id: id) },
             onNew: { [weak self] in self?.addTab() }
