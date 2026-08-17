@@ -68,13 +68,67 @@ struct AgentDashboardView: View {
             headerButton("square.stack.3d.up", label: "New agent worktree", action: onNewWorktree)
             headerButton("arrow.triangle.branch", label: "Open lazygit", action: onOpenLazygit)
         }
-        .padding(.horizontal, HerminalDesign.Spacing.sm)
+        // lg, not sm: the scrolling content below carries the panel's own
+        // 8 pt padding plus each row's 8 pt, so 16 puts this title on the
+        // same leading rail as the rows and keeps the icon buttons off the
+        // panel's right edge.
+        .padding(.horizontal, HerminalDesign.Spacing.lg)
         .frame(height: TabBarView.barHeight)
     }
 
     /// One hairline construction for every per-row separator in this panel.
     private var rowDivider: some View {
         HerminalDesign.Palette.divider.frame(height: 1)
+    }
+
+    /// Section title plus an optional trailing shortcut chip.
+    ///
+    /// The horizontal inset matches the rows' own padding so titles, status
+    /// dots and note text all share one leading rail — without it headers
+    /// sat 8 pt to the left of every row and the panel read as ragged.
+    /// `chipLabel == nil` hides the chip from assistive tech, for cases
+    /// where the panel header already exposes the same action.
+    private func sectionHeader(
+        _ title: String,
+        chip: String,
+        chipLabel: String?,
+        action: (() -> Void)?
+    ) -> some View {
+        HStack {
+            Text(title)
+                .font(HerminalDesign.Typography.caption)
+                .tracking(HerminalDesign.Typography.headerTracking)
+                .foregroundStyle(HerminalDesign.Palette.textTertiary)
+                .accessibilityAddTraits(.isHeader)
+            Spacer(minLength: 0)
+            Button { action?() } label: {
+                Text(chip)
+                    .font(HerminalDesign.Typography.monoCaption)
+                    .foregroundStyle(HerminalDesign.Palette.textSecondary)
+                    .padding(.horizontal, HerminalDesign.Spacing.xs)
+                    .padding(.vertical, HerminalDesign.Spacing.xxs)
+                    .background(
+                        RoundedRectangle(cornerRadius: HerminalDesign.Radius.sm)
+                            .fill(HerminalDesign.Palette.surfaceOverlay)
+                    )
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .disabled(action == nil)
+            .accessibilityLabel(chipLabel ?? "")
+            .accessibilityHidden(chipLabel == nil)
+        }
+        .padding(.horizontal, HerminalDesign.Spacing.sm)
+        .padding(.top, HerminalDesign.Spacing.xs)
+    }
+
+    /// Tertiary explanatory line under a section header, on the same rail.
+    private func sectionNote(_ text: String) -> some View {
+        Text(text)
+            .font(HerminalDesign.Typography.caption)
+            .foregroundStyle(HerminalDesign.Palette.textTertiary)
+            .padding(.horizontal, HerminalDesign.Spacing.sm)
+            .fixedSize(horizontal: false, vertical: true)
     }
 
     private func headerButton(_ systemName: String, label: String, action: (() -> Void)?) -> some View {
@@ -92,13 +146,8 @@ struct AgentDashboardView: View {
 
     private var emptyState: some View {
         VStack(alignment: .leading, spacing: HerminalDesign.Spacing.xs) {
-            Text("No agents running")
-                .font(HerminalDesign.Typography.caption)
-                .foregroundStyle(HerminalDesign.Palette.textTertiary)
-            Text("⌘⌥A splits a Claude pane. ⌘⌥W spins an isolated worktree.")
-                .font(HerminalDesign.Typography.caption)
-                .foregroundStyle(HerminalDesign.Palette.textTertiary)
-                .fixedSize(horizontal: false, vertical: true)
+            sectionNote("No agents running")
+            sectionNote("⌘⌥A splits a Claude pane. ⌘⌥W spins an isolated worktree.")
         }
     }
 
@@ -122,14 +171,16 @@ struct AgentDashboardView: View {
             if let tab = agent.tabHint {
                 // AgentPaneMapper returns a flattened session/pane
                 // index, not a tab-strip index. Number it 1-based.
+                // Neutral chip: this is locator metadata, so it must not
+                // out-shout the agent name next to it.
                 Text("Pane \(tab + 1)")
                     .font(HerminalDesign.Typography.caption)
-                    .foregroundStyle(HerminalDesign.Palette.accent)
-                    .padding(.horizontal, 4)
+                    .foregroundStyle(HerminalDesign.Palette.textSecondary)
+                    .padding(.horizontal, HerminalDesign.Spacing.xs)
                     .padding(.vertical, HerminalDesign.Spacing.xxs)
                     .background(
-                        RoundedRectangle(cornerRadius: 3)
-                            .fill(HerminalDesign.Palette.accent.opacity(0.15))
+                        RoundedRectangle(cornerRadius: HerminalDesign.Radius.sm)
+                            .fill(HerminalDesign.Palette.surfaceOverlay)
                     )
             }
         }
@@ -146,42 +197,14 @@ struct AgentDashboardView: View {
 
     private var worktreeSection: some View {
         VStack(alignment: .leading, spacing: HerminalDesign.Spacing.xxs) {
-            HStack {
-                Text("WORKTREES")
-                    .font(HerminalDesign.Typography.caption)
-                    .tracking(HerminalDesign.Typography.headerTracking)
-                    .foregroundStyle(HerminalDesign.Palette.textTertiary)
-                Spacer(minLength: 0)
-                // Functional shortcut chip — same affordance the hero
-                // mockup shows; clicking it spawns a new worktree.
-                Button { onNewWorktree?() } label: {
-                    Text("⌘⌥W")
-                        .font(HerminalDesign.Typography.monoCaption)
-                        .foregroundStyle(HerminalDesign.Palette.textSecondary)
-                        .padding(.horizontal, HerminalDesign.Spacing.xs)
-                        .padding(.vertical, HerminalDesign.Spacing.xxs)
-                        .background(
-                            RoundedRectangle(cornerRadius: HerminalDesign.Radius.sm)
-                                .fill(HerminalDesign.Palette.surfaceOverlay)
-                        )
-                        .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .disabled(onNewWorktree == nil)
-                // The header's square.stack.3d.up button already exposes
-                // this action to assistive tech; a second identically
-                // labelled control would read as a duplicate in VoiceOver.
-                .accessibilityHidden(true)
-            }
-            .padding(.top, HerminalDesign.Spacing.xs)
+            // chipLabel nil: the panel header's square.stack.3d.up button
+            // already exposes onNewWorktree, and a second identically
+            // labelled control would read as a duplicate in VoiceOver.
+            sectionHeader("WORKTREES", chip: "⌘⌥W", chipLabel: nil, action: onNewWorktree)
             if !inGitRepo {
-                Text("Current pane is not a git repo")
-                    .font(HerminalDesign.Typography.caption)
-                    .foregroundStyle(HerminalDesign.Palette.textTertiary)
+                sectionNote("Current pane is not a git repo")
             } else if worktrees.isEmpty {
-                Text("No worktrees")
-                    .font(HerminalDesign.Typography.caption)
-                    .foregroundStyle(HerminalDesign.Palette.textTertiary)
+                sectionNote("No worktrees")
             } else {
                 ForEach(worktrees) { tree in
                     worktreeRow(tree)
@@ -237,38 +260,16 @@ struct AgentDashboardView: View {
 
     private var tmuxSection: some View {
         VStack(alignment: .leading, spacing: HerminalDesign.Spacing.xxs) {
-            HStack {
-                Text("TMUX")
-                    .font(HerminalDesign.Typography.caption)
-                    .tracking(HerminalDesign.Typography.headerTracking)
-                    .foregroundStyle(HerminalDesign.Palette.textTertiary)
-                    .accessibilityAddTraits(.isHeader)
-                Spacer(minLength: 0)
-                Button { onAttachOrCreateTmux?() } label: {
-                    Text("New")
-                        .font(HerminalDesign.Typography.monoCaption)
-                        .foregroundStyle(HerminalDesign.Palette.textSecondary)
-                        .padding(.horizontal, HerminalDesign.Spacing.xs)
-                        .padding(.vertical, HerminalDesign.Spacing.xxs)
-                        .background(
-                            RoundedRectangle(cornerRadius: HerminalDesign.Radius.sm)
-                                .fill(HerminalDesign.Palette.surfaceOverlay)
-                        )
-                        .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .disabled(onAttachOrCreateTmux == nil)
-                .accessibilityLabel("Attach or create tmux session")
-            }
-            .padding(.top, HerminalDesign.Spacing.xs)
+            sectionHeader(
+                "TMUX",
+                chip: "New",
+                chipLabel: "Attach or create tmux session",
+                action: onAttachOrCreateTmux
+            )
             if !tmuxAvailable {
-                Text("tmux is not installed")
-                    .font(HerminalDesign.Typography.caption)
-                    .foregroundStyle(HerminalDesign.Palette.textTertiary)
+                sectionNote("tmux is not installed")
             } else if tmuxSessions.isEmpty {
-                Text("No tmux sessions")
-                    .font(HerminalDesign.Typography.caption)
-                    .foregroundStyle(HerminalDesign.Palette.textTertiary)
+                sectionNote("No tmux sessions")
             } else {
                 ForEach(tmuxSessions) { session in
                     tmuxRow(session)

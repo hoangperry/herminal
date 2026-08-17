@@ -25,20 +25,38 @@ jobs:
     steps:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
 
-      - name: Locate the newest CI app build on main
+      # Uses the ref this run was dispatched on, so a UI branch can be
+      # reviewed visually before it merges. Dispatching on main behaves as
+      # before; the branch's own CI must have gone green first.
+      - name: Locate the newest CI app build for this ref
         id: locate
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          run=$(gh api "repos/${{ github.repository }}/actions/workflows/ci.yml/runs?branch=main&status=success&per_page=1" \
+          run=$(gh api "repos/${{ github.repository }}/actions/workflows/ci.yml/runs?branch=${{ github.ref_name }}&status=success&per_page=1" \
             --jq '.workflow_runs[0]')
-          echo "run_id=$(echo "$run" | jq -r .id)" >> "$GITHUB_OUTPUT"
+          if [ "$run" = "null" ] || [ -z "$run" ]; then
+            echo "::error::No successful ci.yml run on ${{ github.ref_name }} yet."
+            exit 1
+          fi
+          run_id=$(echo "$run" | jq -r .id)
+          echo "run_id=$run_id" >> "$GITHUB_OUTPUT"
           echo "sha=$(echo "$run" | jq -r .head_sha)" >> "$GITHUB_OUTPUT"
+          # Read the artifact's real name rather than rebuilding it from a
+          # SHA: a pull_request run stamps github.sha with its merge commit,
+          # which is not the run's head_sha.
+          name=$(gh api "repos/${{ github.repository }}/actions/runs/$run_id/artifacts" \
+            --jq '.artifacts[] | select(.name | startswith("herminal-app-")) | .name' | head -1)
+          if [ -z "$name" ]; then
+            echo "::error::Run $run_id has no herminal-app-* artifact (expired?)."
+            exit 1
+          fi
+          echo "artifact=$name" >> "$GITHUB_OUTPUT"
 
       - name: Download the built app
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
-          name: herminal-app-${{ steps.locate.outputs.sha }}
+          name: ${{ steps.locate.outputs.artifact }}
           run-id: ${{ steps.locate.outputs.run_id }}
           github-token: ${{ github.token }}
           path: .build/herminal.app

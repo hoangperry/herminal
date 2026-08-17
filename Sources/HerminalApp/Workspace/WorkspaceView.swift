@@ -1525,6 +1525,9 @@ final class WorkspaceView: NSView {
     /// (window background, surface container) also get refreshed.
     private func repaintChrome() {
         window?.backgroundColor = NSColor(HerminalDesign.Palette.surfaceBase)
+        // Keep AppKit's own drawing — vibrancy material, titlebar text — on
+        // the same theme as the palette. See HerminalDesign.nsAppearance.
+        window?.appearance = HerminalDesign.nsAppearance
         surfaceContainer.layer?.backgroundColor = NSColor(HerminalDesign.Palette.border).cgColor
         tabHost.rootView = makeTabBar()
         if leftSidebar == .agents { refreshAgents() }

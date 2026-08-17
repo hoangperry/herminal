@@ -5,6 +5,7 @@
 // notes UI, agent dashboard). Terminal *content* colors are owned by
 // libghostty's own theme and are not defined here.
 
+import AppKit
 import SwiftUI
 
 enum HerminalDesign {
@@ -27,6 +28,23 @@ enum HerminalDesign {
     /// thread; mutated only by the menu toggle, which is also main-thread.
     /// No cross-thread access possible (all UI is @MainActor).
     nonisolated(unsafe) static var currentTheme: Theme = .dark
+
+    /// The `NSAppearance` the current chrome theme implies.
+    ///
+    /// The window hosts its content in an `NSVisualEffectView` using
+    /// `.behindWindow` blending, so that material resolves against an
+    /// *appearance*, not against `Palette`. Left on the system value it
+    /// tracks System Settings instead of our theme: a Mac set to Light
+    /// running our default dark chrome renders the material near-white and
+    /// it bleeds through the pane insets and the seams between splits
+    /// (measured #F6F6F6 on a light-appearance machine). Pinning the
+    /// effect view to this keeps material and palette in agreement.
+    static var nsAppearance: NSAppearance? {
+        switch currentTheme {
+        case .dark: return NSAppearance(named: .darkAqua)
+        case .light: return NSAppearance(named: .aqua)
+        }
+    }
 
     // MARK: - Color Palette
     //
