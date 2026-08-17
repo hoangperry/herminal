@@ -451,11 +451,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
         effect.material = .underWindowBackground
         effect.blendingMode = .behindWindow
         effect.state = .active
-        // Pin the material to our theme, not to System Settings. Otherwise
-        // dark chrome on a light-appearance Mac resolves this material
-        // near-white, and it shows through the surface inset and the pane
-        // seams as bright bands.
-        effect.appearance = HerminalDesign.nsAppearance
         effect.autoresizingMask = [.width, .height]
         effect.frame = contentView.bounds
         contentView.autoresizingMask = [.width, .height]
@@ -468,6 +463,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
         // rectangle on top of the blur.
         window.titlebarAppearsTransparent = true
         window.backgroundColor = .clear
+        // Pin the whole window to our theme rather than System Settings;
+        // it cascades to the vibrancy material and to everything AppKit
+        // draws itself. Unpinned, a light-appearance Mac running our dark
+        // chrome resolves the material near-white — it bleeds through the
+        // surface inset and the pane seams — and renders the title text in
+        // dark grey on our dark titlebar. See HerminalDesign.nsAppearance.
+        window.appearance = HerminalDesign.nsAppearance
         window.isOpaque = false
         window.isMovableByWindowBackground = false
         window.minSize = NSSize(width: 480, height: 320)
