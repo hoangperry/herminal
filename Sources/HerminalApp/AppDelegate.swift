@@ -228,10 +228,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
         Task { @MainActor in
             try? await Task.sleep(nanoseconds: 8_000_000_000)
             NSLog("herminal: title smoke — injecting OSC 0 with marker")
-            // OSC 0 sets both window and icon title; BEL terminates.
-            // Using printf so the escape literal isn't mangled by zsh.
+            // OSC 0 sets both window and icon title; BEL terminates. Keep the
+            // shell busy briefly after printf: otherwise the next prompt's OSC
+            // cwd title can legitimately overwrite the marker before we sample.
             workspace.injectTextIntoActivePane(
-                "printf '\\033]0;\(marker)\\007'\n"
+                "printf '\\033]0;\(marker)\\007'; sleep 5\n"
             )
             // Let libghostty parse the OSC + post the notification +
             // WorkspaceView rebuild the tab strip.

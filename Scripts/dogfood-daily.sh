@@ -33,12 +33,19 @@ CHECKS=(
     "v0.5.1 pane-nav|verify-pane-nav.sh"
 )
 
-# Special baseline call needs args (text + check-file).
-baseline_args=$'touch /tmp/herminal-dogfood-baseline.txt\n /tmp/herminal-dogfood-baseline.txt'
-
 failures=0
 echo "==> Dogfood daily health check  ($(date +'%Y-%m-%d %H:%M'))"
 echo ""
+
+# Every check below depends on DEBUG-only HERMINAL_TEST_* hooks. A local
+# release/notarization run also writes .build/herminal.app, so existence alone
+# cannot prove that the cached bundle contains the harness. Rebuild it once up
+# front; individual checks can then safely reuse the same debug bundle.
+echo "==> Building fresh debug harness bundle"
+if ! "$REPO_ROOT/Scripts/make-app-bundle.sh" debug >/dev/null; then
+    echo "ERROR: could not build debug harness bundle" >&2
+    exit 1
+fi
 
 # Runs one check once and echoes its tool output. The leading `pkill`
 # is async, so give the kernel a beat to release the prior bundle's
