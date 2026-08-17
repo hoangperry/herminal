@@ -89,6 +89,23 @@ enum HerminalDesign {
             }
         }
 
+        /// Gutter behind the terminal panes: it shows through the inset
+        /// frame and the seams between splits.
+        ///
+        /// Opaque on purpose. This used to reuse `border`, but a
+        /// translucent `Color` loses its alpha when it is bridged through
+        /// `NSColor(_:).cgColor` into `CALayer.backgroundColor`, so the
+        /// frame rendered as near-white (#F6F6F6) instead of a hairline.
+        /// These values are `border` pre-composited over `surfaceBase`,
+        /// which is exactly what the translucent version was meant to
+        /// produce.
+        static var paneGutter: Color {
+            switch HerminalDesign.currentTheme {
+            case .dark: return Color(red: 0.138, green: 0.142, blue: 0.152)
+            case .light: return Color(red: 0.882, green: 0.882, blue: 0.891)
+            }
+        }
+
         // Borders / dividers — neutral overlay that works in both.
         static var border: Color {
             switch HerminalDesign.currentTheme {

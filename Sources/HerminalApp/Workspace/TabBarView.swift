@@ -68,6 +68,12 @@ private struct TabChip: View {
                         : HerminalDesign.Palette.textSecondary
                 )
                 .lineLimit(1)
+                .truncationMode(.middle)
+            // Pushes the title to the leading edge and the close button to
+            // the trailing one. Without it the HStack sizes to its content
+            // and the frame centres the whole group, which reads as a
+            // floating label rather than a tab.
+            Spacer(minLength: HerminalDesign.Spacing.xs)
             Button(action: onClose) {
                 Image(systemName: "xmark")
                     .font(.system(size: 8, weight: .bold))
