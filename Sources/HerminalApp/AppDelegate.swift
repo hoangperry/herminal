@@ -451,6 +451,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
         effect.material = .underWindowBackground
         effect.blendingMode = .behindWindow
         effect.state = .active
+        // Pin the material to our theme, not to System Settings. Otherwise
+        // dark chrome on a light-appearance Mac resolves this material
+        // near-white, and it shows through the surface inset and the pane
+        // seams as bright bands.
+        effect.appearance = HerminalDesign.nsAppearance
         effect.autoresizingMask = [.width, .height]
         effect.frame = contentView.bounds
         contentView.autoresizingMask = [.width, .height]

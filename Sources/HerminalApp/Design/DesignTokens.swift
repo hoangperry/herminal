@@ -5,6 +5,7 @@
 // notes UI, agent dashboard). Terminal *content* colors are owned by
 // libghostty's own theme and are not defined here.
 
+import AppKit
 import SwiftUI
 
 enum HerminalDesign {
@@ -27,6 +28,23 @@ enum HerminalDesign {
     /// thread; mutated only by the menu toggle, which is also main-thread.
     /// No cross-thread access possible (all UI is @MainActor).
     nonisolated(unsafe) static var currentTheme: Theme = .dark
+
+    /// The `NSAppearance` the current chrome theme implies.
+    ///
+    /// The window hosts its content in an `NSVisualEffectView` using
+    /// `.behindWindow` blending, so that material resolves against an
+    /// *appearance*, not against `Palette`. Left on the system value it
+    /// tracks System Settings instead of our theme: a Mac set to Light
+    /// running our default dark chrome renders the material near-white and
+    /// it bleeds through the pane insets and the seams between splits
+    /// (measured #F6F6F6 on a light-appearance machine). Pinning the
+    /// effect view to this keeps material and palette in agreement.
+    static var nsAppearance: NSAppearance? {
+        switch currentTheme {
+        case .dark: return NSAppearance(named: .darkAqua)
+        case .light: return NSAppearance(named: .aqua)
+        }
+    }
 
     // MARK: - Color Palette
     //
@@ -86,23 +104,6 @@ enum HerminalDesign {
             switch HerminalDesign.currentTheme {
             case .dark: return Color(red: 0.22, green: 0.46, blue: 0.45)
             case .light: return Color(red: 0.55, green: 0.78, blue: 0.75)
-            }
-        }
-
-        /// Gutter behind the terminal panes: it shows through the inset
-        /// frame and the seams between splits.
-        ///
-        /// Opaque on purpose. This used to reuse `border`, but a
-        /// translucent `Color` loses its alpha when it is bridged through
-        /// `NSColor(_:).cgColor` into `CALayer.backgroundColor`, so the
-        /// frame rendered as near-white (#F6F6F6) instead of a hairline.
-        /// These values are `border` pre-composited over `surfaceBase`,
-        /// which is exactly what the translucent version was meant to
-        /// produce.
-        static var paneGutter: Color {
-            switch HerminalDesign.currentTheme {
-            case .dark: return Color(red: 0.138, green: 0.142, blue: 0.152)
-            case .light: return Color(red: 0.882, green: 0.882, blue: 0.891)
             }
         }
 
