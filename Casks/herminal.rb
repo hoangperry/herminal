@@ -5,23 +5,23 @@
 # Update both copies only after the signed + notarized release asset exists.
 
 cask "herminal" do
-  version "0.4.2"
-  sha256 "c989cf627fb6eedc37dbd688dfce85fb2eb47b3a376ba585d0b1bccdcd0864de"
+  version "1.0.0"
+  sha256 "8fd8d833635f712643026bc52f31faf3ad07e4e321f85f8cebe9bae89ea7079f"
 
   url "https://github.com/hoangperry/herminal/releases/download/v#{version}/herminal-v#{version}.dmg"
   name "herminal"
-  desc "AI-native macOS terminal for Vietnamese developers"
+  desc "AI-native terminal with Vietnamese IME and agent visibility"
   homepage "https://github.com/hoangperry/herminal"
-
-  # libghostty requires Metal + a modern AppKit; we target Sonoma+ per
-  # the PRD. Apple Silicon only — see Package.swift platforms.
-  depends_on macos: ">= :sonoma"
-  depends_on arch: :arm64
 
   livecheck do
     url :url
     strategy :github_latest
   end
+
+  # libghostty requires Metal + a modern AppKit; we target Sonoma+ per
+  # the PRD. Apple Silicon only — see Package.swift platforms.
+  depends_on macos: :sonoma
+  depends_on arch: :arm64
 
   app "herminal.app"
 

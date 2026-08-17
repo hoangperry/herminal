@@ -12,10 +12,9 @@
 [![Homebrew](https://img.shields.io/badge/homebrew-tap-orange?logo=homebrew&logoColor=white)](https://github.com/hoangperry/homebrew-herminal)
 [![Engine](https://img.shields.io/badge/engine-libghostty_1.3.1-52C7BD)](https://github.com/ghostty-org/ghostty)
 
-**Trạng thái:** `v1.0.0` release candidate trên `main`; bản public mới nhất là
-[`v0.4.2`](https://github.com/hoangperry/herminal/releases/tag/v0.4.2).
-Xem [CHANGELOG](CHANGELOG.md).
-**Nền tảng:** macOS 14+ Apple Silicon.
+**Trạng thái:** [`v1.0.0`](https://github.com/hoangperry/herminal/releases/tag/v1.0.0)
+đã public dưới dạng DMG signed + notarized; `main` tiếp tục nhận các bản sửa sau v1.
+Xem [CHANGELOG](CHANGELOG.md). **Nền tảng:** macOS 14+ Apple Silicon.
 
 > 🇬🇧 English version: [`README.md`](README.md)
 
@@ -79,7 +78,7 @@ Năm 2026 không terminal nào hit đủ 5 thứ cùng lúc:
 | Yêu cầu | iTerm2 | Warp | Wave | Ghostty | **herminal** |
 |---|---|---|---|---|---|
 | Tốc độ native macOS | ✓ | partial | partial | ✓ | ✓ |
-| Vietnamese IME + autocomplete khi còn preedit | ✓ | × | × | partial | RC¹ |
+| Vietnamese IME + autocomplete khi còn preedit | ✓ | × | × | partial | automated¹ |
 | tmux + multi-session | ✓ | partial | × | ✓ | ✓ |
 | Dashboard agent built-in | × | partial | × | × | ✓ |
 | Notes per-session local-only | × | × | × | × | ✓ |
@@ -93,7 +92,7 @@ rubric đã dùng để lập bảng trên.
 
 ## Scope v1
 
-Đã có trên `main`; bản public v1 vẫn là release candidate:
+Đã ship trong [`v1.0.0`](https://github.com/hoangperry/herminal/releases/tag/v1.0.0); `main` tiếp tục với các bản sửa sau release:
 
 - [x] Terminal core native qua libghostty (Metal renderer, p95 keystroke <5ms)
 - [x] Vietnamese IME bridge có regression test cho Tab/preedit; live gate Telex/VNI vẫn đang chờ¹
@@ -214,7 +213,7 @@ herminal/
 │   ├── HerminalAgent/        # process-subtree detection + status + pane mapping
 │   └── HerminalApp/          # NSApp, WorkspaceView, panels, worktree cockpit, Diary
 ├── App/                       # Info.plist + entitlements
-├── Tests/                     # 175 Swift Testing tests
+├── Tests/                     # unit + integration suites bằng Swift Testing
 ├── Scripts/                   # bootstrap, bundle, verify-*, dogfood, sign, release, capture-screenshots
 ├── Vendor/libghostty/         # git submodule (Ghostty v1.3.1)
 └── docs/
@@ -260,5 +259,8 @@ prompt diary excerpt); security issues đi qua [SECURITY.md](SECURITY.md).
 | [docs/backlog/](docs/backlog/) | Task list + retro hàng tháng M1 → M12 |
 
 ---
+
+Nếu Herminal hữu ích trong workflow hằng ngày của bạn, một GitHub star sẽ giúp
+nhiều developer macOS và Việt Nam biết đến dự án hơn.
 
 Made with 🐈 by Yuuhou Meow team in Việt Nam.

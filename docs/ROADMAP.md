@@ -6,11 +6,11 @@ won't ship by design. For the per-month implementation detail see
 
 ---
 
-## Built on `main` — v1.0.0 release candidate
+## Shipped — v1.0.0 plus post-release fixes on `main`
 
-The latest public release is `v0.4.2`. The capabilities below are built on
-`main`; public v1 remains gated by the release-blocking verification listed in
-the next section.
+[`v1.0.0`](https://github.com/hoangperry/herminal/releases/tag/v1.0.0) is the
+latest public release. It ships as a signed, notarized DMG; `main` carries the
+chrome, reliability, and release-safety fixes made since that tag.
 
 Every PRD v1 feature plus the post-MVP workspace and session waves:
 
@@ -66,15 +66,15 @@ Every PRD v1 feature plus the post-MVP workspace and session waves:
 
 ---
 
-## Next — public v1 release blockers
+## Next — post-v1 verification and adoption
 
-| Item | Gate |
+| Item | Status / gate |
 |---|---|
-| Vietnamese IME Tab completion | Telex/VNI marked text commits once and the same Tab reaches zsh; Shift-Tab and plain Tab do not regress |
-| Test verification | Swift unit suite + dogfood gate green under the documented Xcode toolchain |
-| Signed release | Owner-held Developer ID and notary credentials; never committed to the repository |
-| Homebrew update | Public v1 DMG exists and its SHA-256 is verified |
-| External beta | Real tester reports drive subsequent patch releases |
+| Vietnamese IME Tab completion | Pending owner evidence: Telex/VNI marked text commits once and the same Tab reaches zsh; Shift-Tab and plain Tab do not regress |
+| Test verification | Green on the documented Xcode toolchain; unit and dogfood gates remain required for every patch |
+| Signed release | Complete for v1.0.0: Developer ID signed, notarized, stapled, and published with SHA-256 checksums |
+| Homebrew update | Complete: public tap targets v1.0.0 and passes online cask audit |
+| External beta | Pending: real tester reports must drive subsequent patch releases |
 
 The dogfood journal under `docs/QA/dogfood/` and public GitHub issues drive the
 next slices. Feedback-gated items below stay deferred until a real user signal

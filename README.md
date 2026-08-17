@@ -14,10 +14,9 @@
 [![Homebrew](https://img.shields.io/badge/homebrew-tap-orange?logo=homebrew&logoColor=white)](https://github.com/hoangperry/homebrew-herminal)
 [![Engine](https://img.shields.io/badge/engine-libghostty_1.3.1-52C7BD)](https://github.com/ghostty-org/ghostty)
 
-**Status:** `v1.0.0` release candidate on `main`; latest public release is
-[`v0.4.2`](https://github.com/hoangperry/herminal/releases/tag/v0.4.2).
-See [CHANGELOG](CHANGELOG.md).
-**Platform:** macOS 14+ Apple Silicon.
+**Status:** [`v1.0.0`](https://github.com/hoangperry/herminal/releases/tag/v1.0.0)
+is publicly available as a signed, notarized DMG; `main` carries post-v1 fixes.
+See [CHANGELOG](CHANGELOG.md). **Platform:** macOS 14+ Apple Silicon.
 
 > 🇻🇳 Phiên bản tiếng Việt: [`README.vi.md`](README.vi.md)
 
@@ -82,7 +81,7 @@ In 2026 nothing on the market hits all five at once:
 | Need | iTerm2 | Warp | Wave | Ghostty | **herminal** |
 |---|---|---|---|---|---|
 | Native macOS speed | ✓ | partial | partial | ✓ | ✓ |
-| Vietnamese IME + in-preedit shell completion | ✓ | × | × | partial | RC¹ |
+| Vietnamese IME + in-preedit shell completion | ✓ | × | × | partial | automated¹ |
 | tmux + multi-session | ✓ | partial | × | ✓ | ✓ |
 | Built-in agent dashboard | × | partial | × | × | ✓ |
 | Local-only persistent notes per session | × | × | × | × | ✓ |
@@ -97,7 +96,7 @@ scoring rubric the table is derived from.
 
 ## v1 scope
 
-Built on `main`; public v1 remains a release candidate:
+Shipped in [`v1.0.0`](https://github.com/hoangperry/herminal/releases/tag/v1.0.0); `main` continues with post-release fixes:
 
 - [x] Native terminal core via libghostty (Metal renderer, p95 keystroke <5ms)
 - [x] Vietnamese IME bridge with automated Tab/preedit regressions; live Telex/VNI release gate pending¹
@@ -112,8 +111,8 @@ Built on `main`; public v1 remains a release candidate:
 - [x] Telemetry-free local crash diary with redacted export
 - [x] Developer-ID codesign + notarize pipeline
 
-¹ The implementation and state-transition regressions are green, but the
-release-blocking system-input-source matrix still requires a dated human run.
+¹ The implementation and state-transition regressions are green, but the live
+system-input-source claim still requires a dated Telex/VNI owner run.
 See [issue #2](https://github.com/hoangperry/herminal/issues/2).
 
 Still deferred — see [docs/ROADMAP.md](docs/ROADMAP.md) for the feedback
@@ -225,7 +224,7 @@ herminal/
 │   ├── HerminalAgent/        # process-subtree detection + status + pane mapping
 │   └── HerminalApp/          # NSApp, WorkspaceView, panels, worktree cockpit, Diary
 ├── App/                       # Info.plist + entitlements
-├── Tests/                     # 195 Swift Testing tests
+├── Tests/                     # Swift Testing unit and integration suites
 ├── Scripts/                   # bootstrap, bundle, verify-*, dogfood, sign, release, capture-screenshots
 ├── Vendor/libghostty/         # git submodule (Ghostty v1.3.1)
 └── docs/
@@ -269,5 +268,8 @@ the diary excerpt; security issues go to
 | [docs/backlog/](docs/backlog/) | Monthly task lists + retrospectives M1 → M12 |
 
 ---
+
+If Herminal is useful in your daily workflow, a GitHub star helps more macOS
+and Vietnamese developers discover the project.
 
 Made with 🐈 by Yuuhou Meow team in Việt Nam.

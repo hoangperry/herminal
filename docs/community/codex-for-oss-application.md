@@ -1,9 +1,10 @@
 # Codex for Open Source application — working draft
 
-> **NOT READY TO SUBMIT.** Herminal has no public v1 release or qualifying
-> external beta evidence yet. This document is a claim checklist, not a claim
-> that the project has been accepted or meets current program criteria. Recheck
-> the official application form and terms immediately before submission.
+> **NOT READY TO SUBMIT.** Herminal now has a public v1 release, but it does not
+> yet have qualifying external beta or contribution evidence. This document is
+> a claim checklist, not a claim that the project has been accepted or meets
+> current program criteria. Recheck the official application form and terms
+> immediately before submission.
 
 ## Project
 
@@ -12,8 +13,8 @@
 - Maintainer: `hoangperry` — repository owner with write access
 - Pitch: A local-first native macOS terminal focused on Vietnamese input and
   privacy-minimized visibility into local coding-agent sessions.
-- Current public release: `v0.4.2`
-- Current development state: `v1.0.0` release candidate on `main`
+- Current public release: [`v1.0.0`](https://github.com/hoangperry/herminal/releases/tag/v1.0.0)
+- Current development state: post-v1 reliability and chrome fixes on `main`
 
 Herminal combines libghostty with a Swift/AppKit interface, an
 `NSTextInputClient` bridge, local SQLite notes and SSH host metadata, and a
@@ -54,10 +55,11 @@ No row may be marked ready without a dated public source.
 | Claim | Required source | Current evidence | Ready? |
 |---|---|---|---|
 | Maintainer/write access | Repository ownership | Public repository owner | Yes |
-| CI health | GitHub Actions run | 195-test run `31955186141` | Yes |
-| Security scanning | GitHub Actions run | CodeQL run `31828682659` | Yes |
-| Release supply chain | Workflow + owner-gate record | Candidate run `31830331678`; notarization/DMG evidence in `docs/QA/results/release-candidate-2026-08-15.md` | Partial — final clean install pending |
-| Public v1 install | Release + DMG/Homebrew/Gatekeeper verification | Missing | No |
+| CI health | GitHub Actions run | 216-test run `32021988126` | Yes |
+| Security scanning | GitHub Actions run | CodeQL run `32021988108` | Yes |
+| Release supply chain | Workflow + owner-gate record | Candidate run `31830331678`; public signed/notarized assets and checksums in [`v1.0.0`](https://github.com/hoangperry/herminal/releases/tag/v1.0.0) | Yes |
+| Public v1 install | Release + DMG/Homebrew/Gatekeeper verification | Public DMG and audited Homebrew v1 cask exist; clean-account verification remains | Partial |
+| Repository interest | Public GitHub counters | 58 stars and 2 forks on 2026-08-17 | Supporting signal only — not adoption |
 | Live Telex/VNI completion | Dated checklist result linked from issue #2 | Missing | No |
 | Verified installs | Privacy-safe beta ledger | 0 | No |
 | Completed 3-day testers | Opt-in completion records | 0 | No |
@@ -84,9 +86,9 @@ needs an API integration.
 
 ## Current limitations to disclose
 
-- Public latest release is still `v0.4.2`.
-- v1 distribution is blocked on live Telex/VNI verification and owner-held
-  signing/notarization setup.
+- Public `v1.0.0` and an audited Homebrew v1 cask exist, but final clean-account
+  verification is not yet recorded.
+- Live Telex/VNI behavior still lacks a dated system-input-source owner run.
 - Current agent status is heuristic process/CPU/bell signaling; no official
   Codex lifecycle adapter is claimed.
 - No verified external adoption or contribution evidence exists yet.

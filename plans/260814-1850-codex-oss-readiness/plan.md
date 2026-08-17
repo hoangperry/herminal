@@ -14,15 +14,15 @@ blocks: []
 
 | Sprint | Scope | Status |
 |---|---|---|
-| Sprint 1 | Phase 0: IME Tab blocker + release truth | In progress — full CI build and 152 tests pass; blocked only on live Telex/VNI verification and signed release |
+| Sprint 1 | Phase 0: IME Tab blocker + release truth | In progress — public signed/notarized v1 and Homebrew cask are live; blocked only on dated live Telex/VNI and clean-account install evidence |
 | Sprint 2 | Phase 1: security and supply-chain hardening | Complete — full CI + 152 tests and targeted CodeQL green; entitlement experiment tracked in issue #4 |
 | Sprint 3 | Phase 2–3: agent interoperability + contributor surface | Complete — neutral event boundary, official hooks research, contributor fast path, triage policy, and issues #2–#7 |
-| Sprint 4 | Phase 4: closed beta and feedback releases | In progress — intake/privacy/evidence infrastructure ready; recruitment awaits signed build + live IME gate |
+| Sprint 4 | Phase 4: closed beta and feedback releases | In progress — signed v1 distribution and intake/privacy/evidence infrastructure are ready; recruitment can begin while live IME evidence is completed |
 | Sprint 5 | Phase 5–7: launch evidence + application | In progress — maintainer AI policy and truth-gated application skeleton ready; evidence/submission blocked on Sprint 4 |
 | Sprint 6 | Existing-feature completion | Complete for automatable scope — issues #3/#5/#6/#7 closed with 153-test CI and CodeQL; owner gates #2/#4/#13 remain |
 | Sprint 7 | Owner-gate automation | Tooling complete — privacy-safe IME recorder, entitlement experiment, and signing readiness preflight ready; owner execution pending |
 | Sprint 8 | Agent worktree cockpit | Complete — isolated worktrees, whitelisted agent/lazygit launch, pane focus, off-main bounded git runner; CI + CodeQL green |
-| Sprint 9 | Remote release build, local signing | Complete for automation — read-only release build run `31830331678`, local Developer ID + notarization + staple + Gatekeeper + signed DMG + quarantined first-open passed; clean install pending |
+| Sprint 9 | Remote release build, local signing | Public v1 shipped — read-only build, local Developer ID/notarization/staple/Gatekeeper, release assets, checksums, and audited Homebrew cask complete; clean-account install pending |
 
 ## 1. Objective
 

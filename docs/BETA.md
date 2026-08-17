@@ -4,13 +4,13 @@ The beta validates whether Herminal works as a real terminal for Vietnamese macO
 
 ## Entry status
 
-Engineering gates are green: CI build, 195 tests, targeted CodeQL, and an accepted notarized owner-gate candidate. Distribution begins only after the live Telex/VNI marked-text checklist and final clean-install gates pass.
+Engineering gates are green and signed, notarized `v1.0.0` artifacts are public. Beta recruitment can begin through the direct DMG while the live Telex/VNI evidence and final Homebrew/clean-install checks are completed.
 
-## Current distribution blockers
+## Current distribution follow-ups
 
 - Real Telex/VNI marked-text cases still require human keyboard verification via `Scripts/record-vietnamese-ime-gate.sh`.
-- Repository Actions secrets are not configured for Developer ID/notarization; `Scripts/check-release-readiness.sh` verifies local prerequisites without printing their values.
-- A local Developer ID identity is visible, but non-interactive signing currently returns `errSecInternalComponent`; no notarytool profile is configured. Credential repair stays an owner-only action and no password/key material belongs in the repository.
+- The public Homebrew tap now targets `v1.0.0` and passes online cask audit.
+- A clean-account install should still confirm both Homebrew and the published DMG without exposing local paths, credentials, or terminal content.
 
 ## Tester commitment
 
@@ -36,9 +36,11 @@ Counts must link to public evidence or a privacy-preserving opt-in record. One p
 
 | Date | Evidence | Count | Public link/verification | Notes |
 |---|---|---:|---|---|
-| 2026-08-16 | CI full suite | 195 tests | GitHub Actions run 31955186141 | Green; includes tmux lifecycle, worktree, manifest, and diagnostics guards |
-| 2026-08-14 | CodeQL | 1 run | GitHub Actions run 31828682659 | DB + Agent targets |
-| 2026-08-15 | Release candidate | 1 run | GitHub Actions run 31830331678 + local owner gate | Checksums, Developer ID, notarization, staple, Gatekeeper, signed DMG passed; unpublished |
+| 2026-08-17 | CI full suite | 216 tests | GitHub Actions run 32021988126 | Green on post-v1 `main` |
+| 2026-08-17 | CodeQL | 1 run | GitHub Actions run 32021988108 | Green on post-v1 `main` |
+| 2026-08-17 | Public v1 release | 1 release | [`v1.0.0`](https://github.com/hoangperry/herminal/releases/tag/v1.0.0) | Signed, notarized, stapled DMG + ZIP + SHA256SUMS published |
+| 2026-08-17 | Homebrew v1 cask | 1 tap | [`hoangperry/homebrew-herminal`](https://github.com/hoangperry/homebrew-herminal) | v1.0.0 URL/checksum verified by online cask audit |
+| 2026-08-15 | Release candidate | 1 run | GitHub Actions run 31830331678 + local owner gate | Checksums, Developer ID, notarization, staple, Gatekeeper, signed DMG passed before publication |
 | 2026-08-14 | CI artifact local launch | 1 smoke | PR #1 / CI run 31814582438 | Signature structure verified; version 1.0.0 build 23; launched without immediate crash |
 | — | Verified installs | 0 | — | Target 10 |
 | — | Completed 3-day testers | 0 | — | Target 5 |

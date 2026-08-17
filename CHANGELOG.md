@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Follow System updates live.** Changing macOS between Light and Dark while
+  Herminal is open now repaints the pinned window chrome immediately; explicit
+  Dark and Light preferences remain unchanged.
+- **Homebrew v1 install.** The canonical cask now targets the public signed,
+  notarized `v1.0.0` DMG and its verified SHA-256 checksum.
+
+## [1.0.0] - 2026-08-17
+
+herminal leaves beta. Everything in the PRD's v1 scope is shipped,
+reviewed (five parallel code + security passes), and regression-guarded.
+This release also adds the last two "every terminal has this" verbs and
+closes a Vietnamese-first input blocker before the first public v1 build.
+
 ### Added
 
 - **Agent cockpit (FlightDeck `wt`).** Isolated git worktrees next to the
@@ -30,22 +45,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   session open. The list is newest-activity first.
   **New tmux Session…** (menu / palette) prompts for a name, prefilled
   from the repo; dashboard **New** is still one-click attach-or-create.
-
-### Fixed
-
-- **Follow System updates live.** Changing macOS between Light and Dark while
-  Herminal is open now repaints the pinned window chrome immediately; explicit
-  Dark and Light preferences remain unchanged.
-
-## [1.0.0] - Unreleased
-
-herminal leaves beta. Everything in the PRD's v1 scope is shipped,
-reviewed (five parallel code + security passes), and regression-guarded.
-This release also adds the last two "every terminal has this" verbs and
-closes a Vietnamese-first input blocker before the first public v1 build.
-
-### Added
-
 - **Live font size.** `⌘+` / `⌘−` / `⌘0` grow / shrink / reset the font
   in every pane (libghostty binding actions). New **View** menu + command
   palette entries. The Settings slider still sets the default for new panes.
@@ -722,5 +721,6 @@ dark chrome with polish.
 - App Store distribution (sandbox incompatible)
 - Cross-platform (Linux / Windows) — macOS-only by design
 
-[Unreleased]: https://github.com/hoangperry/herminal/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/hoangperry/herminal/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/hoangperry/herminal/releases/tag/v1.0.0
 [0.1.0]: https://github.com/hoangperry/herminal/releases/tag/v0.1.0
