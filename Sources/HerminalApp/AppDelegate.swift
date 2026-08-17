@@ -433,11 +433,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
         let defaultRect = NSRect(x: 0, y: 0, width: 900, height: 560)
         let window = NSWindow(
             contentRect: savedFrame ?? defaultRect,
-            styleMask: [.titled, .closable, .resizable, .miniaturizable],
+            // fullSizeContentView lets the workspace own the titlebar row so
+            // the tab strip can live there instead of below it — one bar of
+            // chrome above the terminal rather than two. Verified that a
+            // content-view subview in that row still receives clicks while
+            // the traffic lights keep their own region.
+            styleMask: [.titled, .closable, .resizable, .miniaturizable, .fullSizeContentView],
             backing: .buffered,
             defer: false
         )
+        // Title stays set for Mission Control and the Window menu, but the
+        // tab strip occupies that row now, so AppKit must not draw it.
         window.title = "herminal"
+        window.titleVisibility = .hidden
 
         // v0.3 polish — wrap the workspace inside an NSVisualEffectView so
         // the dark surface picks up the macOS background-blur material.

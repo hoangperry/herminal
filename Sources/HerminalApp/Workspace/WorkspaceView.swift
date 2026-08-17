@@ -273,6 +273,18 @@ final class WorkspaceView: NSView {
     /// the slide is smooth instead of snapping.
     private var isAnimatingLayout = false
 
+    /// Where the tab strip may start without sitting under the close /
+    /// minimise / zoom buttons.
+    ///
+    /// Measured from the window rather than hard-coded: the buttons move
+    /// with the system's window-control metrics, and a stale constant here
+    /// would either clip a tab or leave a gap. The fallback covers the
+    /// pre-window layout pass.
+    private var trafficLightInset: CGFloat {
+        guard let zoom = window?.standardWindowButton(.zoomButton) else { return 78 }
+        return zoom.frame.maxX + HerminalDesign.Spacing.md
+    }
+
     override func layout() {
         super.layout()
         let barHeight = TabBarView.barHeight
@@ -298,10 +310,11 @@ final class WorkspaceView: NSView {
         }
         statusBarHost.isHidden = !Preferences.showStatusBar
 
-        // Sidebars + status bar share the full window height — sidebars
-        // sit ABOVE the status strip so the strip spans the full width
-        // (uniform across content + sidebars, like Xcode's bottom bar).
-        let sidebarTop = bounds.height
+        // Sidebars sit ABOVE the status strip so the strip spans the full
+        // width (uniform across content + sidebars, like Xcode's bottom
+        // bar), and BELOW the tab strip, which now spans the full width in
+        // the titlebar row.
+        let sidebarTop = bounds.height - barHeight
         let sidebarBottom: CGFloat = statusHeight
         let sidebarHeight = max(sidebarTop - sidebarBottom, 0)
         let leftTarget = CGRect(x: 0, y: sidebarBottom, width: leftWidth, height: sidebarHeight)
@@ -324,9 +337,13 @@ final class WorkspaceView: NSView {
 
         let contentX = leftWidth
         let contentWidth = max(bounds.width - leftWidth - rightSidebar, 0)
+        // The tab strip owns the titlebar row edge to edge, starting where
+        // the traffic lights end. It no longer starts at the content column
+        // because that row is now shared with the window's own controls.
+        let tabLeading = trafficLightInset
         tabHost.frame = CGRect(
-            x: contentX, y: bounds.height - barHeight,
-            width: contentWidth, height: barHeight
+            x: tabLeading, y: bounds.height - barHeight,
+            width: max(bounds.width - tabLeading, 0), height: barHeight
         )
         let surfaceHeight = max(bounds.height - barHeight - statusHeight, 0)
         // v0.3 polish: 6 px inset between the libghostty Metal surface
