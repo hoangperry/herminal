@@ -106,12 +106,20 @@ end tell" >/dev/null 2>&1 || {
 sleep 1
 
 # --- 1. workspace: split panes + agent dashboard ---------------------
+# HERMINAL_SHOT_CWD (optional): cd the panes there first — on CI the
+# shell opens in $HOME, which is not a git repo and would show errors.
 echo "==> workspace"
+if [ -n "${HERMINAL_SHOT_CWD:-}" ]; then
+    type_line "cd '$HERMINAL_SHOT_CWD'"
+fi
 type_line "clear && git -c color.ui=always log --oneline -6"
 keystroke "d" "command down"                 # ⌘D — split vertical
 sleep 1
-type_line "swift test --filter HerminalAgentTests 2>&1 | tail -6"
-sleep 3
+if [ -n "${HERMINAL_SHOT_CWD:-}" ]; then
+    type_line "cd '$HERMINAL_SHOT_CWD' && clear"
+fi
+type_line "git -c color.ui=always status -sb && ls Sources/"
+sleep 2
 keystroke "a" "command down, shift down"     # ⌘⇧A — agent dashboard
 shoot "screenshot-workspace"
 
