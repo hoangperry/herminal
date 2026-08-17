@@ -19,7 +19,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   top glyph row after window resize, horizontal split, or font-size changes.
 - **Deterministic release provenance.** Dependency manifests now fail unless
   `HEAD` matches the release tag and redact checkout-specific absolute paths
-  before publication.
+  before publication. Manual release tags are isolated from shell syntax and
+  rejected unless they use stable `vX.Y.Z` semver.
 
 ## [1.0.0] - 2026-08-17
 

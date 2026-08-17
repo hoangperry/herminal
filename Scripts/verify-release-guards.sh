@@ -33,6 +33,13 @@ if ! grep -Fq 'Scripts/generate-dependency-manifest.sh "$TAG" "$DEPENDENCIES"' "
     exit 1
 fi
 
+if ! grep -Fq 'REQUESTED_TAG: ${{ inputs.tag }}' "$RELEASE_WORKFLOW" || \
+   grep -Fq 'echo "tag=${{ inputs.tag }}"' "$RELEASE_WORKFLOW" || \
+   ! grep -Fq '[[ ! "$TAG" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]' "$RELEASE_WORKFLOW"; then
+    echo "FAIL: manual release tags are not isolated and validated as stable semver" >&2
+    exit 1
+fi
+
 if ! grep -Fq 'contents: read' "$CANDIDATE_WORKFLOW" || \
    grep -Fq 'contents: write' "$CANDIDATE_WORKFLOW" || \
    ! grep -Fq 'Scripts/make-app-bundle.sh release' "$CANDIDATE_WORKFLOW" || \
