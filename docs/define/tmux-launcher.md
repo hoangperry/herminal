@@ -49,7 +49,7 @@ pane’s working directory:
 
 | Action | Meaning |
 |---|---|
-| New tmux Session | Create a session named from the repo. Fail if that name already exists. |
+| New tmux Session… | Prompt for a name (repo slug prefilled). Fail if that name already exists. |
 | Attach tmux Session… | Pick an existing session from `tmux ls`, attach it. |
 | Attach or Create tmux | `new-session -A` with the repo-derived name. |
 
@@ -65,10 +65,14 @@ panes, or layouts.
 - As a developer in `~/src/api`, I want to start a tmux session named
   from that repo so the next attach finds the same name.
   - AC: Given a focused pane whose cwd is a git repo `api` and no
-    session `api` exists, when I choose New tmux Session, then a new
-    tab runs tmux creating session `api` with cwd `~/src/api`.
-  - AC: Given session `api` already exists, when I choose New, then
-    herminal shows an error and does not attach or replace it.
+    session `api` exists, when I choose New tmux Session… and keep the
+    prefilled name, then a new tab runs tmux creating session `api`
+    with cwd `~/src/api`.
+  - AC: Given I edit the field to `api-logs` and that name is free,
+    when I choose Create, then the tab creates session `api-logs`.
+  - AC: Given session `api` already exists, when I keep the prefilled
+    name and Create, then herminal shows an error and does not attach
+    or replace it.
 
 **Attach existing**
 
@@ -116,14 +120,15 @@ panes, or layouts.
 - Three Window-menu items and three command-palette rows.
 - No new `⌘⌥` shortcut (cockpit already uses that family).
 - Session name derived from git repo basename, else cwd basename,
-  then slugged and validated.
+  then slugged and validated. New… prefills that slug; the typed
+  name is validated as-is (not slugged).
 - Attach… uses a small picker (alert + popup), not a new sidebar.
 - Agent dashboard lists live sessions: click to attach, trash to
   confirm-kill (`kill-session -t =<name>`). Unsafe names are hidden.
   **New** attach-or-creates the repo session. A second attach
   focuses the tab that already spawned that session. Rows show
-  window count, attached clients, and a Here chip for a tab
-  already open in this window.
+  window count, attached clients, last activity, and a Here chip
+  for a tab already open in this window. Newest activity first.
 
 **Out**
 

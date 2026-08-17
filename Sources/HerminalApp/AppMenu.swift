@@ -236,7 +236,7 @@ enum AppMenu {
 
         windowMenu.addItem(.separator())
         windowMenu.addItem(NSMenuItem(
-            title: "New tmux Session",
+            title: "New tmux Session…",
             action: #selector(WorkspaceView.newTmuxSession(_:)),
             keyEquivalent: ""
         ))

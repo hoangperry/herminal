@@ -33,6 +33,7 @@ enum TmuxLaunch {
         let name: String
         let windows: Int
         let attachedClients: Int
+        var lastActivity: Date? = nil
     }
 
     static let maxNameLength = 64
@@ -75,6 +76,17 @@ enum TmuxLaunch {
         return name
     }
 
+    /// Name typed in New…. Empty field uses `suggested` (the repo slug).
+    /// Does not slug — the user typed it. Still trims and `validateName`.
+    static func resolvedNewName(_ raw: String, suggested: String? = nil) throws -> String {
+        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmed.isEmpty {
+            guard let suggested else { throw ValidationError.empty }
+            return try canonicalName(suggested)
+        }
+        return try canonicalName(trimmed)
+    }
+
     static func resolveBinary(fileManager: FileManager = .default) -> String? {
         binaryCandidates.first { fileManager.isExecutableFile(atPath: $0) }
     }
@@ -103,7 +115,11 @@ enum TmuxLaunch {
             .filter { !$0.isEmpty }
     }
 
-    /// `list-sessions -F '#{session_name}\t#{session_windows}\t#{session_attached}'`
+    /// `list-sessions -F` columns: name, windows, attached clients, activity epoch.
+    static let sessionListFormat =
+        "#{session_name}\t#{session_windows}\t#{session_attached}\t#{session_activity}"
+
+    /// `list-sessions -F` using `sessionListFormat`.
     static func parseSessionRecords(_ stdout: String) -> [Session] {
         stdout.split(whereSeparator: \.isNewline).compactMap { line in
             let raw = String(line)
@@ -114,12 +130,43 @@ enum TmuxLaunch {
             guard !name.isEmpty else { return nil }
             let windows = parts.count > 1 ? Int(parts[1]) ?? 1 : 1
             let attached = parts.count > 2 ? Int(parts[2]) ?? 0 : 0
+            let activity: Date?
+            if parts.count > 3, let epoch = TimeInterval(parts[3]), epoch > 0 {
+                activity = Date(timeIntervalSince1970: epoch)
+            } else {
+                activity = nil
+            }
             return Session(
                 name: name,
                 windows: max(windows, 0),
-                attachedClients: max(attached, 0)
+                attachedClients: max(attached, 0),
+                lastActivity: activity
             )
         }
+    }
+
+    /// Newest activity first; nameless-activity rows keep name order.
+    static func sortedForDashboard(_ sessions: [Session]) -> [Session] {
+        sessions.sorted { lhs, rhs in
+            switch (lhs.lastActivity, rhs.lastActivity) {
+            case let (l?, r?) where l != r:
+                return l > r
+            case (_?, nil):
+                return true
+            case (nil, _?):
+                return false
+            default:
+                return lhs.name.localizedStandardCompare(rhs.name) == .orderedAscending
+            }
+        }
+    }
+
+    static func activityLabel(at date: Date, now: Date = Date()) -> String {
+        let seconds = max(0, now.timeIntervalSince(date))
+        if seconds < 60 { return "just now" }
+        if seconds < 3600 { return "\(max(1, Int(seconds / 60)))m ago" }
+        if seconds < 86_400 { return "\(max(1, Int(seconds / 3600)))h ago" }
+        return "\(max(1, Int(seconds / 86_400)))d ago"
     }
 
     /// Names the dashboard and Attach… picker may show (and therefore attach/kill).
@@ -169,7 +216,7 @@ enum TmuxLaunch {
     ) throws -> [Session] {
         let exe = try resolved(binary)
         let result = runner.run(
-            ["list-sessions", "-F", "#{session_name}\t#{session_windows}\t#{session_attached}"],
+            ["list-sessions", "-F", sessionListFormat],
             binary: exe,
             in: "/"
         )

@@ -34,6 +34,39 @@ struct TmuxLaunchNameTests {
         #expect(TmuxLaunch.slug("My App") == "My-App")
         #expect(TmuxLaunch.slug("foo/bar") == "foo-bar")
     }
+
+    @Test("resolvedNewName prefers the typed name")
+    func resolvedNewNameTyped() throws {
+        #expect(try TmuxLaunch.resolvedNewName("api-logs", suggested: "herminal") == "api-logs")
+        #expect(try TmuxLaunch.resolvedNewName("  api-logs  ", suggested: "herminal") == "api-logs")
+        #expect(try TmuxLaunch.resolvedNewName(" foo ", suggested: nil) == "foo")
+    }
+
+    @Test("resolvedNewName falls back to the suggested repo slug")
+    func resolvedNewNameSuggested() throws {
+        #expect(try TmuxLaunch.resolvedNewName("", suggested: "herminal") == "herminal")
+        #expect(try TmuxLaunch.resolvedNewName("   ", suggested: "herminal") == "herminal")
+    }
+
+    @Test("resolvedNewName rejects an empty field with no suggestion")
+    func resolvedNewNameEmpty() {
+        #expect(throws: TmuxLaunch.ValidationError.empty) {
+            try TmuxLaunch.resolvedNewName("", suggested: nil)
+        }
+    }
+
+    @Test("resolvedNewName does not slug typed junk")
+    func resolvedNewNameRejectsUnsafe() {
+        #expect(throws: TmuxLaunch.ValidationError.self) {
+            try TmuxLaunch.resolvedNewName("foo;rm", suggested: "herminal")
+        }
+        #expect(throws: TmuxLaunch.ValidationError.self) {
+            try TmuxLaunch.resolvedNewName("My App", suggested: "herminal")
+        }
+        #expect(throws: TmuxLaunch.ValidationError.self) {
+            try TmuxLaunch.resolvedNewName("-evil", suggested: "herminal")
+        }
+    }
 }
 
 @Suite("TmuxLaunch.command")
@@ -126,6 +159,45 @@ struct TmuxLaunchListTests {
         #expect(rows.map(\.name) == ["api", "web"])
         #expect(rows.map(\.windows) == [1, 1])
         #expect(rows.map(\.attachedClients) == [0, 0])
+        #expect(rows.map(\.lastActivity) == [nil, nil])
+    }
+
+    @Test("parseSessionRecords reads activity epoch")
+    func parseSessionRecordsActivity() {
+        let rows = TmuxLaunch.parseSessionRecords("api\t2\t1\t1700000000\nweb\t1\t0\t0\n")
+        #expect(rows[0].lastActivity == Date(timeIntervalSince1970: 1_700_000_000))
+        #expect(rows[1].lastActivity == nil)
+    }
+
+    @Test("parseSessionRecords ignores a junk activity column")
+    func parseSessionRecordsJunkActivity() {
+        let rows = TmuxLaunch.parseSessionRecords("api\t1\t0\tnot-a-number\n")
+        #expect(rows.first?.lastActivity == nil)
+    }
+
+    @Test("activityLabel uses coarse relative buckets")
+    func activityLabelBuckets() {
+        let now = Date(timeIntervalSince1970: 1_700_000_000)
+        #expect(TmuxLaunch.activityLabel(at: now.addingTimeInterval(-12), now: now) == "just now")
+        #expect(TmuxLaunch.activityLabel(at: now.addingTimeInterval(-120), now: now) == "2m ago")
+        #expect(TmuxLaunch.activityLabel(at: now.addingTimeInterval(-7_200), now: now) == "2h ago")
+        #expect(TmuxLaunch.activityLabel(at: now.addingTimeInterval(-259_200), now: now) == "3d ago")
+    }
+
+    @Test("sortedForDashboard puts recent activity first")
+    func sortedForDashboard() {
+        let older = TmuxLaunch.Session(
+            name: "older", windows: 1, attachedClients: 0,
+            lastActivity: Date(timeIntervalSince1970: 100)
+        )
+        let newer = TmuxLaunch.Session(
+            name: "newer", windows: 1, attachedClients: 0,
+            lastActivity: Date(timeIntervalSince1970: 200)
+        )
+        let idle = TmuxLaunch.Session(name: "idle", windows: 1, attachedClients: 0)
+        #expect(TmuxLaunch.sortedForDashboard([older, idle, newer]).map(\.name) == [
+            "newer", "older", "idle",
+        ])
     }
 
     @Test("listSessionRecords uses the tab-separated format")
@@ -133,13 +205,18 @@ struct TmuxLaunchListTests {
         let seen = ArgCapture()
         let runner = TmuxRunner { args, _, _ in
             seen.value = args
-            return (0, "api\t3\t2\n", "")
+            return (0, "api\t3\t2\t1700000000\n", "")
         }
         let rows = try TmuxLaunch.listSessionRecords(binary: "/bin/tmux", runner: runner)
         #expect(seen.value == [
-            "list-sessions", "-F", "#{session_name}\t#{session_windows}\t#{session_attached}",
+            "list-sessions", "-F", TmuxLaunch.sessionListFormat,
         ])
-        #expect(rows == [TmuxLaunch.Session(name: "api", windows: 3, attachedClients: 2)])
+        #expect(rows == [
+            TmuxLaunch.Session(
+                name: "api", windows: 3, attachedClients: 2,
+                lastActivity: Date(timeIntervalSince1970: 1_700_000_000)
+            ),
+        ])
     }
 
     @Test("displayableSessions drops illegal records")

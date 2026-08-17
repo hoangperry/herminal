@@ -19,13 +19,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Tab jump.** ⌘1…⌘8 select that tab; ⌘9 selects the last tab.
 - **Worktree-aware git branch.** The status bar follows a `.git` *file*
   (linked worktree), not only a `.git` directory.
-- **tmux launcher.** Window menu + command palette: New session, Attach…,
-  and Attach or Create (by repo name). tmux stays inside the PTY.
+- **tmux launcher.** Window menu + command palette: New session…, Attach…,
+  and Attach or Create (by repo name). New… prompts for a name with the
+  repo slug prefilled. tmux stays inside the PTY.
 - **tmux on the agent dashboard.** Live sessions list with attach and
   confirm-to-kill. Unsafe names are hidden. **New** attach-or-creates
   the repo session; a second click focuses the tab already attached.
-  Rows show window count, whether clients are attached, and a **Here**
-  chip when this window already has that session open.
+  Rows show window count, whether clients are attached, last activity
+  (`2m ago`), and a **Here** chip when this window already has that
+  session open. The list is newest-activity first.
+  **New tmux Session…** (menu / palette) prompts for a name, prefilled
+  from the repo; dashboard **New** is still one-click attach-or-create.
 
 ## [1.0.0] - Unreleased
 
