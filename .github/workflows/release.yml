@@ -150,16 +150,7 @@ jobs:
             cd .build/release
             shasum -a 256 "herminal-$TAG.zip" "herminal-$TAG.dmg"
           ) > "$CHECKSUMS"
-          {
-            echo "tag=$TAG"
-            echo "commit=$(git rev-parse HEAD)"
-            echo
-            echo "[git submodules]"
-            git submodule status --recursive
-            echo
-            echo "[SwiftPM dependencies]"
-            swift package show-dependencies --format json
-          } > "$DEPENDENCIES"
+          Scripts/generate-dependency-manifest.sh "$TAG" "$DEPENDENCIES"
           echo "checksums=$CHECKSUMS" >> "$GITHUB_OUTPUT"
           echo "dependencies=$DEPENDENCIES" >> "$GITHUB_OUTPUT"
 

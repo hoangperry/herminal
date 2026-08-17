@@ -28,6 +28,11 @@ if ! grep -Fq 'ditto -c -k --keepParent .build/release/herminal.app "$ZIP"' "$RE
     exit 1
 fi
 
+if ! grep -Fq 'Scripts/generate-dependency-manifest.sh "$TAG" "$DEPENDENCIES"' "$RELEASE_WORKFLOW"; then
+    echo "FAIL: release workflow bypasses the deterministic dependency manifest generator" >&2
+    exit 1
+fi
+
 if ! grep -Fq 'contents: read' "$CANDIDATE_WORKFLOW" || \
    grep -Fq 'contents: write' "$CANDIDATE_WORKFLOW" || \
    ! grep -Fq 'Scripts/make-app-bundle.sh release' "$CANDIDATE_WORKFLOW" || \
@@ -83,7 +88,9 @@ fi
 
 changelog_fixture=$(mktemp)
 fixture=$(mktemp)
-trap 'rm -f "$changelog_fixture" "$fixture"' EXIT
+dependencies_fixture=$(mktemp)
+dependencies_output=$(mktemp)
+trap 'rm -f "$changelog_fixture" "$fixture" "$dependencies_fixture" "$dependencies_output"' EXIT
 
 printf '## [1.2.3] - Unreleased\n' > "$changelog_fixture"
 if validate_release_changelog "$changelog_fixture" 1.2.3 >/dev/null 2>&1; then
@@ -113,4 +120,37 @@ if [ "$status" != "Accepted" ]; then
     exit 1
 fi
 
-echo "PASS: public release fails closed and notary JSON parsing is stable"
+cat > "$dependencies_fixture" <<JSON
+{
+  "identity": "herminal-private-checkout",
+  "name": "herminal",
+  "url": "$REPO_ROOT",
+  "path": "$REPO_ROOT",
+  "dependencies": [{
+    "identity": "sqlite.swift",
+    "url": "https://github.com/stephencelis/SQLite.swift.git",
+    "path": "$REPO_ROOT/.build/checkouts/SQLite.swift",
+    "dependencies": []
+  }]
+}
+JSON
+python3 "$REPO_ROOT/Scripts/sanitize-swift-dependencies.py" "$REPO_ROOT" \
+    < "$dependencies_fixture" > "$dependencies_output"
+python3 - "$dependencies_output" <<'PY'
+import json
+import pathlib
+import sys
+
+data = json.loads(pathlib.Path(sys.argv[1]).read_text())
+assert data["identity"] == "herminal"
+assert data["url"] == "."
+assert data["path"] == "."
+assert data["dependencies"][0]["path"] == ".build/checkouts/SQLite.swift"
+assert data["dependencies"][0]["url"].startswith("https://")
+PY
+if grep -Fq "$REPO_ROOT" "$dependencies_output"; then
+    echo "FAIL: dependency manifest leaks its local checkout path" >&2
+    exit 1
+fi
+
+echo "PASS: public release fails closed and release metadata is deterministic"
