@@ -203,11 +203,16 @@ public final class GhosttyApp {
     public nonisolated static let surfaceSearchSelectedNotification = Notification.Name("herminal.surfaceSearchSelected")
     /// Count value (`ssize_t total` or `selected`). negative → unknown.
     public nonisolated static let surfaceSearchValueKey = "value"
+    /// Renderer cell metrics changed (initialization, DPI, or live font size).
+    public nonisolated static let surfaceCellSizeDidChangeNotification = Notification.Name(
+        "herminal.surfaceCellSizeDidChange"
+    )
 
     /// Dispatches libghostty's action callbacks. Routes:
     /// - `GHOSTTY_ACTION_RING_BELL` → `BellRegistry` (M8/A2)
     /// - `GHOSTTY_ACTION_SET_TITLE` / `SET_TAB_TITLE` → AppKit
     ///   notification so tab strip can repaint (v0.2.4 audit pass)
+    /// - `GHOSTTY_ACTION_CELL_SIZE` → pane-grid re-layout (#32)
     ///
     /// Returns false for everything else. `nonisolated` because
     /// libghostty calls this from renderer / IO threads.
@@ -322,6 +327,18 @@ public final class GhosttyApp {
                 object: surfaceOwner,
                 userInfo: [surfacePwdKey: String(cString: pwdPtr)]
             )
+            return true
+
+        case GHOSTTY_ACTION_CELL_SIZE:
+            guard target.tag == GHOSTTY_TARGET_SURFACE else { return false }
+            // Renderer callbacks have no actor guarantee. The workspace is
+            // MainActor-isolated and only needs to know that some grid changed.
+            DispatchQueue.main.async {
+                NotificationCenter.default.post(
+                    name: surfaceCellSizeDidChangeNotification,
+                    object: nil
+                )
+            }
             return true
 
         case GHOSTTY_ACTION_MOUSE_SHAPE:

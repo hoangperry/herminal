@@ -14,6 +14,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Dark and Light preferences remain unchanged.
 - **Homebrew v1 install.** The canonical cask now targets the public signed,
   notarized `v1.0.0` DMG and its verified SHA-256 checksum.
+- **Whole terminal rows.** Pane heights now snap to libghostty's live cell grid
+  in backing pixels, balancing leftover space as gutter instead of clipping the
+  top glyph row after window resize, horizontal split, or font-size changes.
 
 ## [1.0.0] - 2026-08-17
 

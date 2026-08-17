@@ -36,6 +36,13 @@ final class HerminalSurfaceView: NSView, ClipboardOwner, NSUserInterfaceValidati
     /// (v0.4.4 status-bar surfacing.)
     private(set) var currentGitBranch: String?
 
+    /// Current renderer row height, once libghostty has initialized the grid.
+    var cellHeightPixels: UInt32? {
+        guard let surface else { return nil }
+        let value = Ghostty.surfaceSize(surface).cellHeightPixels
+        return value > 0 ? value : nil
+    }
+
     /// IME composition (preedit) text — underlined text shown while composing,
     /// e.g. Vietnamese Telex "tieesng" before it commits to "tiếng".
     private var markedText = NSMutableAttributedString()
@@ -119,6 +126,10 @@ final class HerminalSurfaceView: NSView, ClipboardOwner, NSUserInterfaceValidati
         self.surface = surface
         ghostty_surface_set_focus(surface, true)
         syncSize()
+        NotificationCenter.default.post(
+            name: GhosttyApp.surfaceCellSizeDidChangeNotification,
+            object: self
+        )
     }
 
     private func syncSize() {

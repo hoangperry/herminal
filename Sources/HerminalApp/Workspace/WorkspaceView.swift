@@ -168,6 +168,14 @@ final class WorkspaceView: NSView {
             name: GhosttyApp.surfaceDidCloseNotification,
             object: nil
         )
+        // Initial renderer metrics and live font-size changes both alter the
+        // cell grid. Re-snap every leaf so no pane exposes a partial top row.
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(surfaceCellSizeDidChange(_:)),
+            name: GhosttyApp.surfaceCellSizeDidChangeNotification,
+            object: nil
+        )
         // Shell-driven title updates (OSC 0/2 from vim/htop/zsh prompt
         // hooks, or libghostty's `set_tab_title` keybinding). Without
         // this the tab strip stays on the default "herminal" until the
@@ -227,6 +235,11 @@ final class WorkspaceView: NSView {
         NotificationCenter.default.removeObserver(
             self,
             name: GhosttyApp.surfaceDidCloseNotification,
+            object: nil
+        )
+        NotificationCenter.default.removeObserver(
+            self,
+            name: GhosttyApp.surfaceCellSizeDidChangeNotification,
             object: nil
         )
         NotificationCenter.default.removeObserver(
@@ -401,7 +414,7 @@ final class WorkspaceView: NSView {
         if let zoomID = tab.zoomedPaneID, tab.panes.count > 1,
            let zoomed = tab.surfaceView(for: zoomID) {
             for pane in tab.panes { pane.surfaceView.isHidden = (pane.id != zoomID) }
-            zoomed.frame = bounds
+            zoomed.frame = gridAlignedFrame(bounds, for: zoomed)
             splitFrames = [:]
             syncDividers(specs: [])
             paneFocusRing.isHidden = true
@@ -448,7 +461,9 @@ final class WorkspaceView: NSView {
                             dividers: inout [DividerSpec], splitRects: inout [UUID: NSRect]) {
         switch node {
         case let .leaf(id):
-            tab.surfaceView(for: id)?.frame = rect
+            if let surface = tab.surfaceView(for: id) {
+                surface.frame = gridAlignedFrame(rect, for: surface)
+            }
         case let .split(info):
             splitRects[info.id] = rect
             let gap = Self.paneGap
@@ -486,6 +501,26 @@ final class WorkspaceView: NSView {
                                  width: rect.width, height: hit)))
             }
         }
+    }
+
+    /// Removes a fractional terminal row in backing-pixel space and balances
+    /// the remainder as chrome gutter. Metrics are per surface because live
+    /// font size and backing scale can change independently.
+    private func gridAlignedFrame(_ rect: NSRect, for surface: HerminalSurfaceView) -> NSRect {
+        guard let cellHeight = surface.cellHeightPixels else { return rect }
+        let scale = surface.window?.backingScaleFactor
+            ?? window?.backingScaleFactor
+            ?? NSScreen.main?.backingScaleFactor
+            ?? 2
+        return PaneGridSizing.snapVertically(
+            rect,
+            cellHeightPixels: cellHeight,
+            scale: scale
+        )
+    }
+
+    @objc private func surfaceCellSizeDidChange(_ note: Notification) {
+        layoutPanes()
     }
 
     /// Reconciles live divider views to `specs` — one per split node,
@@ -1177,6 +1212,10 @@ final class WorkspaceView: NSView {
                 pane.surfaceView.runBindingActionForHarness(action)
             }
         }
+        // CELL_SIZE normally triggers the observer above. This immediate pass
+        // also covers libghostty builds that update metrics synchronously but
+        // omit the informational action callback.
+        layoutPanes()
     }
     @objc func splitPaneVertical(_ sender: Any?) { splitActivePane(vertical: true) }
     @objc func splitPaneHorizontal(_ sender: Any?) { splitActivePane(vertical: false) }

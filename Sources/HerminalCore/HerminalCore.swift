@@ -27,6 +27,29 @@ public protocol ClipboardOwner: AnyObject {
 
 /// Thin Swift wrapper over the embedded libghostty C ABI.
 public enum Ghostty {
+    /// Grid and backing-pixel metrics reported by one live surface.
+    public struct SurfaceSize: Sendable, Equatable {
+        public let columns: UInt16
+        public let rows: UInt16
+        public let widthPixels: UInt32
+        public let heightPixels: UInt32
+        public let cellWidthPixels: UInt32
+        public let cellHeightPixels: UInt32
+    }
+
+    /// Reads the current renderer metrics through libghostty's C ABI.
+    public static func surfaceSize(_ surface: ghostty_surface_t) -> SurfaceSize {
+        let raw = ghostty_surface_size(surface)
+        return SurfaceSize(
+            columns: raw.columns,
+            rows: raw.rows,
+            widthPixels: raw.width_px,
+            heightPixels: raw.height_px,
+            cellWidthPixels: raw.cell_width_px,
+            cellHeightPixels: raw.cell_height_px
+        )
+    }
+
     /// Build information reported by the embedded libghostty.
     public struct Info: Sendable, Equatable {
         public enum BuildMode: String, Sendable {
