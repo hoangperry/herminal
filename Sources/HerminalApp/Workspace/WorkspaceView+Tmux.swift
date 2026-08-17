@@ -21,7 +21,27 @@ private enum TmuxSpawnOutcome: Sendable {
 extension WorkspaceView {
 
     @objc func newTmuxSession(_ sender: Any?) {
-        spawnTmux(action: .newSession)
+        guard TmuxLaunch.resolveBinary() != nil else {
+            presentTmuxError("tmux is not installed.")
+            return
+        }
+        guard let cwd = focusedWorkingDirectory() else {
+            presentTmuxError("The current pane has no working directory yet.")
+            return
+        }
+        let suggested = TmuxLaunch.sessionName(fromCwd: cwd)
+        guard let raw = promptForNewSessionName(suggested: suggested) else { return }
+        let name: String
+        do {
+            name = try TmuxLaunch.resolvedNewName(raw, suggested: suggested)
+        } catch TmuxLaunch.ValidationError.empty {
+            presentTmuxError("Could not make a tmux session name from this folder.")
+            return
+        } catch {
+            presentTmuxError("Session names may use letters, numbers, dots, underscores, and hyphens.")
+            return
+        }
+        spawnTmux(action: .newSession, name: name, cwd: cwd)
     }
 
     @objc func attachTmuxSession(_ sender: Any?) {
@@ -108,19 +128,28 @@ extension WorkspaceView {
         }
     }
 
-    private func spawnTmux(action: TmuxLaunch.Action) {
+    private func spawnTmux(
+        action: TmuxLaunch.Action,
+        name explicitName: String? = nil,
+        cwd explicitCwd: String? = nil
+    ) {
         guard TmuxLaunch.resolveBinary() != nil else {
             presentTmuxError("tmux is not installed.")
             return
         }
-        guard let cwd = focusedWorkingDirectory() else {
+        guard let cwd = explicitCwd ?? focusedWorkingDirectory() else {
             presentTmuxError("The current pane has no working directory yet.")
             return
         }
 
         Task { [weak self] in
             let outcome = await Task.detached(priority: .utility) {
-                guard let name = TmuxLaunch.sessionName(fromCwd: cwd) else {
+                let name: String
+                if let explicitName {
+                    name = explicitName
+                } else if let derived = TmuxLaunch.sessionName(fromCwd: cwd) {
+                    name = derived
+                } else {
                     return TmuxSpawnOutcome.invalidName
                 }
                 guard action == .newSession else {
@@ -172,6 +201,22 @@ extension WorkspaceView {
         } catch {
             presentTmuxError("Could not build the tmux command.")
         }
+    }
+
+    private func promptForNewSessionName(suggested: String?) -> String? {
+        let alert = NSAlert()
+        alert.messageText = "New tmux session"
+        alert.informativeText = "Letters, numbers, dots, underscores, and hyphens. Fails if that name already exists."
+        alert.addButton(withTitle: "Create")
+        alert.addButton(withTitle: "Cancel")
+        let field = NSTextField(string: suggested ?? "")
+        field.placeholderString = "session-name"
+        field.frame = NSRect(x: 0, y: 0, width: 280, height: 22)
+        alert.accessoryView = field
+        alert.window.initialFirstResponder = field
+        field.selectText(nil)
+        guard alert.runModal() == .alertFirstButtonReturn else { return nil }
+        return field.stringValue
     }
 
     private func pickSession(from names: [String]) -> String? {

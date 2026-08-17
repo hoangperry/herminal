@@ -787,7 +787,7 @@ final class WorkspaceView: NSView {
                 return TmuxLaunch.displayableSessions(raw)
             }.value
             guard let self, generation == self.tmuxRefreshGeneration else { return }
-            self.tmuxSessions = records
+            self.tmuxSessions = TmuxLaunch.sortedForDashboard(records)
             self.applyTmuxDashboardIfVisible()
         }
     }

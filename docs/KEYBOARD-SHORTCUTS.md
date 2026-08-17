@@ -113,13 +113,15 @@ So you can use ⌘T to open a herminal tab AND ⌃B C to open a tmux
 window inside the active herminal pane. No conflict.
 
 The Window menu and command palette (`⌘⇧P`) can start or rejoin a
-named session (New / Attach… / Attach or Create). Those actions have
-no extra shortcut — `⌃B` is unchanged. The tmux *client* lives in the
-new tab; the tmux *server* survives that tab closing. The agent
-dashboard lists live sessions: click to attach, trash to kill
-(with confirm). Rows show window count and a **Here** chip when
-this window already attached. **New** attach-or-creates the
-repo-named session. A second attach focuses the existing tab.
+named session (New… / Attach… / Attach or Create). Those actions have
+no extra shortcut — `⌃B` is unchanged. New… prompts for a name
+(repo slug prefilled). The tmux *client* lives in the new tab; the
+tmux *server* survives that tab closing. The agent dashboard lists
+live sessions: click to attach, trash to kill (with confirm). Rows
+show window count, last activity, and a **Here** chip when this
+window already attached. Newest activity is listed first. Dashboard
+**New** attach-or-creates the repo-named session. A second attach
+focuses the existing tab.
 
 ---
 

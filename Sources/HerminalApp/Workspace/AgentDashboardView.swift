@@ -333,12 +333,15 @@ struct AgentDashboardView: View {
         .accessibilityLabel(label)
     }
 
-    private static func tmuxSubtitle(_ session: TmuxLaunch.Session) -> String {
-        let windows = session.windows == 1 ? "1 window" : "\(session.windows) windows"
+    private static func tmuxSubtitle(_ session: TmuxLaunch.Session, now: Date = Date()) -> String {
+        var parts = [session.windows == 1 ? "1 window" : "\(session.windows) windows"]
         if session.attachedClients > 0 {
-            return "\(windows) · attached"
+            parts.append("attached")
         }
-        return windows
+        if let at = session.lastActivity {
+            parts.append(TmuxLaunch.activityLabel(at: at, now: now))
+        }
+        return parts.joined(separator: " · ")
     }
 
     private static func tmuxA11yLabel(_ session: TmuxLaunch.Session, openHere: Bool) -> String {
