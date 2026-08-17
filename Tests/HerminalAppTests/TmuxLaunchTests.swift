@@ -111,6 +111,46 @@ struct TmuxLaunchListTests {
         #expect(TmuxLaunch.displayableSessions(["api", "foo;rm", "web", "a b"]) == ["api", "web"])
     }
 
+    @Test("parseSessionRecords reads name, windows, and attached clients")
+    func parseSessionRecords() {
+        let rows = TmuxLaunch.parseSessionRecords("api\t2\t1\nweb\t1\t0\n\n")
+        #expect(rows == [
+            TmuxLaunch.Session(name: "api", windows: 2, attachedClients: 1),
+            TmuxLaunch.Session(name: "web", windows: 1, attachedClients: 0),
+        ])
+    }
+
+    @Test("parseSessionRecords falls back when columns are missing")
+    func parseSessionRecordsPlainNames() {
+        let rows = TmuxLaunch.parseSessionRecords("api\nweb\n")
+        #expect(rows.map(\.name) == ["api", "web"])
+        #expect(rows.map(\.windows) == [1, 1])
+        #expect(rows.map(\.attachedClients) == [0, 0])
+    }
+
+    @Test("listSessionRecords uses the tab-separated format")
+    func listSessionRecordsArgs() throws {
+        let seen = ArgCapture()
+        let runner = TmuxRunner { args, _, _ in
+            seen.value = args
+            return (0, "api\t3\t2\n", "")
+        }
+        let rows = try TmuxLaunch.listSessionRecords(binary: "/bin/tmux", runner: runner)
+        #expect(seen.value == [
+            "list-sessions", "-F", "#{session_name}\t#{session_windows}\t#{session_attached}",
+        ])
+        #expect(rows == [TmuxLaunch.Session(name: "api", windows: 3, attachedClients: 2)])
+    }
+
+    @Test("displayableSessions drops illegal records")
+    func displayableRecords() {
+        let rows = [
+            TmuxLaunch.Session(name: "api", windows: 1, attachedClients: 0),
+            TmuxLaunch.Session(name: "foo;rm", windows: 1, attachedClients: 0),
+        ]
+        #expect(TmuxLaunch.displayableSessions(rows).map(\.name) == ["api"])
+    }
+
     @Test("binaryCandidates are the Homebrew-then-system list")
     func candidateOrder() {
         #expect(TmuxLaunch.binaryCandidates == [

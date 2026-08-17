@@ -28,6 +28,13 @@ enum TmuxLaunch {
         case tmuxFailed(String)
     }
 
+    struct Session: Equatable, Sendable, Identifiable {
+        var id: String { name }
+        let name: String
+        let windows: Int
+        let attachedClients: Int
+    }
+
     static let maxNameLength = 64
     static let binaryCandidates = [
         "/opt/homebrew/bin/tmux",
@@ -96,9 +103,32 @@ enum TmuxLaunch {
             .filter { !$0.isEmpty }
     }
 
+    /// `list-sessions -F '#{session_name}\t#{session_windows}\t#{session_attached}'`
+    static func parseSessionRecords(_ stdout: String) -> [Session] {
+        stdout.split(whereSeparator: \.isNewline).compactMap { line in
+            let raw = String(line)
+            guard !raw.trimmingCharacters(in: .whitespaces).isEmpty else { return nil }
+            let parts = raw.split(separator: "\t", omittingEmptySubsequences: false)
+                .map { $0.trimmingCharacters(in: .whitespaces) }
+            let name = parts.first ?? ""
+            guard !name.isEmpty else { return nil }
+            let windows = parts.count > 1 ? Int(parts[1]) ?? 1 : 1
+            let attached = parts.count > 2 ? Int(parts[2]) ?? 0 : 0
+            return Session(
+                name: name,
+                windows: max(windows, 0),
+                attachedClients: max(attached, 0)
+            )
+        }
+    }
+
     /// Names the dashboard and Attach… picker may show (and therefore attach/kill).
     static func displayableSessions(_ names: [String]) -> [String] {
         names.filter { (try? validateName($0)) != nil }
+    }
+
+    static func displayableSessions(_ sessions: [Session]) -> [Session] {
+        sessions.filter { (try? validateName($0.name)) != nil }
     }
 
     /// Inverse of `command(action:name:)` for validated names (no quotes
@@ -130,6 +160,21 @@ enum TmuxLaunch {
         let result = runner.run(["list-sessions", "-F", "#{session_name}"], binary: exe, in: "/")
         if result.status != 0 { return [] }
         return parseSessionList(result.stdout)
+    }
+
+    /// Call from a background queue — this blocks on `Process` for up to 8s.
+    static func listSessionRecords(
+        binary: String? = nil,
+        runner: TmuxRunner = .live
+    ) throws -> [Session] {
+        let exe = try resolved(binary)
+        let result = runner.run(
+            ["list-sessions", "-F", "#{session_name}\t#{session_windows}\t#{session_attached}"],
+            binary: exe,
+            in: "/"
+        )
+        if result.status != 0 { return [] }
+        return parseSessionRecords(result.stdout)
     }
 
     static func hasSession(
