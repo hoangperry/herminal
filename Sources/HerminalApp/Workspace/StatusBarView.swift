@@ -124,6 +124,11 @@ struct StatusSnapshot: Sendable, Equatable {
 
     var latencyText: String {
         guard let value = latencyP95 else { return "—" }
+        // A healthy tick is tens of microseconds, and "%.1f ms" flattened
+        // every one of them to a broken-looking "0.0 ms". Switch units
+        // below a millisecond so the chip reports the real number — which
+        // happens to be the figure worth showing off.
+        if value < 1 { return String(format: "%.0f µs", value * 1_000) }
         return String(format: "%.1f ms", value)
     }
 
