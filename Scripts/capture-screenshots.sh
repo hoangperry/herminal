@@ -23,10 +23,13 @@ OUT_DIR="$REPO_ROOT/docs/assets"
 
 # Window geometry. 1440x900 is the smallest 16:10 that still leaves the
 # terminal panes readable once GitHub scales the image down to ~890 px.
-WIN_X=80
-WIN_Y=80
-WIN_W=1440
-WIN_H=900
+# Clamped to the actual display (CI runners are 1024x768) with a margin
+# so the menu bar and Dock never bleed into the rect.
+read -r DISP_W DISP_H < <(osascript -e 'tell application "Finder" to get bounds of window of desktop' | awk -F', ' '{print $3, $4}')
+WIN_W=$(( DISP_W - 64 < 1440 ? DISP_W - 64 : 1440 ))
+WIN_H=$(( DISP_H - 88 < 900 ? DISP_H - 88 : 900 ))
+WIN_X=$(( (DISP_W - WIN_W) / 2 ))
+WIN_Y=$(( (DISP_H - WIN_H) / 2 + 14 ))
 
 # --- resolve the app: prefer a fresh local build over /Applications ---
 APP_BUNDLE="$REPO_ROOT/.build/herminal.app"
@@ -91,6 +94,9 @@ shoot() {
 # --- launch ----------------------------------------------------------
 pkill -9 -x HerminalApp 2>/dev/null
 sleep 1
+# Suppress the one-time welcome overlay — it covers the workspace and
+# swallows the scripted keystrokes on a fresh machine.
+defaults write com.hoangperry.herminal preferences.firstRun.completed -bool true
 open -a "$APP_BUNDLE"
 sleep 5   # libghostty needs a moment to bring up the Metal layer + first PTY
 

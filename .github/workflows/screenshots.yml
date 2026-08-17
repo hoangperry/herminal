@@ -49,6 +49,22 @@ jobs:
           codesign --force --deep -s - .build/herminal.app
           xattr -dr com.apple.quarantine .build/herminal.app || true
 
+      - name: Prepare the runner desktop
+        run: |
+          # Dock would draw over the window region on the small display.
+          defaults write com.apple.dock autohide -bool true
+          killall Dock || true
+          # The dashboard's TMUX section reads better than "tmux is not
+          # installed".
+          brew install -q tmux || true
+          # macOS 15 shows a one-time "bypass the window picker" consent
+          # dialog on the first legacy screencapture. Trigger it with a
+          # throwaway capture and click Allow so it never pollutes a shot.
+          screencapture -x /tmp/warm.png || true
+          sleep 3
+          osascript -e 'tell application "System Events" to tell (first process whose name contains "UserNotificationCenter") to click button "Allow" of window 1' || true
+          sleep 1
+
       - name: Capture
         env:
           HERMINAL_SHOT_CWD: ${{ github.workspace }}
