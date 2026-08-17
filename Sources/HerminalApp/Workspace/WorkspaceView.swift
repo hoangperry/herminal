@@ -88,8 +88,12 @@ final class WorkspaceView: NSView {
     private var primaryWorktreePath: String?
     /// Discards stale async git results after focus/cwd changes.
     /// De-dupes the issue-#32 cell-grid diagnostic so a resize drag does not
-    /// flood the diary — one line per pane per distinct surface size.
+    /// flood the diary — one line per pane per distinct surface size. Capped
+    /// because a long resize session produces an unbounded number of
+    /// distinct sizes; past the cap we clear and start over rather than let
+    /// a diagnostic grow without limit.
     private var loggedCellGridKeys: Set<String> = []
+    private static let cellGridLogKeyCap = 256
     private var worktreeRefreshGeneration = 0
     /// Last `tmux list-sessions`, same cadence as worktrees (open /
     /// cwd / spawn / kill) — never the 2s agent poll. Debounced so OSC 7
@@ -507,6 +511,7 @@ final class WorkspaceView: NSView {
         let m = Ghostty.metrics(of: surface)
         guard m.cellHeightPx > 0 else { return }
         let key = "\(paneID)-\(m.widthPx)x\(m.heightPx)"
+        if loggedCellGridKeys.count >= Self.cellGridLogKeyCap { loggedCellGridKeys.removeAll() }
         guard loggedCellGridKeys.insert(key).inserted else { return }
         Diary.shared.log(
             "cell grid: \(m.columns)x\(m.rows) cells of \(m.cellWidthPx)x\(m.cellHeightPx)px "
