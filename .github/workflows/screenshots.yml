@@ -67,7 +67,9 @@ jobs:
 
       - name: Stub an agent CLI for the dashboard shot
         run: |
-          printf '#!/bin/bash\nsleep 300\n' | sudo tee /usr/local/bin/claude >/dev/null
+          # A real Mach-O binary named claude, so the process's p_comm is
+          # exactly "claude" (a shebang script would report the shell).
+          sudo cp /bin/sleep /usr/local/bin/claude
           sudo chmod +x /usr/local/bin/claude
 
       - name: Capture
