@@ -1,7 +1,8 @@
-# Vietnamese IME Smoke Test — 20 Phrases (M1-11)
+# Vietnamese IME Smoke Test — 20 Phrases
 
-**Status:** Owner manual test. Carry from Month 1 — 4 months old as of M5.
-**Estimated time:** ~10 minutes.
+**Status:** Open manual compatibility check — owner or external macOS tester.
+Tracked in [issue #2](https://github.com/hoangperry/herminal/issues/2).
+**Estimated time:** ~10–15 minutes. No code changes are required.
 **Goal:** Confirm Telex + VNI composition flows from macOS IME → herminal
 NSTextInputClient → libghostty → PTY without dropped characters, mis-placed
 diacritics, or doubled letters.
@@ -15,10 +16,16 @@ diacritics, or doubled letters.
 
 ## Setup
 
-1. macOS System Settings → Keyboard → Input Sources → add **Vietnamese
-   Telex** (or VNI — both should be tested).
-2. Build + launch herminal: `Scripts/make-app-bundle.sh && open .build/herminal.app`.
-3. Switch IME to Vietnamese Telex (⌃Space or the menu bar flag).
+1. Use an Apple Silicon Mac running macOS Sonoma or later.
+2. Install the signed public
+   [`v1.0.0`](https://github.com/hoangperry/herminal/releases/tag/v1.0.0)
+   DMG or `brew install --cask hoangperry/herminal/herminal`. To test current
+   `main` instead, record the commit and launch a local build with
+   `Scripts/make-app-bundle.sh && open .build/herminal.app`.
+3. macOS System Settings → Keyboard → Input Sources → add both **Vietnamese
+   Telex** and **Vietnamese VNI**.
+4. Switch to Vietnamese Telex (⌃Space or the menu bar input menu). Use only the
+   temporary filenames below; do not type private shell history or credentials.
 
 ## Run-the-list
 
@@ -63,7 +70,7 @@ If the result is ❌, note in the **defect** column whether the issue is:
 | 19 | (mix latin + vi) `git commit -m "thay ddooir font tieesng vieejt"` | `git commit -m "thay đổi font tiếng việt"` | | |
 | 20 | (rapid type) `aaa bbb ccc ddd` then immediately `eeef ffff gggj` | `aaa bbb ccc ddd êê ff ggg` | | |
 
-## Shell completion while preedit is active (release blocker)
+## Shell completion while preedit is active (manual compatibility gate)
 
 Run these cases in an empty temporary directory whose filenames make the
 expected completion unambiguous. Confirm the partial Vietnamese text is still
@@ -85,9 +92,9 @@ touch 'kiểm-thử.txt'
 | T6 | US input / zsh | Type an ordinary ASCII unique prefix, press Tab | Existing non-IME completion remains unchanged | | |
 | T7 | Telex / zsh | Repeat T1 rapidly 10 times on fresh prompts | No dropped or duplicated characters | | |
 
-If T1 or T2 fails, the build is not eligible for release. Record whether the
-underlined text remained visible, committed without completion, disappeared,
-or duplicated.
+If T1 or T2 fails, keep the compatibility gate open and file a regression
+before the next release. Record whether the underlined text remained visible,
+committed without completion, disappeared, or duplicated.
 
 ## Pass criteria
 
@@ -96,7 +103,7 @@ or duplicated.
 - **0 ❌** of severity **DROP** or **DUP** (those are data-loss class).
 - Any **CURSOR** defect documented for a follow-up bug.
 
-## Privacy-safe release-gate record
+## Privacy-safe result record
 
 For T1–T7, the interactive recorder accepts only pass/fail/skipped and a bounded
 defect class; it never asks for terminal history or typed content:
@@ -109,22 +116,24 @@ It writes a timestamped file under `docs/QA/results/` and exits non-zero unless
 T1/T2/T5/T6/T7 pass with no DROP/DUP defect. Review the generated file before
 committing it.
 
-## After running
+## Share the result
 
-1. File any ❌ rows as issues in `docs/backlog/` under the relevant month.
-2. Tick `M1-11` complete in `docs/backlog/month-1.md` (and remove from
-   carry-over in subsequent months).
-3. Commit the filled-in checklist as
-   `docs/QA/vietnamese-ime-checklist-YYYY-MM-DD.md` so the result is
-   captured per-run rather than overwriting the template.
+1. Run `Scripts/record-vietnamese-ime-gate.sh` from a repository clone and
+   review the generated bounded result file before sharing it.
+2. Open a small PR adding that timestamped file under `docs/QA/results/`, or
+   paste its privacy-safe pass/fail matrix into
+   [issue #2](https://github.com/hoangperry/herminal/issues/2). Do not overwrite
+   this reusable checklist.
+3. For any failure, open a separate bug with macOS version, Herminal release or
+   commit, input source, case ID, and defect class. Never attach terminal
+   history, usernames, filesystem paths, or credentials.
 
 ## Why this exists
 
-Vietnamese is the second-largest population of Claude Code users in the
-PRD personas, and Telex composition is the moment of truth for "is this
-terminal usable by a Vietnamese developer." The Month-1 spike got the
-NSTextInputClient pipe wired and verified one phrase by hand. A 20-phrase
-smoke catches:
+Vietnamese-first input is a core Herminal promise, and Telex composition is the
+moment of truth for "is this terminal usable by a Vietnamese developer." The
+`NSTextInputClient` bridge has automated coverage, while this 20-phrase smoke
+check catches real system-IME behavior such as:
 
 - Single-keystroke diacritics that only fire on the SECOND character of
   a syllable (`ow` → `ơ`, `oo` → `ô`, `aw` → `ă`).
