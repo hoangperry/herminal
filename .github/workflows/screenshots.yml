@@ -96,6 +96,14 @@ jobs:
           HERMINAL_SHOT_SPAWN_AGENT: "1"
         run: Scripts/capture-screenshots.sh
 
+      # Issue #32: the app logs how libghostty divided each pane into cells.
+      # Surfacing it here is how we learn which way to round.
+      - name: Cell-grid diagnostics
+        if: always()
+        run: |
+          log="$HOME/Library/Application Support/herminal/diary.log"
+          [ -f "$log" ] && grep -F "cell grid:" "$log" || echo "(no cell-grid lines)"
+
       - name: Upload screenshots
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:

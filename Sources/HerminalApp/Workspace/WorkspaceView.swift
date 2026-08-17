@@ -87,6 +87,9 @@ final class WorkspaceView: NSView {
     private var worktreesInGitRepo = false
     private var primaryWorktreePath: String?
     /// Discards stale async git results after focus/cwd changes.
+    /// De-dupes the issue-#32 cell-grid diagnostic so a resize drag does not
+    /// flood the diary — one line per pane per distinct surface size.
+    private var loggedCellGridKeys: Set<String> = []
     private var worktreeRefreshGeneration = 0
     /// Last `tmux list-sessions`, same cadence as worktrees (open /
     /// cwd / spawn / kill) — never the 2s agent poll. Debounced so OSC 7
@@ -448,7 +451,9 @@ final class WorkspaceView: NSView {
                             dividers: inout [DividerSpec], splitRects: inout [UUID: NSRect]) {
         switch node {
         case let .leaf(id):
-            tab.surfaceView(for: id)?.frame = rect
+            guard let view = tab.surfaceView(for: id) else { return }
+            view.frame = rect
+            logCellGridSlack(of: view, paneID: id)
         case let .split(info):
             splitRects[info.id] = rect
             let gap = Self.paneGap
@@ -486,6 +491,30 @@ final class WorkspaceView: NSView {
                                  width: rect.width, height: hit)))
             }
         }
+    }
+
+    /// Records how libghostty actually divided a pane into cells.
+    ///
+    /// Investigating issue #32: a pane whose pixel height is not a whole
+    /// number of cells renders a sliced row, but which end of the surface
+    /// absorbs the leftover — and whether libghostty already turns it into
+    /// padding — is not something the C ABI documents. This logs the real
+    /// numbers so the fix can round in the right direction instead of a
+    /// guessed one. Diagnostic only; it changes no layout.
+    private func logCellGridSlack(of view: HerminalSurfaceView, paneID: UUID) {
+        #if DEBUG
+        guard let surface = view.surface else { return }
+        let m = Ghostty.metrics(of: surface)
+        guard m.cellHeightPx > 0 else { return }
+        let key = "\(paneID)-\(m.widthPx)x\(m.heightPx)"
+        guard loggedCellGridKeys.insert(key).inserted else { return }
+        Diary.shared.log(
+            "cell grid: \(m.columns)x\(m.rows) cells of \(m.cellWidthPx)x\(m.cellHeightPx)px "
+                + "in \(m.widthPx)x\(m.heightPx)px, slack h=\(m.horizontalSlackPx) "
+                + "v=\(m.verticalSlackPx)",
+            category: "layout"
+        )
+        #endif
     }
 
     /// Reconciles live divider views to `specs` — one per split node,
