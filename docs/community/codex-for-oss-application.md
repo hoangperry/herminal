@@ -57,7 +57,7 @@ No row may be marked ready without a dated public source.
 | Maintainer/write access | Repository ownership | Public repository owner | Yes |
 | CI health | GitHub Actions run | 220-test run [`32027126478`](https://github.com/hoangperry/herminal/actions/runs/32027126478) | Yes |
 | Security scanning | GitHub Actions run | CodeQL run [`32027126468`](https://github.com/hoangperry/herminal/actions/runs/32027126468); Dependabot alerts and security updates enabled | Yes |
-| Release supply chain | Workflow + owner-gate record | Candidate run `31830331678`; public signed/notarized assets and checksums in [`v1.0.0`](https://github.com/hoangperry/herminal/releases/tag/v1.0.0) | Yes |
+| Release supply chain | Workflow + owner-gate record | Candidate run `31830331678`; public signed/notarized assets, checksums, and deterministic dependency manifest in [`v1.0.0`](https://github.com/hoangperry/herminal/releases/tag/v1.0.0) | Yes |
 | Public v1 install | Release + DMG/Homebrew/Gatekeeper verification | Public DMG and audited Homebrew v1 cask exist; clean-account verification remains | Partial |
 | Repository interest | Public GitHub counters | 58 stars and 2 forks on 2026-08-17 | Supporting signal only — not adoption |
 | Live Telex/VNI completion | Dated checklist result linked from issue #2 | Missing | No |

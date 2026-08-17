@@ -17,6 +17,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Whole terminal rows.** Pane heights now snap to libghostty's live cell grid
   in backing pixels, balancing leftover space as gutter instead of clipping the
   top glyph row after window resize, horizontal split, or font-size changes.
+- **Deterministic release provenance.** Dependency manifests now fail unless
+  `HEAD` matches the release tag and redact checkout-specific absolute paths
+  before publication.
 
 ## [1.0.0] - 2026-08-17
 
