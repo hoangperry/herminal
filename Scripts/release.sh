@@ -30,6 +30,8 @@ set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$REPO_ROOT" || exit 1
+# shellcheck disable=SC1091 # Path is resolved from this script's repo root.
+source "$REPO_ROOT/Scripts/release-common.sh"
 
 if [ "$#" -ne 1 ]; then
     echo "usage: $0 <version>   (e.g. 0.1.0 or 1.2.3-beta.1)" >&2
@@ -66,10 +68,10 @@ if [ -n "$(git status --porcelain --ignore-submodules=dirty)" ]; then
     exit 1
 fi
 
-# 2. CHANGELOG entry matches the version arg.
-if ! grep -q "^## \[$VERSION\]" CHANGELOG.md; then
-    echo "ERROR: no '## [$VERSION]' section in CHANGELOG.md" >&2
-    echo "Move items out of '## [Unreleased]' into a '## [$VERSION]' block first." >&2
+# 2. CHANGELOG entry matches the version arg and has been finalized with a
+# release date. A `- Unreleased` section is still a draft and cannot be tagged.
+if ! validate_release_changelog CHANGELOG.md "$VERSION"; then
+    echo "Finalize '## [$VERSION] - YYYY-MM-DD' before cutting the release." >&2
     exit 1
 fi
 

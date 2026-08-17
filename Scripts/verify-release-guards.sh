@@ -81,8 +81,26 @@ if [ "$(normalize_release_version v1.2.3)" != "1.2.3" ] || \
     exit 1
 fi
 
+changelog_fixture=$(mktemp)
 fixture=$(mktemp)
-trap 'rm -f "$fixture"' EXIT
+trap 'rm -f "$changelog_fixture" "$fixture"' EXIT
+
+printf '## [1.2.3] - Unreleased\n' > "$changelog_fixture"
+if validate_release_changelog "$changelog_fixture" 1.2.3 >/dev/null 2>&1; then
+    echo "FAIL: unreleased changelog header was accepted" >&2
+    exit 1
+fi
+printf '## [1.2.3] - 2026-08-17\n' > "$changelog_fixture"
+if ! validate_release_changelog "$changelog_fixture" 1.2.3; then
+    echo "FAIL: dated changelog header was rejected" >&2
+    exit 1
+fi
+printf '## [1.2.4] - 2026-08-17\n' > "$changelog_fixture"
+if validate_release_changelog "$changelog_fixture" 1.2.3 >/dev/null 2>&1; then
+    echo "FAIL: missing release changelog header was accepted" >&2
+    exit 1
+fi
+
 cat > "$fixture" <<'JSON'
 {
   "id": "00000000-0000-0000-0000-000000000000",
