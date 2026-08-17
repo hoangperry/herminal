@@ -18,6 +18,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
     /// works. (v0.4.2)
     private let workspaceSubmenu = NSMenu(title: "Open Workspace")
     private var tickTimer: Timer?
+    /// Observes the app-level appearance (which remains system-driven even
+    /// though the window is pinned to Herminal's resolved chrome theme).
+    private var systemAppearanceObservation: NSKeyValueObservation?
     /// Set after we restore the workspace state in didFinishLaunching so
     /// the windowDidMove/Resize callbacks don't write back the default
     /// frame on first launch. (M12-P5)
@@ -33,6 +36,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
         // the first window paint flashes the .dark default for one frame
         // even when the user picked .light.
         AppDelegate.applyPersistedTheme()
+        installSystemAppearanceObservation()
         // Touch the diary singleton next so crash handlers install before
         // any libghostty / Metal init that could fault.
         Diary.shared.log("applicationDidFinishLaunching", category: "lifecycle")
@@ -643,17 +647,29 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
     }
 
     /// Sets `HerminalDesign.currentTheme` from the persisted preference.
-    /// `.system` follows NSApp.effectiveAppearance; `.dark` / `.light`
-    /// force the matching value regardless of system setting.
     private static func applyPersistedTheme() {
-        switch Preferences.theme {
-        case .dark:
-            HerminalDesign.currentTheme = .dark
-        case .light:
-            HerminalDesign.currentTheme = .light
-        case .system:
-            let isDark = NSApp.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
-            HerminalDesign.currentTheme = isDark ? .dark : .light
+        let isDark = NSApp.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+        HerminalDesign.currentTheme = HerminalDesign.resolvedTheme(
+            preference: Preferences.theme,
+            systemIsDark: isDark
+        )
+    }
+
+    /// `NSApplication.effectiveAppearance` is KVO-compliant. Observe the app,
+    /// not the explicitly themed window, so Follow System keeps receiving
+    /// macOS Light/Dark changes after the window appearance is pinned.
+    private func installSystemAppearanceObservation() {
+        systemAppearanceObservation = NSApp.observe(
+            \.effectiveAppearance,
+            options: [.new]
+        ) { _, _ in
+            Task { @MainActor in
+                guard Preferences.theme == .system else { return }
+                // Update the global palette even if this fires during startup
+                // before WorkspaceView has registered its notification listener.
+                AppDelegate.applyPersistedTheme()
+                Preferences.broadcastChange()
+            }
         }
     }
 

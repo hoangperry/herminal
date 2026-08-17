@@ -31,6 +31,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   **New tmux Session…** (menu / palette) prompts for a name, prefilled
   from the repo; dashboard **New** is still one-click attach-or-create.
 
+### Fixed
+
+- **Follow System updates live.** Changing macOS between Light and Dark while
+  Herminal is open now repaints the pinned window chrome immediately; explicit
+  Dark and Light preferences remain unchanged.
+
 ## [1.0.0] - Unreleased
 
 herminal leaves beta. Everything in the PRD's v1 scope is shipped,

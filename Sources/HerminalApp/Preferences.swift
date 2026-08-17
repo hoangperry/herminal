@@ -41,7 +41,7 @@ public enum Preferences {
     /// Theme options exposed in Settings. Mirrors `HerminalDesign.Theme`
     /// for the dark/light values, plus `.system` which follows the
     /// macOS Appearance setting (NSAppearance observation lives in
-    /// WorkspaceView).
+    /// AppDelegate and broadcasts through the normal live-update path).
     public enum ThemePreference: String, CaseIterable, Identifiable {
         case dark, light, system
         public var id: String { rawValue }

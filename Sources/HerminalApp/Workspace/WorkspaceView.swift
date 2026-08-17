@@ -1510,13 +1510,11 @@ final class WorkspaceView: NSView {
     }
 
     @objc func preferencesDidChange() {
-        switch Preferences.theme {
-        case .dark: HerminalDesign.currentTheme = .dark
-        case .light: HerminalDesign.currentTheme = .light
-        case .system:
-            let isDark = NSApp.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
-            HerminalDesign.currentTheme = isDark ? .dark : .light
-        }
+        let isDark = NSApp.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+        HerminalDesign.currentTheme = HerminalDesign.resolvedTheme(
+            preference: Preferences.theme,
+            systemIsDark: isDark
+        )
         repaintChrome()
     }
 

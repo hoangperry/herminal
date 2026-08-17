@@ -15,10 +15,8 @@ enum HerminalDesign {
     // M9/C-light closes Q5-002: light theme variant. The runtime theme is
     // a settable static — every Palette accessor checks it and returns
     // the appropriate sRGB value. We keep the dark theme as default
-    // (PRD: Raycast/Linear-style "premium dark"); the light theme exists
-    // for users whose macOS appearance is set to Light and who want
-    // herminal to follow. Auto-follow-system is post-MVP — for now the
-    // owner toggles via Window menu (⌘⇧L).
+    // (PRD: Raycast/Linear-style "premium dark"); users can force either
+    // palette or follow macOS appearance live.
     enum Theme: String, CaseIterable {
         case dark
         case light
@@ -28,6 +26,19 @@ enum HerminalDesign {
     /// thread; mutated only by the menu toggle, which is also main-thread.
     /// No cross-thread access possible (all UI is @MainActor).
     nonisolated(unsafe) static var currentTheme: Theme = .dark
+
+    /// Resolves an owner preference against the current macOS appearance.
+    /// Pure so startup and live appearance updates cannot drift apart.
+    static func resolvedTheme(
+        preference: Preferences.ThemePreference,
+        systemIsDark: Bool
+    ) -> Theme {
+        switch preference {
+        case .dark: return .dark
+        case .light: return .light
+        case .system: return systemIsDark ? .dark : .light
+        }
+    }
 
     /// The `NSAppearance` the current chrome theme implies.
     ///
