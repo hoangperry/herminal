@@ -342,6 +342,9 @@ struct AgentDashboardView: View {
         if let at = session.lastActivity {
             parts.append(TmuxLaunch.activityLabel(at: at, now: now))
         }
+        if let folder = TmuxLaunch.folderLabel(path: session.path, sessionName: session.name) {
+            parts.append(folder)
+        }
         return parts.joined(separator: " · ")
     }
 

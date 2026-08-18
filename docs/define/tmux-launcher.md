@@ -127,8 +127,9 @@ panes, or layouts.
   confirm-kill (`kill-session -t =<name>`). Unsafe names are hidden.
   **New** attach-or-creates the repo session. A second attach
   focuses the exact pane that already spawned that session. Rows show
-  window count, attached clients, last activity, and a Here chip
-  for a tab already open in this window. Newest activity first.
+  window count, attached clients, last activity, the session folder
+  leaf when it differs from the name, and a Here chip for a tab
+  already open in this window. Newest activity first.
 
 **Out**
 
