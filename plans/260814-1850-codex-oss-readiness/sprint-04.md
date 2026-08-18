@@ -1,7 +1,7 @@
 # Sprint 4 — Closed beta and feedback releases
 
-**Status:** in progress — beta infrastructure ready; recruitment blocked on signed build and live IME gate
-**Depends on:** PR #1 merged, installable signed build, live Telex/VNI gate
+**Status:** in progress — signed v1 is public; Sprint 10 gate-verifier recruitment is the next move
+**Depends on:** Sprint 10 Phase 1 before broad three-day beta recruitment
 
 ## Goal
 
@@ -9,11 +9,13 @@ Obtain real external usage evidence and turn feedback into visible maintenance w
 
 ## Entry gates
 
-- CI full build and tests green.
-- CodeQL completed or documented as unavailable.
-- Telex/VNI T1/T2/T5/T6/T7 pass on a real macOS input source.
-- Signed/notarized build installs through DMG and Homebrew.
-- No open P0 security/data-loss issue.
+The narrow gate-verifier wave may start now using the signed public release.
+Broad three-day beta recruitment starts only after:
+
+- CI and CodeQL are green;
+- Telex/VNI T1/T2/T5/T6/T7 pass on a real macOS input source;
+- a clean account verifies both public DMG and Homebrew installation;
+- no P0/P1 security, install, data-loss, or command-execution issue is open.
 
 ## Tasks
 
@@ -40,7 +42,12 @@ Obtain real external usage evidence and turn feedback into visible maintenance w
 
 - Added privacy-safe beta issue form and labels.
 - Added `docs/BETA.md` with tester/maintainer commitments and evidence ledger.
-- Recorded green CI (152 tests) and CodeQL evidence.
+- Recorded green CI (220 tests) and CodeQL evidence.
+- Published signed/notarized/stapled `v1.0.0`, audited Homebrew cask, checksums,
+  and deterministic dependency provenance.
+- Made issues #2/#13 and the IME checklist contributor-ready.
+- Added [Sprint 10](sprint-10.md) to break the gate/recruitment deadlock with a
+  verifier-first wave.
 
 ## Exit criteria
 

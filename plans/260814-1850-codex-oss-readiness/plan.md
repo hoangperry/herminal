@@ -22,7 +22,8 @@ blocks: []
 | Sprint 6 | Existing-feature completion | Complete for automatable scope — issues #3/#5/#6/#7 closed with 153-test CI and CodeQL; owner gates #2/#4/#13 remain |
 | Sprint 7 | Owner-gate automation | Tooling complete — privacy-safe IME recorder, entitlement experiment, and signing readiness preflight ready; owner execution pending |
 | Sprint 8 | Agent worktree cockpit | Complete — isolated worktrees, whitelisted agent/lazygit launch, pane focus, off-main bounded git runner; CI + CodeQL green |
-| Sprint 9 | Remote release build, local signing | Public v1 shipped — read-only build, local Developer ID/notarization/staple/Gatekeeper, release assets, checksums, and audited Homebrew cask complete; clean-account install pending |
+| Sprint 9 | Remote release build, local signing | Public v1 shipped — read-only build, local Developer ID/notarization/staple/Gatekeeper, release assets, checksums, deterministic dependency manifest, and audited Homebrew cask complete; clean-account install pending |
+| Sprint 10 | Gate verifiers and external evidence | Planned — stop feature work; close #2/#13 with independent evidence, then run a bounded three-day beta |
 
 ## 1. Objective
 
@@ -37,7 +38,7 @@ Official program fit to demonstrate:
 
 This plan does **not** assume any star threshold and does not guarantee acceptance.
 
-## 2. Current baseline (verified 2026-08-14)
+## 2. Starting baseline (verified 2026-08-14)
 
 Repository: `github.com/hoangperry/herminal`
 
@@ -60,6 +61,23 @@ Gaps and credibility risks:
 - Agent detection is mostly process/CPU heuristic; Codex integration is not yet a strong public interoperability story.
 - **Release-blocking Vietnamese UX bug:** pressing Tab while macOS Vietnamese IME still has underlined marked text drops the Tab instead of committing the preedit and invoking shell completion. This reproduces Ghostty behavior but not iTerm2 behavior and directly contradicts Herminal's Vietnamese-first promise.
 - Security policy exists, but a public threat model, automated code scanning, release provenance, and explicit agent-specific trust boundaries are missing.
+
+### Current checkpoint (verified 2026-08-17)
+
+The starting gaps above are retained as historical context. Since then Herminal
+has shipped signed/notarized `v1.0.0`, an audited Homebrew cask, 220-test CI,
+CodeQL, Dependabot, deterministic release provenance, contributor docs, and 58
+stars / 2 forks. The active blockers are now human evidence rather than another
+engineering wave:
+
+- issue #13: clean-account DMG and Homebrew installation;
+- issue #2: complete visual Telex/VNI T1–T7 matrix;
+- 0 verified installs, completed three-day testers, external reports, or
+  external contributions in the evidence ledger;
+- 0 public, human-reviewed Codex maintenance examples.
+
+Execution moves to [Sprint 10](sprint-10.md). Do not submit the application or
+resume speculative feature work before its gate-verifier wave completes.
 
 ## 3. Success gates
 

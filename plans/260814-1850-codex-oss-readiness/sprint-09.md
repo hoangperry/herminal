@@ -27,13 +27,16 @@ it locally.
 - Candidate is never described as signed, notarized, or distributable.
 - Local finalization verifies the downloaded app and commit provenance.
 - No tag or GitHub release is created by the candidate workflow.
-- Public v1 remains blocked by the live Telex/VNI owner gate.
+- Broad beta promotion remains blocked by complete live Telex/VNI and
+  clean-account install evidence.
 
 ## Result
 
 Complete for automatable scope. PR #18 merged; CI passed 189 tests and CodeQL.
 Candidate run `31830331678` produced a checksummed release build that was locally
 Developer-ID signed, accepted by Apple notarization, stapled, Gatekeeper-assessed,
-and packaged into a verified owner-gate DMG. The quarantined Apple first-open
-prompt also passed with a translocated launch and PTY child; clean-account and
-Homebrew installation remain manual.
+and packaged into a verified owner-gate DMG. Public `v1.0.0` now includes the
+signed DMG/ZIP, checksums, and deterministic dependency manifest; its Homebrew
+cask passes online audit. The quarantined Apple first-open prompt passed with a
+translocated launch and PTY child. Clean-account DMG/Homebrew installation
+remains manual and moves to Sprint 10.
