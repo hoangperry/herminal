@@ -35,6 +35,7 @@ enum TmuxLaunch {
         let attachedClients: Int
         var lastActivity: Date? = nil
         var path: String? = nil
+        var windowNames: [String] = []
     }
 
     static let maxNameLength = 64
@@ -116,9 +117,10 @@ enum TmuxLaunch {
             .filter { !$0.isEmpty }
     }
 
-    /// `list-sessions -F` columns: name, windows, attached, activity, path.
+    /// `list-sessions -F` columns: name, windows, attached, activity,
+    /// `|`-joined window names, path.
     static let sessionListFormat =
-        "#{session_name}\t#{session_windows}\t#{session_attached}\t#{session_activity}\t#{session_path}"
+        "#{session_name}\t#{session_windows}\t#{session_attached}\t#{session_activity}\t#{W:#{window_name}|}\t#{session_path}"
 
     /// `list-sessions -F` using `sessionListFormat`.
     static func parseSessionRecords(_ stdout: String) -> [Session] {
@@ -137,9 +139,10 @@ enum TmuxLaunch {
             } else {
                 activity = nil
             }
+            let windowNames = parts.count > 4 ? parseWindowNames(parts[4]) : []
             let path: String?
-            if parts.count > 4 {
-                let joined = parts[4...].joined(separator: "\t")
+            if parts.count > 5 {
+                let joined = parts[5...].joined(separator: "\t")
                     .trimmingCharacters(in: .whitespaces)
                 path = joined.isEmpty ? nil : joined
             } else {
@@ -150,7 +153,8 @@ enum TmuxLaunch {
                 windows: max(windows, 0),
                 attachedClients: max(attached, 0),
                 lastActivity: activity,
-                path: path
+                path: path,
+                windowNames: windowNames
             )
         }
     }
@@ -171,12 +175,58 @@ enum TmuxLaunch {
         }
     }
 
+    static func parseWindowNames(_ raw: String) -> [String] {
+        raw.split(separator: "|", omittingEmptySubsequences: false)
+            .compactMap { sanitizeWindowName(String($0)) }
+    }
+
+    static func sanitizeWindowName(_ raw: String) -> String? {
+        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+        guard trimmed.unicodeScalars.allSatisfy({ $0.value >= 32 && $0.value != 127 }) else {
+            return nil
+        }
+        if trimmed.count > 32 { return String(trimmed.prefix(32)) }
+        return trimmed
+    }
+
+    /// First few window titles when a session has more than one window.
+    static func windowNamesLabel(_ names: [String], limit: Int = 3) -> String? {
+        guard names.count > 1 else { return nil }
+        let shown = names.prefix(limit)
+        var text = shown.joined(separator: ", ")
+        if names.count > limit { text += "…" }
+        return text
+    }
+
     /// Last path component when it is not just the session name.
     static func folderLabel(path: String?, sessionName: String) -> String? {
         guard let path, !path.isEmpty else { return nil }
         let leaf = (path as NSString).lastPathComponent
         guard !leaf.isEmpty, leaf != "/", leaf != sessionName else { return nil }
         return leaf
+    }
+
+    static func statusLine(_ session: Session, now: Date = Date()) -> String {
+        var parts = [session.windows == 1 ? "1 window" : "\(session.windows) windows"]
+        if session.attachedClients > 0 {
+            parts.append("attached")
+        }
+        if let at = session.lastActivity {
+            parts.append(activityLabel(at: at, now: now))
+        }
+        if let folder = folderLabel(path: session.path, sessionName: session.name) {
+            parts.append(folder)
+        }
+        if let windows = windowNamesLabel(session.windowNames) {
+            parts.append(windows)
+        }
+        return parts.joined(separator: " · ")
+    }
+
+    static func pickerTitle(_ session: Session, now: Date = Date()) -> String {
+        let status = statusLine(session, now: now)
+        return status.isEmpty ? session.name : "\(session.name) · \(status)"
     }
 
     static func activityLabel(at date: Date, now: Date = Date()) -> String {

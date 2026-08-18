@@ -125,11 +125,12 @@ panes, or layouts.
 - Attach… uses a small picker (alert + popup), not a new sidebar.
 - Agent dashboard lists live sessions: click to attach, trash to
   confirm-kill (`kill-session -t =<name>`). Unsafe names are hidden.
-  **New** attach-or-creates the repo session. A second attach
-  focuses the exact pane that already spawned that session. Rows show
-  window count, attached clients, last activity, the session folder
-  leaf when it differs from the name, and a Here chip for a tab
-  already open in this window. Newest activity first.
+  **New** attach-or-creates the repo session. **Named…** prompts for
+  a name (same dialog as the Window menu). A second attach focuses
+  the exact pane that already spawned that session. Rows and Attach…
+  share one status line: window count, attached clients, last
+  activity, folder leaf, and the first few window titles. Here chip
+  for a tab already open in this window. Newest activity first.
 
 **Out**
 

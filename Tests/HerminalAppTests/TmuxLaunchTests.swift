@@ -178,9 +178,47 @@ struct TmuxLaunchListTests {
     @Test("parseSessionRecords reads session_path")
     func parseSessionRecordsPath() {
         let rows = TmuxLaunch.parseSessionRecords(
-            "api\t1\t0\t1700000000\t/Users/dev/src/backend\n"
+            "api\t1\t0\t1700000000\t\t/Users/dev/src/backend\n"
         )
         #expect(rows.first?.path == "/Users/dev/src/backend")
+        #expect(rows.first?.windowNames == [])
+    }
+
+    @Test("parseSessionRecords reads pipe-joined window names")
+    func parseSessionRecordsWindowNames() {
+        let rows = TmuxLaunch.parseSessionRecords(
+            "api\t3\t0\t1700000000\tsrc|tests|logs extra|\t/tmp/api\n"
+        )
+        #expect(rows.first?.windowNames == ["src", "tests", "logs extra"])
+        #expect(rows.first?.path == "/tmp/api")
+    }
+
+    @Test("windowNamesLabel skips a single window and caps the list")
+    func windowNamesLabel() {
+        #expect(TmuxLaunch.windowNamesLabel(["zsh"]) == nil)
+        #expect(TmuxLaunch.windowNamesLabel(["src", "tests"]) == "src, tests")
+        #expect(TmuxLaunch.windowNamesLabel(["a", "b", "c", "d"]) == "a, b, c…")
+    }
+
+    @Test("parseWindowNames drops control characters")
+    func parseWindowNamesRejectsControl() {
+        #expect(TmuxLaunch.parseWindowNames("src|\u{0007}bell|") == ["src"])
+    }
+
+    @Test("statusLine and pickerTitle compose folder, activity, and windows")
+    func statusLineAndPickerTitle() {
+        let now = Date(timeIntervalSince1970: 1_700_000_000)
+        let session = TmuxLaunch.Session(
+            name: "api",
+            windows: 3,
+            attachedClients: 1,
+            lastActivity: now.addingTimeInterval(-120),
+            path: "/tmp/backend",
+            windowNames: ["src", "tests"]
+        )
+        let line = TmuxLaunch.statusLine(session, now: now)
+        #expect(line == "3 windows · attached · 2m ago · backend · src, tests")
+        #expect(TmuxLaunch.pickerTitle(session, now: now) == "api · \(line)")
     }
 
     @Test("folderLabel hides a leaf that matches the session name")

@@ -915,6 +915,9 @@ final class WorkspaceView: NSView {
             onKillTmux: { [weak self] name in self?.confirmKillTmux(name) },
             onAttachOrCreateTmux: tmuxAvailable
                 ? { [weak self] in self?.attachOrCreateTmuxSession(nil) }
+                : nil,
+            onNewNamedTmux: tmuxAvailable
+                ? { [weak self] in self?.newTmuxSession(nil) }
                 : nil
         )
     }

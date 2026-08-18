@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **tmux session folder.** Dashboard rows show the session working-directory
   leaf when it differs from the session name.
+- **tmux session manager.** Dashboard rows list the first few window titles
+  when a session has more than one window. Attach… picks from the same
+  status line (windows, activity, folder, titles). **Named…** opens the
+  name dialog; **New** stays one-click attach-or-create.
 
 ### Fixed
 
