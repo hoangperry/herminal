@@ -1,10 +1,10 @@
 # Codex for Open Source application — working draft
 
-> **NOT READY TO SUBMIT.** Herminal now has a public v1 release, but it does not
-> yet have qualifying external beta or contribution evidence. This document is
-> a claim checklist, not a claim that the project has been accepted or meets
-> current program criteria. Recheck the official application form and terms
-> immediately before submission.
+> **PASTE-READY DRAFT; MAINTAINER SUBMISSION DECISION.** These answers are
+> truthful as of 2026-08-17 and explicitly disclose Herminal's early-stage
+> adoption and open manual gates. The internal readiness plan still recommends
+> completing issues #2 and #13 before submission. Recheck the official form and
+> program terms immediately before sending.
 
 ## Project
 
@@ -21,6 +21,69 @@ Herminal combines libghostty with a Swift/AppKit interface, an
 process-signal agent dashboard. It targets Vietnamese macOS developers whose
 terminal and coding-agent workflows are poorly represented by generic terminal
 feature sets.
+
+## Form metadata
+
+- Full name: `[enter the name on your ChatGPT account]`
+- ChatGPT account email: `[enter privately in the form]`
+- GitHub username: `hoangperry`
+- Repository: `https://github.com/hoangperry/herminal`
+- Maintainer role: `Creator`
+- Public release: `https://github.com/hoangperry/herminal/releases/tag/v1.0.0`
+
+Do not commit the private email address to this file.
+
+## Paste-ready application answers
+
+Each answer is within the form's 500-character limit.
+
+### 1. Maintainer Role — 390 characters
+
+> I am Herminal’s creator, repository owner, and primary maintainer. I design
+> the Swift/AppKit architecture, review and merge changes, maintain CI and
+> security policy, triage issues, and own the signed release and Homebrew
+> process. I have write/admin control of github.com/hoangperry/herminal. Signing
+> and notarization credentials remain owner-held and are never exposed to agents
+> or CI logs.
+
+### 2. Why does this repository qualify? — 483 characters
+
+> Herminal is a 58-star, MIT-licensed macOS terminal for developers whose
+> languages depend on input methods, starting with Vietnamese Telex/VNI and
+> designed for Japanese, Korean and Chinese IME workflows. In terminals,
+> marked-text bugs can drop keystrokes, duplicate text or break shell completion;
+> Herminal treats multilingual input as core infrastructure. Its local-first
+> dashboard also makes Codex, Claude Code and Aider sessions visible without
+> reading prompts or terminal content.
+
+### 3. Security relevance for Codex — 453 characters
+
+> Herminal crosses high-risk boundaries: PTY and shell execution, SSH config
+> parsing, process inspection for agent status, clipboard/IME input, local
+> SQLite state, vendored libghostty, and signed release/Homebrew distribution.
+> The repository publishes a threat model and runs CodeQL, pinned Actions,
+> Dependabot, release checksums, and deterministic dependency provenance. Codex
+> Security would be used only on this repository and these authorized surfaces.
+
+### 4. How would Codex / API credits be used? — 464 characters
+
+> Codex would support day-to-day OSS maintenance: reproduce public bugs and
+> propose regression tests; review PRs against the architecture, threat model
+> and privacy policy; maintain safe Codex/Claude/Aider detection fixtures; audit
+> dependency and release-workflow changes; and keep changelogs and provenance
+> consistent. API credits would power human-reviewed issue/PR checks. Codex
+> would never auto-merge, receive signing secrets, or inspect private terminal
+> content.
+
+### 5. Additional context — 488 characters
+
+> Herminal is early-stage (58 stars, 2 forks), so I am not claiming broad
+> adoption. Its value is ecosystem specificity: native Vietnamese input and
+> privacy-minimized coding-agent workflows on macOS. Signed v1 and Homebrew are
+> public. Clean-account installation and the Telex/VNI T1–T7 matrix remain
+> transparently tracked in issues #13 and #2 while I recruit independent
+> verifiers. I would use program support for maintenance, security review and
+> contributor support—not artificial activity.
 
 ## Why Codex would support core maintenance
 
