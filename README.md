@@ -111,9 +111,11 @@ Shipped in [`v1.0.0`](https://github.com/hoangperry/herminal/releases/tag/v1.0.0
 - [x] Telemetry-free local crash diary with redacted export
 - [x] Developer-ID codesign + notarize pipeline
 
-¹ The implementation and state-transition regressions are green, but the live
-system-input-source claim still requires a dated Telex/VNI owner run.
-See [issue #2](https://github.com/hoangperry/herminal/issues/2).
+¹ The implementation and state-transition regressions are green, and a dated
+live run cleared the core Telex one-Tab commit-and-complete path
+([`docs/QA/results/vietnamese-ime-live-2026-08-15.md`](docs/QA/results/vietnamese-ime-live-2026-08-15.md)).
+VNI and the full T1–T7 visual matrix still want an owner pass — see
+[issue #2](https://github.com/hoangperry/herminal/issues/2).
 
 Still deferred — see [docs/ROADMAP.md](docs/ROADMAP.md) for the feedback
 gates: groups / search / per-host keypair UI in the SSH manager, Sparkle

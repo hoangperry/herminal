@@ -107,8 +107,10 @@ rubric đã dùng để lập bảng trên.
 - [x] Crash diary local-only (telemetry-free) + export đã redact
 - [x] Pipeline Developer-ID codesign + notarize
 
-¹ Implementation và state-transition regressions đã xanh, nhưng matrix với
-macOS input source thật vẫn cần một owner run có ngày tháng. Theo dõi tại
+¹ Implementation và state-transition regressions đã xanh, và một live run có
+ngày tháng đã xác nhận đường Telex core commit-một-lần rồi complete
+([`docs/QA/results/vietnamese-ime-live-2026-08-15.md`](docs/QA/results/vietnamese-ime-live-2026-08-15.md)).
+VNI và matrix T1–T7 vẫn cần một owner run — theo dõi tại
 [issue #2](https://github.com/hoangperry/herminal/issues/2).
 
 Còn deferred — xem [docs/ROADMAP.md](docs/ROADMAP.md) cho các feedback

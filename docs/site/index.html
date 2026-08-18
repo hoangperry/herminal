@@ -29,6 +29,7 @@
       </a>
       <nav aria-label="primary">
         <a href="#agents">agents</a>
+        <a href="#cockpit">cockpit</a>
         <a href="#sessions">sessions</a>
         <a href="#splits">splits</a>
         <a href="#ime">vn ime</a>
@@ -57,7 +58,7 @@
         </p>
         <div class="cta-row">
           <a class="cta primary" href="https://github.com/hoangperry/herminal/releases/latest">
-            Download v0.5.4
+            Download v1.0.0
             <span class="cta-meta">macOS 14 · arm64 · 6 MB</span>
           </a>
           <a class="cta ghost" href="https://github.com/hoangperry/herminal">
@@ -146,8 +147,52 @@
       </div>
     </section>
 
+    <!-- AGENT COCKPIT (v1.0) -->
+    <section id="cockpit" class="feature alt">
+      <div class="grid">
+        <p class="kicker">Agent cockpit · v1.0</p>
+        <h2>Run three agents without three checkouts.</h2>
+        <p>
+          The dashboard tells you what's alive. The cockpit is how you start it — and how you
+          keep two agents from editing the same working tree at the same time.
+        </p>
+        <div class="cards">
+          <div class="card">
+            <h3>⌘⌥W — isolated worktree</h3>
+            <p>
+              Creates <code>../&lt;repo&gt;.worktrees/&lt;branch&gt;</code> with
+              <code>git worktree add</code> and opens it in a new tab running the agent you
+              pick. Two fixes in flight, two real checkouts, no stashing. Remove always
+              confirms and never passes <code>--force</code>.
+            </p>
+          </div>
+          <div class="card">
+            <h3>⌘⌥A / ⌘⌥T — agent pane or tab</h3>
+            <p>
+              Splits or opens a tab already running <code>claude</code> in the current
+              directory. <code>⌘⌥G</code> does the same for lazygit, and
+              <code>⌘1</code>–<code>⌘9</code> jump straight to a tab once you have several.
+            </p>
+          </div>
+          <div class="card">
+            <h3>tmux, from the sidebar</h3>
+            <p>
+              New… / Attach… / Attach-or-create from the Window menu or
+              <code>⌘⇧P</code>. The dashboard lists live sessions with last activity, marks
+              the one attached <strong>Here</strong>, and makes you confirm before a kill.
+            </p>
+          </div>
+        </div>
+        <p class="note">
+          Worktree paths are validated before creation, and the spawned command is
+          whitelisted — the cockpit runs <code>claude</code>, <code>codex</code>,
+          <code>aider</code>, lazygit or a plain shell, nothing arbitrary.
+        </p>
+      </div>
+    </section>
+
     <!-- SESSIONS (v0.4) -->
-    <section id="sessions" class="feature alt">
+    <section id="sessions" class="feature">
       <div class="grid">
         <p class="kicker">Sessions · v0.4</p>
         <h2>Pick up exactly where you left off.</h2>
@@ -193,7 +238,7 @@
     </section>
 
     <!-- VIETNAMESE IME -->
-    <section id="ime" class="feature">
+    <section id="ime" class="feature alt">
       <div class="grid two-col reverse">
         <div class="col-text">
           <p class="kicker">Vietnamese Telex</p>
@@ -221,7 +266,7 @@
     </section>
 
     <!-- SSH MANAGER -->
-    <section id="ssh" class="feature alt">
+    <section id="ssh" class="feature">
       <div class="grid">
         <p class="kicker">SSH manager</p>
         <h2>Built around <code>~/.ssh/config</code>.</h2>
@@ -244,7 +289,7 @@
     </section>
 
     <!-- NOTES -->
-    <section class="feature">
+    <section class="feature alt">
       <div class="grid two-col">
         <div class="col-text">
           <p class="kicker">Per-session notes</p>
@@ -274,14 +319,14 @@
     </section>
 
     <!-- POLISH WAVE (v0.3) -->
-    <section id="polish" class="feature alt">
+    <section id="polish" class="feature">
       <div class="grid">
-        <p class="kicker">v0.3 polish wave</p>
+        <p class="kicker">Polish</p>
         <h2>Native enough to forget it's there.</h2>
         <p>
-          A terminal lives or dies on the surface you touch every second. v0.3 spent four
-          releases making that surface feel like macOS, not like a wrapper around a render
-          engine.
+          A terminal lives or dies on the surface you touch every second. The v0.3 wave spent
+          four releases making that surface feel like macOS rather than a wrapper around a
+          render engine, and v1.0 closed the last "every terminal has this" gaps.
         </p>
         <div class="cards">
           <div class="card">
@@ -295,6 +340,14 @@
           <div class="card">
             <h3>⌥Space anywhere</h3>
             <p>Global hotkey drops herminal in front of any app, then tucks it away. No accessibility prompt — Carbon-registered.</p>
+          </div>
+          <div class="card">
+            <h3>⌘+ / ⌘− / ⌘0 live font size</h3>
+            <p>Resize the grid without reopening a pane or editing a config file. The window keeps its frame; the terminal reflows.</p>
+          </div>
+          <div class="card">
+            <h3>⌘⇧Return pane zoom</h3>
+            <p>Blow the focused pane up to fill the tab, then drop back to the split. For the moment a stack trace does not fit in a third of the window.</p>
           </div>
           <div class="card">
             <h3>Drag-resize splits</h3>
@@ -317,7 +370,7 @@
     </section>
 
     <!-- WORKSPACE / SPLITS (v0.5) -->
-    <section id="splits" class="feature">
+    <section id="splits" class="feature alt">
       <div class="grid">
         <p class="kicker">v0.5 · workspace</p>
         <h2>Splits that nest like tmux.</h2>
@@ -411,8 +464,8 @@
 
           <article class="install-card">
             <h3>Direct download</h3>
-            <pre><code>curl -LO https://github.com/hoangperry/herminal/releases/download/v0.5.4/herminal-v0.5.4.dmg
-open herminal-v0.5.4.dmg</code></pre>
+            <pre><code>curl -LO https://github.com/hoangperry/herminal/releases/download/v1.0.0/herminal-v1.0.0.dmg
+open herminal-v1.0.0.dmg</code></pre>
             <p class="note small">Signed + notarized + stapled. First launch is silent.</p>
           </article>
 
@@ -432,22 +485,24 @@ open .build/herminal.app</code></pre>
     <section class="band">
       <div class="grid">
         <p class="kicker">Status + next</p>
-        <h2 class="section-title">Where v0.5.4 lands.</h2>
+        <h2 class="section-title">Where v1.0.0 lands.</h2>
         <ol class="roadmap">
           <li>
-            <span class="rm-tag now">now · v0.5.4</span>
-            MVP + v0.3 polish + the complete Sessions milestone + the v0.5 workspace wave:
-            recursive splits, ⌥⌘ directional focus, focused-pane outline, cwd-inheriting
-            tabs, opt-in re-run-on-restore, occlusion render throttle. Notarized.
+            <span class="rm-tag now">now · v1.0.0</span>
+            herminal leaves beta. The agent cockpit and tmux launcher on top of the whole
+            Sessions milestone and the v0.5 workspace wave — recursive splits, ⌥⌘
+            directional focus, focused-pane outline, cwd-inheriting tabs, opt-in
+            re-run-on-restore — plus live font size and pane zoom. Signed, notarized,
+            stapled.
           </li>
           <li>
             <span class="rm-tag soon">soon</span>
             Sparkle auto-update, font-picker UI, image rendering, SSH search + groups.
-            Beta-feedback-driven.
+            Feedback-driven.
           </li>
           <li>
-            <span class="rm-tag later">later · v1.0</span>
-            More agent kinds. Bilingual site. Whatever the beta asks for.
+            <span class="rm-tag later">later</span>
+            More agent kinds. Bilingual site. Whatever real use asks for.
           </li>
         </ol>
         <p class="note">
@@ -461,7 +516,7 @@ open .build/herminal.app</code></pre>
       <div class="grid">
         <h2>Open a bug. Tell us what you want next.</h2>
         <div class="cta-row centered">
-          <a class="cta primary" href="https://github.com/hoangperry/herminal/releases/latest">Download v0.5.4</a>
+          <a class="cta primary" href="https://github.com/hoangperry/herminal/releases/latest">Download v1.0.0</a>
           <a class="cta ghost" href="https://github.com/hoangperry/herminal/issues/new/choose">File an issue</a>
         </div>
       </div>
