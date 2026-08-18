@@ -9,6 +9,10 @@
 
 import SwiftUI
 
+/// `@MainActor` because it builds SwiftUI views and reads
+/// `TabBarView.barHeight`, both of which are main-actor isolated — same
+/// isolation as every panel that calls in here.
+@MainActor
 enum PanelChrome {
     /// Leading rail shared by every panel's title and its rows.
     ///
