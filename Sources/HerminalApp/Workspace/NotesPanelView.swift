@@ -25,6 +25,20 @@ struct NotesPanelView: View {
                 .foregroundStyle(HerminalDesign.Palette.textPrimary)
                 .scrollContentBackground(.hidden)
                 .padding(HerminalDesign.Spacing.sm)
+                // An untouched note was an unexplained void — the only panel
+                // in the sidebar with no empty state. Sits behind the editor
+                // and ignores hits so the first click still lands in the text.
+                .overlay(alignment: .topLeading) {
+                    if text.isEmpty {
+                        Text("Notes for this session. Markdown, saved as you type.")
+                            .font(HerminalDesign.Typography.caption)
+                            .foregroundStyle(HerminalDesign.Palette.textTertiary)
+                            .padding(.horizontal, HerminalDesign.Spacing.md)
+                            .padding(.top, HerminalDesign.Spacing.md)
+                            .allowsHitTesting(false)
+                            .accessibilityHidden(true)
+                    }
+                }
                 .onChange(of: text) { _, newValue in onSave(newValue) }
             Divider().overlay(HerminalDesign.Palette.divider)
             footer

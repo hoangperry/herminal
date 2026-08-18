@@ -32,12 +32,7 @@ struct SSHHostsPanel: View {
     // MARK: - Header
 
     private var header: some View {
-        HStack(spacing: HerminalDesign.Spacing.xs) {
-            Text("SSH HOSTS")
-                .font(HerminalDesign.Typography.caption)
-                .foregroundStyle(HerminalDesign.Palette.textTertiary)
-                .accessibilityAddTraits(.isHeader)
-            Spacer()
+        PanelChrome.header("SSH HOSTS") {
             switch mode {
             case .list:
                 Text("\(hosts.count)")
@@ -53,8 +48,6 @@ struct SSHHostsPanel: View {
                     .accessibilityLabel("Cancel host editing")
             }
         }
-        .padding(.horizontal, HerminalDesign.Spacing.md)
-        .frame(height: TabBarView.barHeight)
     }
 
     // MARK: - Content router
@@ -78,16 +71,12 @@ struct SSHHostsPanel: View {
     @ViewBuilder
     private var listView: some View {
         if hosts.isEmpty {
-            VStack(alignment: .leading, spacing: HerminalDesign.Spacing.xs) {
-                Text("No hosts yet")
-                    .font(HerminalDesign.Typography.body)
-                    .foregroundStyle(HerminalDesign.Palette.textSecondary)
-                Text("Tap + to save your first connection.")
-                    .font(HerminalDesign.Typography.caption)
-                    .foregroundStyle(HerminalDesign.Palette.textTertiary)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(HerminalDesign.Spacing.md)
+            // "Click", not "Tap": this is a Mac, and ⌘⇧S is how most people
+            // will get here in the first place.
+            PanelChrome.emptyState(
+                "No hosts yet",
+                "Click + to save your first connection, or import your ~/.ssh/config."
+            )
         } else {
             ScrollView {
                 VStack(alignment: .leading, spacing: HerminalDesign.Spacing.xxs) {
