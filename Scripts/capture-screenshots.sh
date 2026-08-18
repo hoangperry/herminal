@@ -143,9 +143,16 @@ echo "==> ssh manager"
 keystroke "s" "command down, shift down"     # ⌘⇧S
 shoot "screenshot-ssh-manager"
 
-# --- 3. notes panel --------------------------------------------------
+# --- 3. Claude session browser (third occupant of the left slot) -----
+# Was never captured, so this panel's chrome had no visual coverage at all
+# while its two slot-mates did.
+echo "==> claude sessions"
+keystroke "c" "command down, shift down"     # ⌘⇧C
+shoot "screenshot-claude-sessions"
+
+# --- 4. notes panel --------------------------------------------------
 echo "==> notes"
-keystroke "s" "command down, shift down"     # close the left slot
+keystroke "c" "command down, shift down"     # close the left slot
 keystroke "n" "command down, shift down"     # ⌘⇧N — notes on the right
 shoot "screenshot-notes"
 

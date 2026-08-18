@@ -50,7 +50,12 @@ enum PanelChrome {
             Text(headline)
                 .font(HerminalDesign.Typography.body)
                 .foregroundStyle(HerminalDesign.Palette.textSecondary)
-            Text(detail)
+            // Parse the detail as markdown. Taking it as a `String` means
+            // Text uses the plain initializer, not LocalizedStringKey, so a
+            // code span reached the screen as literal backticks around the
+            // word — "Run `claude` in any project" with the ticks showing,
+            // which reads as a typo.
+            Text((try? AttributedString(markdown: detail)) ?? AttributedString(detail))
                 .font(HerminalDesign.Typography.caption)
                 .foregroundStyle(HerminalDesign.Palette.textTertiary)
                 .fixedSize(horizontal: false, vertical: true)
