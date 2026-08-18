@@ -1,10 +1,11 @@
 # Korean, Japanese and Chinese IME Smoke Checklists
 
 > **Status:** Open manual compatibility checks for owner or external macOS
-> testers. No code changes are required. The Swift `NSTextInputClient` bridge
-> has automated state-machine coverage; these checklists verify behavior that
-> only real system input methods expose: candidate-window placement,
-> multi-keystroke conversion, and visual preedit handling.
+> testers, tracked in [issue #36](https://github.com/hoangperry/herminal/issues/36).
+> No code changes are required. The Swift `NSTextInputClient` bridge has
+> automated state-machine coverage; these checklists verify behavior that only
+> real system input methods expose: candidate-window placement, multi-keystroke
+> conversion, and visual preedit handling.
 
 The Vietnamese checklist lives separately at
 [`vietnamese-ime-checklist.md`](vietnamese-ime-checklist.md). The bridge is not
@@ -170,7 +171,7 @@ select that-numbered candidate; PageDown / PageUp scrolls.
    welcome and should be identified separately from runtime pass/fail results.
 2. Open a small PR adding a dated result under
    `docs/QA/results/cjk-ime-YYYY-MM-DD-<language>.md`, or paste a privacy-safe
-   matrix into the linked GitHub verification issue.
+   matrix into [issue #36](https://github.com/hoangperry/herminal/issues/36).
 3. For any failure, open a separate bug with macOS version, Herminal release or
    commit, input source, case ID, and PREEDIT/COMMIT/DROP/DUP/CURSOR class.
 4. Do not share terminal history, usernames, filesystem paths, repository or
