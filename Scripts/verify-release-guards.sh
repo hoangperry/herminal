@@ -9,6 +9,7 @@ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 RELEASE_SCRIPT="$REPO_ROOT/Scripts/release.sh"
 RELEASE_WORKFLOW="$REPO_ROOT/.github/workflows/release.yml"
 CANDIDATE_WORKFLOW="$REPO_ROOT/.github/workflows/release-candidate.yml"
+SECURITY_WORKFLOW="$REPO_ROOT/.github/workflows/security.yml"
 # shellcheck disable=SC1091 # Path is resolved from this script's repo root.
 source "$REPO_ROOT/Scripts/release-common.sh"
 
@@ -46,6 +47,11 @@ if ! grep -Fq 'contents: read' "$CANDIDATE_WORKFLOW" || \
    ! grep -Fq 'configuration=release' "$CANDIDATE_WORKFLOW" || \
    ! grep -Fq "commit=\$SOURCE_COMMIT" "$CANDIDATE_WORKFLOW"; then
     echo "FAIL: release candidate workflow lost its read-only release/provenance contract" >&2
+    exit 1
+fi
+
+if [ "$(grep -Ec 'uses: github/codeql-action/(init|analyze)@[0-9a-f]{40} # v4([.]|$)' "$SECURITY_WORKFLOW")" -ne 2 ]; then
+    echo "FAIL: CodeQL workflow is not fully pinned to the supported v4 major" >&2
     exit 1
 fi
 
