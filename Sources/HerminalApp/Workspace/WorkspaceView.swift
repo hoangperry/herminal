@@ -364,18 +364,16 @@ final class WorkspaceView: NSView {
             width: bounds.width, height: barHeight
         )
         let surfaceHeight = max(bounds.height - barHeight - statusHeight, 0)
-        // v0.3 polish: 6 px inset between the libghostty Metal surface
-        // and the pane chrome. Without it the text sits flush against
-        // the window edge and the app reads as cheap. Inset is applied
-        // here (not inside the surface itself) so the divider colour of
-        // `surfaceContainer.layer.backgroundColor` shows through and
-        // doubles as the visual frame.
-        let inset = HerminalDesign.Geometry.surfaceInset
+        // The container spans the whole content column and `layoutPanes`
+        // insets the pane tree inside it, so its gutter fill paints both the
+        // frame around the panes and the seams between splits — one surface,
+        // one colour. Insetting the container itself (as this did before)
+        // left the outer 6 px showing the window's vibrancy instead, which
+        // measured lighter than the panes and read as an outline rather than
+        // a recess.
         surfaceContainer.frame = CGRect(
-            x: contentX + inset,
-            y: statusHeight + inset,
-            width: max(contentWidth - inset * 2, 0),
-            height: max(surfaceHeight - inset * 2, 0)
+            x: contentX, y: statusHeight,
+            width: contentWidth, height: surfaceHeight
         )
         statusBarHost.frame = CGRect(
             x: 0, y: 0, width: bounds.width, height: statusHeight
@@ -406,7 +404,13 @@ final class WorkspaceView: NSView {
             syncDividers(specs: [])
             return
         }
+        // v0.3 polish: a 6 px inset between the Metal surfaces and the pane
+        // chrome — without it the text sits flush against the window edge and
+        // the app reads as cheap. Applied to the pane tree rather than to the
+        // container so the container's gutter fill shows in the gap.
         let bounds = surfaceContainer.bounds
+            .insetBy(dx: HerminalDesign.Geometry.surfaceInset,
+                     dy: HerminalDesign.Geometry.surfaceInset)
         guard bounds.width > 0, bounds.height > 0 else { return }
 
         // Zoomed: the focused pane fills the whole tab, the rest hidden, no
