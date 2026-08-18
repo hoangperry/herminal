@@ -1,6 +1,7 @@
 // AgentDashboardView — sidebar panel listing the agent CLIs running under
 // herminal, plus the worktree cockpit (new agent pane, isolated
-// worktrees, lazygit) and live tmux sessions (attach / confirm-kill).
+// worktrees, lazygit) and live tmux sessions (attach / named new /
+// confirm-kill).
 //
 // Lifecycle status is inferred outside the view from CPU deltas and recent
 // terminal bells. This view only renders privacy-minimized DetectedAgent values.
@@ -26,6 +27,7 @@ struct AgentDashboardView: View {
     var onAttachTmux: ((String) -> Void)?
     var onKillTmux: ((String) -> Void)?
     var onAttachOrCreateTmux: (() -> Void)?
+    var onNewNamedTmux: (() -> Void)?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -260,12 +262,7 @@ struct AgentDashboardView: View {
 
     private var tmuxSection: some View {
         VStack(alignment: .leading, spacing: HerminalDesign.Spacing.xxs) {
-            sectionHeader(
-                "TMUX",
-                chip: "New",
-                chipLabel: "Attach or create tmux session",
-                action: onAttachOrCreateTmux
-            )
+            tmuxSectionHeader
             if !tmuxAvailable {
                 sectionNote("tmux is not installed")
             } else if tmuxSessions.isEmpty {
@@ -276,6 +273,47 @@ struct AgentDashboardView: View {
                 }
             }
         }
+    }
+
+    private var tmuxSectionHeader: some View {
+        HStack {
+            Text("TMUX")
+                .font(HerminalDesign.Typography.caption)
+                .tracking(HerminalDesign.Typography.headerTracking)
+                .foregroundStyle(HerminalDesign.Palette.textTertiary)
+                .accessibilityAddTraits(.isHeader)
+            Spacer(minLength: 0)
+            headerChip(
+                "New",
+                label: "Attach or create tmux session",
+                action: onAttachOrCreateTmux
+            )
+            headerChip(
+                "Named…",
+                label: "New named tmux session",
+                action: onNewNamedTmux
+            )
+        }
+        .padding(.horizontal, HerminalDesign.Spacing.sm)
+        .padding(.top, HerminalDesign.Spacing.xs)
+    }
+
+    private func headerChip(_ title: String, label: String, action: (() -> Void)?) -> some View {
+        Button { action?() } label: {
+            Text(title)
+                .font(HerminalDesign.Typography.monoCaption)
+                .foregroundStyle(HerminalDesign.Palette.textSecondary)
+                .padding(.horizontal, HerminalDesign.Spacing.xs)
+                .padding(.vertical, HerminalDesign.Spacing.xxs)
+                .background(
+                    RoundedRectangle(cornerRadius: HerminalDesign.Radius.sm)
+                        .fill(HerminalDesign.Palette.surfaceOverlay)
+                )
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .disabled(action == nil)
+        .accessibilityLabel(label)
     }
 
     private func tmuxRow(_ session: TmuxLaunch.Session) -> some View {
@@ -291,7 +329,7 @@ struct AgentDashboardView: View {
                         .font(HerminalDesign.Typography.bodyEmphasis)
                         .foregroundStyle(HerminalDesign.Palette.textPrimary)
                         .lineLimit(1)
-                    Text(Self.tmuxSubtitle(session))
+                    Text(TmuxLaunch.statusLine(session))
                         .font(HerminalDesign.Typography.caption)
                         .foregroundStyle(HerminalDesign.Palette.textTertiary)
                         .lineLimit(1)
@@ -334,22 +372,8 @@ struct AgentDashboardView: View {
         .accessibilityLabel(label)
     }
 
-    private static func tmuxSubtitle(_ session: TmuxLaunch.Session, now: Date = Date()) -> String {
-        var parts = [session.windows == 1 ? "1 window" : "\(session.windows) windows"]
-        if session.attachedClients > 0 {
-            parts.append("attached")
-        }
-        if let at = session.lastActivity {
-            parts.append(TmuxLaunch.activityLabel(at: at, now: now))
-        }
-        if let folder = TmuxLaunch.folderLabel(path: session.path, sessionName: session.name) {
-            parts.append(folder)
-        }
-        return parts.joined(separator: " · ")
-    }
-
     private static func tmuxA11yLabel(_ session: TmuxLaunch.Session, openHere: Bool) -> String {
-        var label = "Attach tmux session \(session.name), \(tmuxSubtitle(session))"
+        var label = "Attach tmux session \(session.name), \(TmuxLaunch.statusLine(session))"
         if openHere { label += ", open in this window" }
         return label
     }

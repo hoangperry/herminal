@@ -119,9 +119,11 @@ no extra shortcut — `⌃B` is unchanged. New… prompts for a name
 tmux *server* survives that tab closing. The agent dashboard lists
 live sessions: click to attach, trash to kill (with confirm). Rows
 show window count, last activity, the session folder when it is not
-the session name, and a **Here** chip when this
+the session name, the first few window titles when there is more
+than one window, and a **Here** chip when this
 window already attached. Newest activity is listed first. Dashboard
-**New** attach-or-creates the repo-named session. A second attach
+**New** attach-or-creates the repo-named session; **Named…** opens
+the name dialog. Attach… uses the same status line. A second attach
 focuses the exact existing pane.
 
 ---

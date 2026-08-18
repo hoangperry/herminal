@@ -5,7 +5,7 @@
 import AppKit
 
 private enum TmuxListOutcome: Sendable {
-    case sessions([String])
+    case sessions([TmuxLaunch.Session])
     case missing
     case failed
 }
@@ -52,7 +52,7 @@ extension WorkspaceView {
         Task { [weak self] in
             let outcome = await Task.detached(priority: .utility) {
                 do {
-                    return TmuxListOutcome.sessions(try TmuxLaunch.listSessions())
+                    return TmuxListOutcome.sessions(try TmuxLaunch.listSessionRecords())
                 } catch TmuxLaunch.Error.tmuxMissing {
                     return TmuxListOutcome.missing
                 } catch {
@@ -61,8 +61,10 @@ extension WorkspaceView {
             }.value
             guard let self else { return }
             switch outcome {
-            case let .sessions(names):
-                let shown = TmuxLaunch.displayableSessions(names)
+            case let .sessions(records):
+                let shown = TmuxLaunch.sortedForDashboard(
+                    TmuxLaunch.displayableSessions(records)
+                )
                 guard !shown.isEmpty else {
                     presentTmuxError("No tmux sessions. Create one first.")
                     return
@@ -219,19 +221,20 @@ extension WorkspaceView {
         return field.stringValue
     }
 
-    private func pickSession(from names: [String]) -> String? {
+    private func pickSession(from sessions: [TmuxLaunch.Session]) -> String? {
         let alert = NSAlert()
         alert.messageText = "Attach tmux session"
         alert.informativeText = "Pick a live session to attach in a new tab."
         alert.addButton(withTitle: "Attach")
         alert.addButton(withTitle: "Cancel")
-        let popup = NSPopUpButton(frame: NSRect(x: 0, y: 0, width: 280, height: 22), pullsDown: false)
-        for name in names {
-            popup.addItem(withTitle: name)
+        let popup = NSPopUpButton(frame: NSRect(x: 0, y: 0, width: 360, height: 22), pullsDown: false)
+        for session in sessions {
+            popup.addItem(withTitle: TmuxLaunch.pickerTitle(session))
+            popup.lastItem?.representedObject = session.name
         }
         alert.accessoryView = popup
         guard alert.runModal() == .alertFirstButtonReturn else { return nil }
-        return popup.titleOfSelectedItem
+        return popup.selectedItem?.representedObject as? String
     }
 
     private func presentTmuxError(_ message: String) {
