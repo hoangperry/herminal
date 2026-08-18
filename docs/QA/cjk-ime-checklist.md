@@ -1,27 +1,29 @@
-# CJK IME Smoke Checklists (M9/D)
+# Korean, Japanese and Chinese IME Smoke Checklists
 
-> **Status:** Owner-manual smoke tests. The Swift `NSTextInputClient`
-> bridge that handles all IMEs is automated-tested in
-> `Tests/HerminalAppTests/IMEBridgeTests.swift` (8 cases). These
-> checklists exist for the things only a human typing through a real
-> system IME can verify: candidate-window placement, composition
-> popups, multi-keystroke conversion, and the visual feel of preedit
-> underline for languages with vastly different IME shapes than the
-> Latin-alphabet path Vietnamese Telex uses.
+> **Status:** Open manual compatibility checks for owner or external macOS
+> testers. No code changes are required. The Swift `NSTextInputClient` bridge
+> has automated state-machine coverage; these checklists verify behavior that
+> only real system input methods expose: candidate-window placement,
+> multi-keystroke conversion, and visual preedit handling.
 
 The Vietnamese checklist lives separately at
-[`vietnamese-ime-checklist.md`](vietnamese-ime-checklist.md) — it's
-the highest-priority for the PRD audience. These three target the
-likely-second-largest non-Latin user populations.
+[`vietnamese-ime-checklist.md`](vietnamese-ime-checklist.md). The bridge is not
+language-specific, but Korean, Japanese and Chinese exercise different marked
+text and candidate-selection paths. A pass for one language is not evidence for
+the others.
 
 ---
 
 ## Setup (common)
 
-1. macOS System Settings → Keyboard → Input Sources → add the
-   relevant IME.
-2. Build + launch: `Scripts/make-app-bundle.sh && open .build/herminal.app`.
-3. Switch IME via the menu-bar flag or ⌃Space.
+1. Use an Apple Silicon Mac running macOS Sonoma or later.
+2. Install signed public
+   [`v1.0.0`](https://github.com/hoangperry/herminal/releases/tag/v1.0.0)
+   from the DMG or Homebrew. To test current `main`, record the commit and use
+   `Scripts/make-app-bundle.sh && open .build/herminal.app`.
+3. macOS System Settings → Keyboard → Input Sources → add the relevant IME.
+4. Switch IME via the menu-bar input menu or ⌃Space. Use only non-sensitive
+   test text; never expose terminal history, repository names, or credentials.
 
 ### Pass criteria (apply to every checklist below)
 
@@ -162,15 +164,17 @@ select that-numbered candidate; PageDown / PageUp scrolls.
 
 ---
 
-## After running
+## Share the result
 
-1. File any ❌ rows as issues under
-   [`docs/backlog/`](../backlog/) using the bug-report template.
-2. Capture the filled-in checklist as
-   `docs/QA/cjk-ime-checklist-YYYY-MM-DD-<lang>.md` per language per
-   run so historical results live in git.
-3. The Vietnamese checklist is the priority gate per the PRD; CJK
-   passes are a beta-readiness signal but don't gate v0.1.0.
+1. Test one language or all three; native-speaker review of expected phrases is
+   welcome and should be identified separately from runtime pass/fail results.
+2. Open a small PR adding a dated result under
+   `docs/QA/results/cjk-ime-YYYY-MM-DD-<language>.md`, or paste a privacy-safe
+   matrix into the linked GitHub verification issue.
+3. For any failure, open a separate bug with macOS version, Herminal release or
+   commit, input source, case ID, and PREEDIT/COMMIT/DROP/DUP/CURSOR class.
+4. Do not share terminal history, usernames, filesystem paths, repository or
+   client names, screenshots containing private content, or credentials.
 
 ## Why this exists
 
