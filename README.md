@@ -112,9 +112,9 @@ Shipped in [`v1.0.0`](https://github.com/hoangperry/herminal/releases/tag/v1.0.0
 - [x] Developer-ID codesign + notarize pipeline
 
 ¹ The implementation and state-transition regressions are green, and a dated
-live run cleared the core Telex one-Tab commit-and-complete path
+live run cleared the core Telex and VNI one-Tab commit-and-complete paths
 ([`docs/QA/results/vietnamese-ime-live-2026-08-15.md`](docs/QA/results/vietnamese-ime-live-2026-08-15.md)).
-VNI and the full T1–T7 visual matrix still want an owner pass — see
+The full T1–T7 visual matrix still wants an owner pass — see
 [issue #2](https://github.com/hoangperry/herminal/issues/2).
 
 Still deferred — see [docs/ROADMAP.md](docs/ROADMAP.md) for the feedback
