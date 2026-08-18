@@ -28,34 +28,21 @@ struct ClaudeSessionsPanel: View {
     }
 
     private var header: some View {
-        HStack(spacing: HerminalDesign.Spacing.xs) {
-            Text("CLAUDE SESSIONS")
-                .font(HerminalDesign.Typography.caption)
-                .foregroundStyle(HerminalDesign.Palette.textTertiary)
-                .accessibilityAddTraits(.isHeader)
-            Spacer()
+        PanelChrome.header("CLAUDE SESSIONS") {
             Text("\(sessions.count)")
                 .font(HerminalDesign.Typography.caption)
                 .foregroundStyle(HerminalDesign.Palette.textSecondary)
             RefreshButton(action: onRefresh)
         }
-        .padding(.horizontal, HerminalDesign.Spacing.md)
-        .frame(height: TabBarView.barHeight)
     }
 
     @ViewBuilder
     private var content: some View {
         if sessions.isEmpty {
-            VStack(alignment: .leading, spacing: HerminalDesign.Spacing.xs) {
-                Text("No Claude sessions found")
-                    .font(HerminalDesign.Typography.body)
-                    .foregroundStyle(HerminalDesign.Palette.textSecondary)
-                Text("Run `claude` in any project, then reopen this panel.")
-                    .font(HerminalDesign.Typography.caption)
-                    .foregroundStyle(HerminalDesign.Palette.textTertiary)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(HerminalDesign.Spacing.md)
+            PanelChrome.emptyState(
+                "No Claude sessions found",
+                "Run `claude` in any project, then reopen this panel."
+            )
         } else {
             ScrollView {
                 VStack(alignment: .leading, spacing: HerminalDesign.Spacing.xxs) {

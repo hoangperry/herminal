@@ -68,11 +68,9 @@ struct AgentDashboardView: View {
             headerButton("square.stack.3d.up", label: "New agent worktree", action: onNewWorktree)
             headerButton("arrow.triangle.branch", label: "Open lazygit", action: onOpenLazygit)
         }
-        // lg, not sm: the scrolling content below carries the panel's own
-        // 8 pt padding plus each row's 8 pt, so 16 puts this title on the
-        // same leading rail as the rows and keeps the icon buttons off the
-        // panel's right edge.
-        .padding(.horizontal, HerminalDesign.Spacing.lg)
+        // PanelChrome.rail keeps this title on the same leading rail as the
+        // rows below and as the sibling panels that share this slot.
+        .padding(.horizontal, PanelChrome.rail)
         .frame(height: TabBarView.barHeight)
     }
 
@@ -145,10 +143,10 @@ struct AgentDashboardView: View {
     }
 
     private var emptyState: some View {
-        VStack(alignment: .leading, spacing: HerminalDesign.Spacing.xs) {
-            sectionNote("No agents running")
-            sectionNote("⌘⌥A splits a Claude pane. ⌘⌥W spins an isolated worktree.")
-        }
+        PanelChrome.emptyState(
+            "No agents running",
+            "⌘⌥A splits a Claude pane. ⌘⌥W spins an isolated worktree."
+        )
     }
 
     // v1.0 polish: rows read as a flat list with hairline dividers and the
