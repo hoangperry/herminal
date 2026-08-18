@@ -118,6 +118,23 @@ enum HerminalDesign {
             }
         }
 
+        /// Fill behind the terminal panes: what shows through the surface
+        /// inset and the seams between splits.
+        ///
+        /// Translucent, so the window's vibrancy still reads through it —
+        /// but darkening instead of lightening. Reusing `border` (white 8%)
+        /// made this the lightest surface in the window: measured #383838
+        /// between a #17181B sidebar and a #282C34 pane, which bracketed the
+        /// terminal in a bright outline no reference terminal has. The
+        /// surrounding code always described a "dark fill … as a divider";
+        /// this is the token finally agreeing with it.
+        static var paneGutter: Color {
+            switch HerminalDesign.currentTheme {
+            case .dark: return Color.black.opacity(0.28)
+            case .light: return Color.black.opacity(0.10)
+            }
+        }
+
         // Borders / dividers — neutral overlay that works in both.
         static var border: Color {
             switch HerminalDesign.currentTheme {
