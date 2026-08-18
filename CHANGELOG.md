@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **tmux session folder.** Dashboard rows show the session working-directory
+  leaf when it differs from the session name.
+
 ### Fixed
 
 - **Follow System updates live.** Changing macOS between Light and Dark while

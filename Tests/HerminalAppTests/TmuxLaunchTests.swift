@@ -175,6 +175,26 @@ struct TmuxLaunchListTests {
         #expect(rows.first?.lastActivity == nil)
     }
 
+    @Test("parseSessionRecords reads session_path")
+    func parseSessionRecordsPath() {
+        let rows = TmuxLaunch.parseSessionRecords(
+            "api\t1\t0\t1700000000\t/Users/dev/src/backend\n"
+        )
+        #expect(rows.first?.path == "/Users/dev/src/backend")
+    }
+
+    @Test("folderLabel hides a leaf that matches the session name")
+    func folderLabel() {
+        #expect(
+            TmuxLaunch.folderLabel(path: "/Users/dev/src/api", sessionName: "api") == nil
+        )
+        #expect(
+            TmuxLaunch.folderLabel(path: "/Users/dev/src/backend", sessionName: "api")
+                == "backend"
+        )
+        #expect(TmuxLaunch.folderLabel(path: nil, sessionName: "api") == nil)
+    }
+
     @Test("activityLabel uses coarse relative buckets")
     func activityLabelBuckets() {
         let now = Date(timeIntervalSince1970: 1_700_000_000)

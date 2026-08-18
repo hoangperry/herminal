@@ -34,6 +34,7 @@ enum TmuxLaunch {
         let windows: Int
         let attachedClients: Int
         var lastActivity: Date? = nil
+        var path: String? = nil
     }
 
     static let maxNameLength = 64
@@ -115,9 +116,9 @@ enum TmuxLaunch {
             .filter { !$0.isEmpty }
     }
 
-    /// `list-sessions -F` columns: name, windows, attached clients, activity epoch.
+    /// `list-sessions -F` columns: name, windows, attached, activity, path.
     static let sessionListFormat =
-        "#{session_name}\t#{session_windows}\t#{session_attached}\t#{session_activity}"
+        "#{session_name}\t#{session_windows}\t#{session_attached}\t#{session_activity}\t#{session_path}"
 
     /// `list-sessions -F` using `sessionListFormat`.
     static func parseSessionRecords(_ stdout: String) -> [Session] {
@@ -136,11 +137,20 @@ enum TmuxLaunch {
             } else {
                 activity = nil
             }
+            let path: String?
+            if parts.count > 4 {
+                let joined = parts[4...].joined(separator: "\t")
+                    .trimmingCharacters(in: .whitespaces)
+                path = joined.isEmpty ? nil : joined
+            } else {
+                path = nil
+            }
             return Session(
                 name: name,
                 windows: max(windows, 0),
                 attachedClients: max(attached, 0),
-                lastActivity: activity
+                lastActivity: activity,
+                path: path
             )
         }
     }
@@ -159,6 +169,14 @@ enum TmuxLaunch {
                 return lhs.name.localizedStandardCompare(rhs.name) == .orderedAscending
             }
         }
+    }
+
+    /// Last path component when it is not just the session name.
+    static func folderLabel(path: String?, sessionName: String) -> String? {
+        guard let path, !path.isEmpty else { return nil }
+        let leaf = (path as NSString).lastPathComponent
+        guard !leaf.isEmpty, leaf != "/", leaf != sessionName else { return nil }
+        return leaf
     }
 
     static func activityLabel(at date: Date, now: Date = Date()) -> String {
