@@ -66,7 +66,9 @@ body {
 a { color: var(--text-primary); text-decoration: underline; text-decoration-color: var(--border); text-decoration-thickness: 1px; text-underline-offset: 3px; transition: text-decoration-color .15s ease; }
 a:hover { text-decoration-color: var(--accent); color: var(--accent); }
 
-code { font-family: var(--mono); font-size: .92em; padding: 0.1em 0.35em; background: var(--surface-overlay); border-radius: 4px; border: 1px solid var(--border); }
+/* overflow-wrap: an inline code token has no spaces to break at — a path or a
+   long flag would otherwise push straight through its card's right edge. */
+code { font-family: var(--mono); font-size: .92em; padding: 0.1em 0.35em; background: var(--surface-overlay); border-radius: 4px; border: 1px solid var(--border); overflow-wrap: anywhere; }
 pre code { padding: 0; background: transparent; border: 0; }
 pre { font-family: var(--mono); }
 

@@ -13,7 +13,7 @@ content; the visual treatment is a separate design pass.
 
 ### macOS terminal cho dev người Việt sống trong Claude Code.
 
-[![Download v0.1.0](https://img.shields.io/badge/Download-v0.1.0%20beta-teal?style=for-the-badge)](https://github.com/hoangperry/herminal/releases/latest)
+[![Download v1.0.0](https://img.shields.io/badge/Download-v1.0.0-teal?style=for-the-badge)](https://github.com/hoangperry/herminal/releases/latest)
 [![GitHub stars](https://img.shields.io/github/stars/hoangperry/herminal?style=for-the-badge)](https://github.com/hoangperry/herminal)
 [![MIT](https://img.shields.io/badge/license-MIT-blue?style=for-the-badge)](https://github.com/hoangperry/herminal/blob/main/LICENSE)
 
@@ -154,8 +154,7 @@ The audit trail is the value proposition.
 ### From a tagged release
 
 ```sh
-# Once v0.1.0 lands on GitHub Releases:
-curl -L https://github.com/hoangperry/herminal/releases/latest/download/herminal-v0.1.0.zip -o herminal.zip
+curl -LO https://github.com/hoangperry/herminal/releases/download/v1.0.0/herminal-v1.0.0.dmg
 unzip herminal.zip -d /Applications/
 open /Applications/herminal.app
 ```
@@ -180,7 +179,7 @@ open .build/herminal.app
 
 ## Status + next
 
-**v0.1.0 beta — ships now.** Every PRD MVP feature plus the first
+**v1.0.0 — ships now.** Every PRD MVP feature plus the first
 post-MVP wave (node-wrapped agent detection, BEL needs-input, agent
 ↔ pane attribution, light theme, .ssh/config import, redacted diary
 export).
@@ -200,7 +199,7 @@ testers actually ask for.
 
 ## Try it
 
-[![Download v0.1.0](https://img.shields.io/badge/Download-v0.1.0%20beta-teal?style=for-the-badge)](https://github.com/hoangperry/herminal/releases/latest)
+[![Download v1.0.0](https://img.shields.io/badge/Download-v1.0.0-teal?style=for-the-badge)](https://github.com/hoangperry/herminal/releases/latest)
 
 Open a bug → tell us what you want next.
 
