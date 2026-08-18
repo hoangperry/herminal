@@ -132,7 +132,7 @@ final class WorkspaceView: NSView {
 
         // The container's dark fill shows between panes as a divider.
         surfaceContainer.wantsLayer = true
-        surfaceContainer.layer?.backgroundColor = NSColor(HerminalDesign.Palette.border).cgColor
+        surfaceContainer.layer?.backgroundColor = NSColor(HerminalDesign.Palette.paneGutter).cgColor
         dashboardHost.isHidden = true
         sshPanelHost.isHidden = true
         claudePanelHost.isHidden = true
@@ -1587,7 +1587,7 @@ final class WorkspaceView: NSView {
         // Keep AppKit's own drawing — vibrancy material, titlebar text — on
         // the same theme as the palette. See HerminalDesign.nsAppearance.
         window?.appearance = HerminalDesign.nsAppearance
-        surfaceContainer.layer?.backgroundColor = NSColor(HerminalDesign.Palette.border).cgColor
+        surfaceContainer.layer?.backgroundColor = NSColor(HerminalDesign.Palette.paneGutter).cgColor
         tabHost.rootView = makeTabBar()
         if leftSidebar == .agents { refreshAgents() }
         if leftSidebar == .ssh { refreshSSHPanel() }
@@ -1618,7 +1618,7 @@ final class WorkspaceView: NSView {
         HerminalDesign.currentTheme = HerminalDesign.currentTheme == .dark ? .light : .dark
         // Refresh AppKit-resolved colours.
         window?.backgroundColor = NSColor(HerminalDesign.Palette.surfaceBase)
-        surfaceContainer.layer?.backgroundColor = NSColor(HerminalDesign.Palette.border).cgColor
+        surfaceContainer.layer?.backgroundColor = NSColor(HerminalDesign.Palette.paneGutter).cgColor
         // Rebuild all SwiftUI hosts so they pick up the new colour values.
         tabHost.rootView = makeTabBar()
         if leftSidebar == .agents { refreshAgents() }
