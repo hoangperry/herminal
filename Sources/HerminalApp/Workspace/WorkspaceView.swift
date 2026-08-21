@@ -838,8 +838,6 @@ final class WorkspaceView: NSView {
         let bellAddresses = Set(
             surfaceAddresses.filter { BellRegistry.shared.hasRecentBell(forSurfaceAddress: $0) }
         )
-        let anyBell = !bellAddresses.isEmpty
-
         // M9/A3: ask the mapper for tab indices. Session creation order =
         // tab order in the current single-axis layout.
         let sessionStarts = tabs.flatMap { $0.panes.map { $0.createdAt } }
@@ -847,35 +845,20 @@ final class WorkspaceView: NSView {
                                               sessionStartTimes: sessionStarts)
 
         // Surface addresses grouped by tab index, so a bell can be
-        // attributed to the agent that actually rang it.
+        // attributed to the agent that actually rang it rather than to
+        // every agent in the window. The scoping rule itself lives in
+        // AgentPaneMapper.promoteOnBell so it is testable without a
+        // window — see AgentBellPromotionTests.
         let addressesByTab: [Int: Set<Int>] = Dictionary(
             uniqueKeysWithValues: tabs.enumerated().map { index, tab in
                 (index, Set(tab.panes.compactMap { $0.surfaceView.surfaceAddress }))
             }
         )
-
-        let final: [DetectedAgent] = mapped.map { agent in
-            guard anyBell else { return agent }
-            guard agent.status == .idle || agent.status == .running else { return agent }
-            // Scope the promotion to the agent whose own tab rang. This is
-            // what the comment above already promised: `bellAddresses` was
-            // built per surface and then never read again, so one bell
-            // anywhere promoted EVERY running/idle agent in the window and
-            // the dashboard flagged three agents when one wanted input.
-            // A nil tabHint still falls through to the any-bell backstop,
-            // so a mapping failure over-flags rather than under-flags.
-            if let tabHint = agent.tabHint {
-                guard let addresses = addressesByTab[tabHint],
-                      !addresses.isDisjoint(with: bellAddresses)
-                else { return agent }
-            }
-            return DetectedAgent(
-                id: agent.pid, kind: agent.kind,
-                processName: agent.processName,
-                status: .needsInput,
-                tabHint: agent.tabHint
-            )
-        }
+        let final = AgentPaneMapper.promoteOnBell(
+            mapped,
+            bellAddresses: bellAddresses,
+            addressesByTab: addressesByTab
+        )
         latestDisplayedAgents = final
         dashboardHost.rootView = makeAgentDashboard(agents: final)
     }
