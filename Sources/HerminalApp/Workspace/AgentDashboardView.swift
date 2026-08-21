@@ -388,7 +388,7 @@ struct AgentDashboardView: View {
         switch status {
         case .running: HerminalDesign.Palette.statusRunning
         case .idle: HerminalDesign.Palette.statusIdle
-        case .needsInput: HerminalDesign.Palette.statusRunning
+        case .needsInput: HerminalDesign.Palette.statusNeedsInput
         case .exitedSuccess: HerminalDesign.Palette.statusDone
         case .exitedError: HerminalDesign.Palette.statusError
         case .unknown: HerminalDesign.Palette.statusIdle

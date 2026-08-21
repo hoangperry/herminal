@@ -31,6 +31,7 @@ struct PreferencesView: View {
 private struct GeneralTab: View {
     @AppStorage(Preferences.Key.showStatusBar) private var showStatusBar = true
     @AppStorage(Preferences.Key.confirmCloseWithNote) private var confirmCloseWithNote = true
+    @AppStorage(Preferences.Key.confirmCloseWithLiveProcess) private var confirmCloseWithLiveProcess = true
     @AppStorage(Preferences.Key.restoreSessionOnLaunch) private var restoreSessionOnLaunch = true
     @AppStorage(Preferences.Key.rerunCommandsOnRestore) private var rerunCommandsOnRestore = false
     @AppStorage(Preferences.Key.firstRunCompleted) private var firstRunCompleted = true
@@ -40,6 +41,8 @@ private struct GeneralTab: View {
             Section("Window") {
                 Toggle("Show status bar at the bottom of the window", isOn: $showStatusBar)
                     .onChange(of: showStatusBar) { _, _ in Preferences.broadcastChange() }
+                Toggle("Confirm before closing a pane with a running process", isOn: $confirmCloseWithLiveProcess)
+                    .help("Asks before ⌘W terminates a pane that still has a live command in it, such as a running claude session or a build.")
                 Toggle("Confirm before closing a tab with notes", isOn: $confirmCloseWithNote)
                     .onChange(of: confirmCloseWithNote) { _, _ in Preferences.broadcastChange() }
                 Toggle("Restore tabs & panes on launch", isOn: $restoreSessionOnLaunch)

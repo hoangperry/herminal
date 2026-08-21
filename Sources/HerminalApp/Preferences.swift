@@ -33,6 +33,7 @@ public enum Preferences {
         public static let defaultShellPath = "preferences.shell.path"
         public static let showStatusBar = "preferences.window.statusBar"
         public static let confirmCloseWithNote = "preferences.window.confirmCloseWithNote"
+        public static let confirmCloseWithLiveProcess = "preferences.window.confirmCloseWithLiveProcess"
         public static let restoreSessionOnLaunch = "preferences.window.restoreSession"
         public static let rerunCommandsOnRestore = "preferences.window.rerunCommandsOnRestore"
         public static let firstRunCompleted = "preferences.firstRun.completed"
@@ -74,6 +75,9 @@ public enum Preferences {
             Key.defaultShellPath: "",  // empty = inherit from $SHELL
             Key.showStatusBar: true,
             Key.confirmCloseWithNote: true,
+            // Losing a running agent to a reflex ⌘W is unrecoverable, so
+            // this guard is on by default.
+            Key.confirmCloseWithLiveProcess: true,
             Key.restoreSessionOnLaunch: true,
             Key.rerunCommandsOnRestore: false,  // conservative: layout+cwd only
             Key.firstRunCompleted: false,
@@ -134,6 +138,10 @@ public enum Preferences {
 
     public static var confirmCloseWithNote: Bool {
         UserDefaults.standard.bool(forKey: Key.confirmCloseWithNote)
+    }
+
+    public static var confirmCloseWithLiveProcess: Bool {
+        UserDefaults.standard.bool(forKey: Key.confirmCloseWithLiveProcess)
     }
 
     public static var restoreSessionOnLaunch: Bool {
