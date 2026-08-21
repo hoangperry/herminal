@@ -625,6 +625,7 @@ final class WorkspaceView: NSView {
         // Re-derive the live index by UUID AFTER the modal returns so we
         // don't close the wrong tab if `tabs` mutated underneath us.
         // (M12 review HIGH — security-reviewer finding 1.)
+        guard confirmCloseIfProcessAlive(forSessionIDs: sessionIDs) else { return }
         guard confirmCloseIfNoteExists(forSessionIDs: sessionIDs) else { return }
         guard let liveIndex = tabs.firstIndex(where: { $0.id == id }) else { return }
         closeTabImmediately(at: liveIndex)
@@ -675,6 +676,49 @@ final class WorkspaceView: NSView {
         alert.addButton(withTitle: "Cancel")
         let response = alert.runModal()
         return response == .alertFirstButtonReturn
+    }
+
+    /// Returns true if it's safe to close the panes identified by
+    /// `sessionIDs`. Asks libghostty whether each surface still has a child
+    /// process worth confirming and shows a blocking NSAlert if any does.
+    ///
+    /// Deliberately NOT driven by `GhosttyApp.surfaceDidClose`'s
+    /// `processAlive` flag. That callback only fires once the PTY child has
+    /// already exited (see its doc comment), so it cannot answer "is
+    /// something running right now" ahead of a user-initiated ⌘W —
+    /// `ghostty_surface_needs_confirm_quit` is the query for that.
+    ///
+    /// Ordered BEFORE the note check in both callers: losing a running agent
+    /// is unrecoverable, while the note alert itself says notes survive on
+    /// disk. Same run-loop re-entrancy contract as
+    /// `confirmCloseIfNoteExists` — callers MUST re-derive positional state
+    /// (tab indices) after this returns true.
+    private func confirmCloseIfProcessAlive(forSessionIDs sessionIDs: [UUID]) -> Bool {
+        guard Preferences.confirmCloseWithLiveProcess else { return true }
+        let ids = Set(sessionIDs)
+        let live = tabs
+            .flatMap { $0.panes }
+            .filter { ids.contains($0.id) }
+            .filter { session in
+                guard let surface = session.surfaceView.surface else { return false }
+                return ghostty_surface_needs_confirm_quit(surface)
+            }
+        guard !live.isEmpty else { return true }
+
+        let alert = NSAlert()
+        alert.alertStyle = .warning
+        if live.count > 1 {
+            alert.messageText = "Close \(live.count) panes with running processes?"
+        } else if let command = live[0].command,
+                  !command.trimmingCharacters(in: .whitespaces).isEmpty {
+            alert.messageText = "Close pane running \(command)?"
+        } else {
+            alert.messageText = "Close pane with a running process?"
+        }
+        alert.informativeText = "Closing terminates the process. Anything it hasn't written to disk is lost."
+        alert.addButton(withTitle: "Close")
+        alert.addButton(withTitle: "Cancel")
+        return alert.runModal() == .alertFirstButtonReturn
     }
 
     // MARK: - Split / pane management
@@ -751,6 +795,7 @@ final class WorkspaceView: NSView {
         // the post-hoc check at closeTab() never fires for non-final
         // panes. (M12 review HIGH — code-reviewer finding 2.)
         let focusedID = tab.focusedPane.id
+        guard confirmCloseIfProcessAlive(forSessionIDs: [focusedID]) else { return }
         guard confirmCloseIfNoteExists(forSessionIDs: [focusedID]) else { return }
         if tab.closeFocusedPane() {
             Diary.shared.log("closeActivePane → active tab empty, closing tab", category: "panes")
@@ -793,24 +838,27 @@ final class WorkspaceView: NSView {
         let bellAddresses = Set(
             surfaceAddresses.filter { BellRegistry.shared.hasRecentBell(forSurfaceAddress: $0) }
         )
-        let anyBell = !bellAddresses.isEmpty
-
         // M9/A3: ask the mapper for tab indices. Session creation order =
         // tab order in the current single-axis layout.
         let sessionStarts = tabs.flatMap { $0.panes.map { $0.createdAt } }
         let mapped = AgentPaneMapper.annotate(annotated,
                                               sessionStartTimes: sessionStarts)
 
-        let final: [DetectedAgent] = mapped.map { agent in
-            guard anyBell else { return agent }
-            guard agent.status == .idle || agent.status == .running else { return agent }
-            return DetectedAgent(
-                id: agent.pid, kind: agent.kind,
-                processName: agent.processName,
-                status: .needsInput,
-                tabHint: agent.tabHint
-            )
-        }
+        // Surface addresses grouped by tab index, so a bell can be
+        // attributed to the agent that actually rang it rather than to
+        // every agent in the window. The scoping rule itself lives in
+        // AgentPaneMapper.promoteOnBell so it is testable without a
+        // window — see AgentBellPromotionTests.
+        let addressesByTab: [Int: Set<Int>] = Dictionary(
+            uniqueKeysWithValues: tabs.enumerated().map { index, tab in
+                (index, Set(tab.panes.compactMap { $0.surfaceView.surfaceAddress }))
+            }
+        )
+        let final = AgentPaneMapper.promoteOnBell(
+            mapped,
+            bellAddresses: bellAddresses,
+            addressesByTab: addressesByTab
+        )
         latestDisplayedAgents = final
         dashboardHost.rootView = makeAgentDashboard(agents: final)
     }

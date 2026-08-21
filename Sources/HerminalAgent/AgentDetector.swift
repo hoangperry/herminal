@@ -436,6 +436,49 @@ public enum AgentPaneMapper {
             )
         }
     }
+
+    /// Promotes agents to `.needsInput` when the tab they live in rang its
+    /// bell.
+    ///
+    /// Pure on purpose. The caller resolves which surfaces rang
+    /// (`bellAddresses`) and which surfaces belong to which tab
+    /// (`addressesByTab`) and passes both in, so the scoping rule can be
+    /// tested without standing up a window and a libghostty app.
+    ///
+    /// This shipped broken once: the bell set was collected per surface and
+    /// then collapsed into a single window-global "did anything ring", so
+    /// one bell promoted every running or idle agent in the window and the
+    /// dashboard flagged three agents when one wanted input.
+    ///
+    /// Only `.idle` and `.running` are eligible. A finished agent must not
+    /// be dragged back to a live-looking state by a neighbour's bell.
+    ///
+    /// An agent whose `tabHint` is nil could not be placed by `annotate`,
+    /// so it falls back to "any bell promotes it". That over-flags rather
+    /// than under-flags: a missed prompt costs the user a stalled agent, a
+    /// spurious one costs them a glance.
+    public static func promoteOnBell(
+        _ agents: [DetectedAgent],
+        bellAddresses: Set<Int>,
+        addressesByTab: [Int: Set<Int>]
+    ) -> [DetectedAgent] {
+        guard !bellAddresses.isEmpty else { return agents }
+        return agents.map { agent in
+            guard agent.status == .idle || agent.status == .running else { return agent }
+            if let tabHint = agent.tabHint {
+                guard let addresses = addressesByTab[tabHint],
+                      !addresses.isDisjoint(with: bellAddresses)
+                else { return agent }
+            }
+            return DetectedAgent(
+                id: agent.pid,
+                kind: agent.kind,
+                processName: agent.processName,
+                status: .needsInput,
+                tabHint: agent.tabHint
+            )
+        }
+    }
 }
 
 extension AgentKind {

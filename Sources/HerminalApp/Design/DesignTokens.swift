@@ -157,6 +157,18 @@ enum HerminalDesign {
             case .light: return Color(red: 0.22, green: 0.50, blue: 0.85)
             }
         }
+        /// An agent waiting on the user. Deliberately amber rather than a
+        /// second blue: this shared `statusRunning` with `.needsInput`,
+        /// which made the one state the dashboard exists to surface
+        /// invisible. Amber clears 3:1 against both surfaces (10.5:1 dark,
+        /// 3.9:1 light) and sits on the opposite hue axis from
+        /// `statusRunning`, so the two stay distinct under red-green CVD.
+        static var statusNeedsInput: Color {
+            switch HerminalDesign.currentTheme {
+            case .dark: return Color(red: 0.98, green: 0.74, blue: 0.31)
+            case .light: return Color(red: 0.68, green: 0.42, blue: 0.02)
+            }
+        }
         static var statusIdle: Color {
             switch HerminalDesign.currentTheme {
             case .dark: return Color(red: 0.55, green: 0.57, blue: 0.62)
