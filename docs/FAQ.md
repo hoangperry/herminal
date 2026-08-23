@@ -99,16 +99,17 @@ argv via `sysctl(KERN_PROCARGS2)` to find the actual agent name
 behind a `node` or `python` interpreter.
 
 Per-PID CPU sampling (`proc_pid_rusage`) flips the badge between
-`running` / `idle`. BEL escape sequences (`\a`) from any pane
-promote to `needs input`.
+`running` / `idle`. A BEL escape sequence (`\a`) promotes the agent
+mapped to the pane that rang to `needs input`; only an unmapped agent
+uses the conservative any-bell fallback.
 
 See `docs/ARCHITECTURE.md` for the full data flow.
 
-### Why does the agent dashboard show `Tab N`?
+### Why does the agent dashboard show `Pane N`?
 
 `AgentPaneMapper` pairs each agent's `login` ancestor process with
-the tab that spawned it (nth-oldest login → nth-oldest session by
-creation time). When the pairing resolves you see `Tab 2`; when it
+the pane that spawned it (nth-oldest login → nth-oldest live pane by
+creation time). When the pairing resolves you see `Pane 2`; when it
 can't, the chip disappears (we don't fake precision).
 
 ### Can I disable the agent dashboard?
@@ -155,9 +156,13 @@ re-implement SSH, just spawns it.
 ### Does herminal phone home?
 
 No. The codebase contains no HTTP client, no analytics SDK, no
-crash-reporter network code, no auto-update poll. The only network
-activity is whatever YOU run in a terminal pane (curl, ssh, npm,
-git push, etc.).
+crash-reporter network code, and no auto-update poll. herminal itself
+makes no background network requests.
+
+The manual **Check for Updates…** command asks macOS to open the official
+GitHub releases page in your default browser only when you click it. Other
+network activity comes from commands you choose to run in a terminal pane
+(curl, ssh, npm, git push, etc.).
 
 See `SECURITY.md` for the explicit threat model and what's
 considered in vs out of scope.
@@ -177,11 +182,14 @@ user-home paths so the paste is safe to share publicly.
 
 ### Will Sparkle send my system info to a server?
 
-When Sparkle is wired in (post-v0.1.1), the only HTTP request it
-makes is `GET appcast.xml` from the herminal release URL. macOS
-adds standard User-Agent + Accept-Language headers; we don't add
-identifying info. You can disable update checks entirely in
-Preferences (planned UI; today the Updater stub is a no-op).
+Today, Sparkle is not wired in; **Check for Updates…** opens the official
+GitHub releases page manually and stops there.
+
+When Sparkle is wired in, the only HTTP request it makes is `GET
+appcast.xml` from the herminal release URL. macOS adds standard
+User-Agent + Accept-Language headers; we don't add identifying info.
+You can disable update checks entirely in Preferences (planned UI;
+today automatic checks remain a stub).
 
 ---
 

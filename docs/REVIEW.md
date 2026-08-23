@@ -208,9 +208,29 @@ of scope).
   currently reaches. Documented; revisit if a new caller appears.
 - **LOW (code) — `normalizeRatios` zero-sum path** is already guarded
   (`guard sum > 0`); noted only.
-- **LOW (code) — `SearchOverlayView` 50 ms focus delay** is fragile
-  under load but works; a `@FocusState`-driven refactor isn't worth the
-  churn now.
+- **RESOLVED 2026-08-22 (was LOW) — `SearchOverlayView` 50 ms focus
+  delay.** Opening Find now requests `@FocusState` focus on the next main
+  run-loop turn: late enough for AppKit attachment, without an arbitrary
+  millisecond timer that can lose under load. A focused policy test verifies
+  the request is deferred and completes exactly once.
+- **RESOLVED 2026-08-23 (was MEDIUM) — reopening Find focused the hosting
+  view instead of the query field.** Repeated ⌘F now emits a fresh focus
+  request through `SearchOverlayState`; the SwiftUI view observes that signal
+  and restores `@FocusState` on the next main run-loop turn. The focused test
+  verifies that every reopen generates a distinct request.
+- **RESOLVED 2026-08-23 (was MEDIUM) — query changes retained stale match
+  metadata.** `SearchOverlayState` now clears the previous total and selected
+  match as soon as the needle changes, so the visible and VoiceOver status
+  return to “Search in progress” until libghostty reports fresh results.
+  Focused policy tests protect both the state transition and the contextual
+  status copy without forcing unsolicited announcements while typing.
+- **RESOLVED 2026-08-23 (was LOW) — match navigation looked actionable
+  without a result.** Previous and Next now use native disabled semantics for
+  an empty query, an in-progress scan, and zero matches. The Edit-menu commands
+  and ⌘G / ⌘⇧G validation share the same policy, and navigation is routed to
+  the pane that owns the search overlay. The actions stay visibly present but
+  unavailable until libghostty reports at least one match; Close remains
+  available throughout.
 - **LOW (code) — `CommandPalette` panel-reuse** subsumed by the MEDIUM
   fix above (now rebuilds fresh).
 
@@ -227,9 +247,12 @@ of scope).
 
 **Verdict:** All HIGH findings closed before the M13 review pass
 returned. The deferred MEDIUM (shell-path consumption, no caller yet)
-is gated to whenever `defaultShellPath` first flows into a libghostty
-spawn — `Preferences.validatedDefaultShellPath()` is in place ahead of
-that work.
+was gated to whenever `defaultShellPath` first flowed into a libghostty
+spawn. **Resolved 2026-08-22:** new plain-shell tabs and splits now route
+the validated path through libghostty `initial_input`; the Settings copy
+explicitly discloses that the macOS login shell and its startup files run
+before this handoff. Explicit ssh / Claude / tmux commands remain on the
+existing command path.
 
 ### M13 — Fixed
 
@@ -261,12 +284,18 @@ that work.
 
 ### M13 — Deferred
 
-- **MEDIUM** `Preferences.defaultShellPath` value isn't yet consumed —
-  the ShellTab persists it but no spawn path reads it back. Adding
-  `Preferences.validatedDefaultShellPath()` now so the consumer in M13+
-  has a vetted helper to call (executable-bit + path-prefix check,
-  /tmp + /private/tmp rejected). Gate item: wiring up consumption MUST
-  route through this helper.
+- **RESOLVED 2026-08-22 (was MEDIUM)**
+  `Preferences.defaultShellPath` now flows through
+  `Preferences.validatedDefaultShellPath()` into `initial_input` for new
+  plain-shell tabs and splits. This is a post-start handoff because the
+  embedded `command` field forces `wait-after-command`; the Settings UI
+  states that limitation rather than claiming a direct spawn. The bootstrap
+  uses `exec <path> -l`, which is accepted by both POSIX shells and fish; fish
+  rejects the inverse `exec -l <path>` form. The validator rejects relative,
+  non-executable, temporary, symlink-to-temporary, and control-character
+  paths. VoiceOver announces only meaningful inherited / invalid / active
+  status transitions. Explicit ssh / Claude / tmux commands do not receive
+  the shell bootstrap input.
 - **MEDIUM** `preferencesDidChange` observer registered without an
   object filter. The originally suggested `object: Preferences.self`
   fix doesn't apply — `Preferences` is a caseless enum with no
@@ -282,6 +311,28 @@ that work.
   whose centre is on-screen but visible area is mostly off (e.g.
   centred at a screen edge). Document-only — matches the explicit
   multi-monitor-straddle intent in the inline comment.
+
+### Post-M13 clipboard authorization hardening (2026-08-22)
+
+The embedded runtime previously registered a no-op clipboard confirmation
+callback, completed every read with `confirmed: true`, and ignored the write
+callback's `confirm` flag. That bypassed libghostty's unsafe-paste protection
+and its OSC 52 `ask` policy.
+
+Herminal now completes the first read with `confirmed: false`, copies deferred
+C payloads into Swift-owned storage before crossing threads, and presents one
+native warning at a time with the safe action focused by default. A thread-safe
+single-flight gate denies prompt bursts before they can queue into a modal loop.
+Denial completes retained paste/read requests with an empty confirmed payload,
+matching upstream Ghostty's embedded-runtime cleanup contract. Confirmed writes
+replace
+the pasteboard transactionally and restore every prior item on write failure.
+Normal Cmd+C writes remain prompt-free. A bundled baseline sets
+`clipboard-read = ask` and `clipboard-write = ask` before user Ghostty files
+load, so secure prompting is the Herminal default while explicit user
+`allow` / `deny` choices still win.
+Focused policy and pasteboard tests live in
+`Tests/HerminalCoreTests/ClipboardAuthorizationPolicyTests.swift`.
 
 ---
 
@@ -310,9 +361,13 @@ the normal-path code touched them, or on a thread holding the
 `swift_once` lock, would deadlock the runtime from inside the
 handler. The diary failed at the exact moment it's needed.
 
-**Fix:** moved both to file-scope module-level vars (`_diaryCrashFD`,
-`_diaryCrashHandler`). The handler closure has no captures so the
-`@convention(c)` materialises eagerly without `swift_once`.
+**Fix:** signal registration, the active descriptor, compile-time crash-message
+bytes, and the handler now live in the `HerminalCrashHandler` C target. The
+handler selects a fixed byte span without entering Swift exclusivity/runtime
+code, writes it through a short-write/EINTR loop, resets the default
+disposition, and re-raises the signal. Descriptor duplication uses
+`F_DUPFD_CLOEXEC`, so no lazy Swift initialization or close-on-exec race is
+reachable from signal context.
 
 ### HIGH H-1, H-2 — Test harness env hooks in production builds
 `Sources/HerminalApp/AppDelegate.swift` (commit `11c65b3`)
@@ -391,16 +446,14 @@ validation rules and could reject legitimate-but-weird hostnames
 some users have. Wait for beta feedback before locking the
 allowlist.
 
-### MEDIUM M-2 (code) — `cpuSeconds` integer overflow theoretical
-`Sources/HerminalAgent/AgentDetector.swift:243`
+### RESOLVED 2026-08-23 (was MEDIUM M-2, code) — `cpuSeconds` integer overflow
+`Sources/HerminalAgent/AgentDetector.swift`
 
-`machTotal * UInt64(machTimebase.numer)` can overflow before
-dividing by `denom`. On Apple Silicon (`125/3`), the overflow
-threshold corresponds to ~147 CPU-years of accumulated mach time —
-not reachable in practice.
-
-**Defer because:** practical overflow is impossible. Worth a one-line
-fix if we ever touch this function for another reason.
+Mach tick conversion now sums and multiplies in `TimeInterval`, so neither
+the user/system tick sum nor the timebase numerator can overflow a `UInt64`
+before division. A zero denominator fails closed to zero seconds. A focused
+regression covers the ordinary Apple Silicon `125/3` ratio and verifies the
+expected finite result when both tick components equal `UInt64.max`.
 
 ### MEDIUM M-3 (code) — BellRegistry unbounded growth
 `Sources/HerminalCore/BellRegistry.swift`
@@ -414,39 +467,39 @@ unbounded.
 case. Add an explicit purge on `recordBell` only if a memory
 report shows growth.
 
-### MEDIUM M-4 (security) — Symlink race in Diary log truncation
-`Sources/HerminalApp/Diary.swift:183-185`
+### RESOLVED 2026-08-23 (was MEDIUM M-4, security) — Diary symlink race
+`Sources/HerminalApp/Diary.swift`, `Sources/HerminalApp/DiaryFileAccess.swift`
 
-TOCTOU between size check + `Data(contentsOf:)` + `.atomic` write.
-A symlink replace between calls would target whatever the symlink
-points at. Only matters on the `/tmp` fallback path (sandbox
-environments).
+Diary directory preparation now uses `mkdirat`/`openat`/`fchmod` through a
+validated descriptor, so a pre-existing symlink is rejected before its target
+can be chmodded. Creation and tail truncation use `O_NOFOLLOW | O_CLOEXEC` from
+that owner-only directory. Regular-file ownership and single-link invariants
+reject symlinks, hard links, and special files; mode is enforced at `0600`.
+Oversized logs are compacted through a data-synced same-directory replacement
+and atomic `renameat`; failures before rename preserve the original inode.
+Directory fsync is best effort, and independently forced concurrent app
+instances do not coordinate startup compaction. Persisted export reads only
+the verified descriptor, even if the pathname changes later. The C crash shim
+uses an atomic `F_DUPFD_CLOEXEC` duplicate of that inode and a compile-time
+message with a short-write/EINTR loop. Regressions cover each boundary,
+including directory symlinks/modes, FIFO, path swaps, compaction failure,
+descriptor flags/inode identity, and all five registered crash messages.
 
-**Defer because:** the fallback path is rare and the attack window
-is tiny. Add `O_NOFOLLOW` next time this file is touched.
+### RESOLVED 2026-08-23 (was MEDIUM M-4, code) — SSH diary logging exposed hostnames
+`Sources/HerminalApp/Workspace/WorkspaceView.swift`
 
-### MEDIUM M-4 (code) — SSH command hostname logged verbatim in Diary
-`Sources/HerminalApp/Workspace/WorkspaceView.swift:201,389`
+SSH connection logging now records only structural metadata. `connectSSH(_:)`
+stores the port, and `addTab(command:title:)` stores only whether a custom
+command and cwd were present; neither log path includes the SSH command,
+hostname, username, nickname, or cwd string. Focused regressions in
+`Tests/HerminalAppTests/SSHCommandTests.swift` lock in that privacy contract.
 
-`addTab(command:title:)` writes the full SSH command (including
-hostname) to the Diary. `exportRedacted` doesn't redact hostnames.
-A user pasting an export into a GitHub issue exposes internal
-hostnames.
+### RESOLVED 2026-08-23 (was MEDIUM M-4, code) — ProcessArgvReader unaligned load
+`Sources/HerminalAgent/AgentDetector.swift`
 
-**Defer because:** export is opt-in; users see the diary content
-before pasting. Add a `[ssh]` category-specific redaction rule in
-v0.1.1 if a user reports the leak.
-
-### MEDIUM M-4 (code) — ProcessArgvReader unaligned load
-`Sources/HerminalAgent/AgentDetector.swift:149`
-
-`buffer.withUnsafeBytes { $0.load(as: Int32.self) }` requires
-4-byte alignment that `[UInt8]` doesn't guarantee. Works on Apple
-Silicon because ARM64 handles unaligned loads transparently. UB
-per the strict spec.
-
-**Defer because:** swap to `loadUnaligned(as:)` is a one-line fix;
-take it on the next AgentDetector touch.
+The KERN_PROCARGS2 `argc` decoder now uses `loadUnaligned` with explicit
+bounds checks, so it no longer assumes `[UInt8]` storage has `Int32`
+alignment. A focused regression decodes from byte offset one.
 
 ### MEDIUM M-5 (security) — NSLog of HERMINAL_TEST_TEXT
 `Sources/HerminalApp/AppDelegate.swift`
@@ -484,13 +537,16 @@ ownership story. Revisit if Apple ever changes the rule.
 - **LOW L-2 (security):** `SSHConfigImporter.parseHosts(at:)`
   accepts arbitrary paths. Defer — call sites always pass the
   default; document caller responsibility.
-- **LOW L-3 (security):** Port field not range-clamped on decode
-  from SQLite. Not exploitable; harmless to `ssh`. Add guard on
-  next NotesStore/SSHHostsStore touch.
-- **LOW (code):** Magic `36` for `kVK_Return` — add a named
-  constant on next HerminalSurfaceView touch.
-- **LOW (code):** `BellRegistry.hasRecentBell` window-boundary
-  test gap — add a parameterized test on next BellRegistry touch.
+- **RESOLVED 2026-08-23 (was LOW L-3, security):** SSH host rows now
+  fail closed as malformed when a persisted port falls outside `1...65535`.
+  Parameterized tests cover corrupt and legacy SQLite values on both sides.
+- **RESOLVED 2026-08-23 (was LOW, code):** Magic `36` for `kVK_Return`.
+  The IME/input bridge now names both physical Tab and Return key codes, and
+  its regression tests consume the same semantic constants.
+- **RESOLVED 2026-08-23 (was LOW, code):** `BellRegistry.hasRecentBell`
+  now has an internal injectable evaluation time, with parameterized regression
+  coverage proving that its ten-second window is inclusive at the boundary.
+  The public production path preserves its original time-sampling order.
 
 ---
 
@@ -504,7 +560,9 @@ By scope:
 - Suggested feature additions
 
 By depth:
-- No fuzzing of the SSH config parser
+- No randomized fuzzing of the SSH config parser. Deterministic adversarial
+  coverage now exercises tabs, CRLF, `key=value`, quoted whitespace, and
+  comment markers inside quoted values for the supported directive subset.
 - No threat modelling of NSTextInputClient ↔ IME interaction
 - No supply-chain audit of SPM dependencies (just SQLite.swift +
   libghostty submodule)
