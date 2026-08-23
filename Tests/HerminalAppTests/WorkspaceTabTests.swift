@@ -224,12 +224,68 @@ struct WorkspaceTabTests {
         #expect(tab.focusedPane.surfaceView.currentWorkingDirectory == "/opt/herminal-fixture/proj")
     }
 
+    @Test("invalid OSC 7 cwd reports fail closed")
+    func invalidPwdClearsTrackedWorkingDirectory() {
+        let tab = WorkspaceTab(app: dummyApp)
+        tab.focusedPane.surfaceView.applyPwd("/opt/herminal-fixture/proj")
+        #expect(tab.focusedPane.surfaceView.currentWorkingDirectory == "/opt/herminal-fixture/proj")
+
+        tab.focusedPane.surfaceView.applyPwd("file:///tmp/herminal")
+        #expect(tab.focusedPane.surfaceView.currentWorkingDirectory == nil)
+
+        tab.focusedPane.surfaceView.applyPwd("/tmp/herminal\nopen -a Calculator")
+        #expect(tab.focusedPane.surfaceView.currentWorkingDirectory == nil)
+    }
+
     // MARK: - Re-run commands on restore (v0.5.4)
 
     @Test("snapshot records each pane's spawn command")
     func snapshotRecordsCommand() {
         let tab = WorkspaceTab(app: dummyApp, command: "ssh ops@host")
         #expect(tab.snapshot().panes.first?.command == "ssh ops@host")
+    }
+
+    @Test("empty-string spawn commands are normalized to a plain shell")
+    func emptySpawnCommandBecomesPlainShell() {
+        let tab = WorkspaceTab(
+            app: dummyApp,
+            command: "",
+            workingDirectory: "/opt/herminal-fixture/api"
+        )
+
+        #expect(tab.focusedPane.command == nil)
+        #expect(tab.focusedPane.closeRiskCommand == nil)
+        #expect(tab.focusedPane.surfaceView.currentWorkingDirectory == "/opt/herminal-fixture/api")
+        #expect(tab.snapshot().panes.first?.command == nil)
+    }
+
+    @Test("an exited retained pane is omitted from restore snapshots")
+    func retainedExitedPaneIsNotRestored() {
+        let tab = WorkspaceTab(app: dummyApp, command: "ssh ops@host")
+        let pane = tab.focusedPane
+
+        #expect(pane.closeRiskCommand == "ssh ops@host")
+        pane.markExited()
+
+        #expect(pane.hasExited)
+        #expect(pane.closeRiskCommand == nil)
+        #expect(tab.livePanes.isEmpty)
+        #expect(tab.snapshot().panes.isEmpty)
+    }
+
+    @Test("snapshot pruning preserves only live panes and a valid layout")
+    func snapshotPrunesExitedPane() throws {
+        let tab = WorkspaceTab(app: dummyApp, command: "ssh ops@host")
+        tab.split(app: dummyApp, vertical: true)
+        tab.focusedPane.markExited()
+
+        let snapshot = tab.snapshot()
+        #expect(snapshot.panes.count == 1)
+        #expect(snapshot.layout == .leaf(0))
+
+        let restored = WorkspaceTab(app: dummyApp, restoring: snapshot)
+        #expect(restored.panes.count == 1)
+        #expect(restored.focusedPane.command == nil)
     }
 
     @Test("restore replays the command only when re-run is enabled")

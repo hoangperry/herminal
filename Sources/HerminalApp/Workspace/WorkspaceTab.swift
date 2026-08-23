@@ -77,6 +77,12 @@ final class WorkspaceTab: Identifiable {
         return root.leaves().compactMap { byID[$0] }
     }
 
+    /// Panes whose PTY is still live. Exited panes may remain in `panes`
+    /// temporarily so an at-risk note can still be retried or exported.
+    var livePanes: [TerminalSession] {
+        panes.filter { !$0.hasExited }
+    }
+
     var focusedPane: TerminalSession {
         sessions.first { $0.id == focusedPaneID } ?? sessions[0]
     }
@@ -145,7 +151,7 @@ final class WorkspaceTab: Identifiable {
     @discardableResult
     func focusPane(spawningTmuxNamed name: String) -> Bool {
         guard let pane = panes.first(where: { pane in
-            pane.command.flatMap(TmuxLaunch.sessionName(fromSpawnCommand:)) == name
+            pane.closeRiskCommand.flatMap(TmuxLaunch.sessionName(fromSpawnCommand:)) == name
         }) else { return false }
         focusPane(id: pane.id)
         return true
@@ -192,13 +198,19 @@ final class WorkspaceTab: Identifiable {
     // MARK: - Snapshot
 
     func snapshot() -> TabSnapshot {
-        let ordered = panes
+        // A pane whose PTY exited can remain in memory briefly so the owner
+        // can retry or export an at-risk note. It is not a restorable
+        // terminal session and must never be resurrected as a fresh shell.
+        let ordered = livePanes
         let indexByID = Dictionary(
             ordered.enumerated().map { ($1.id, $0) }, uniquingKeysWith: { a, _ in a }
         )
         return TabSnapshot(
             panes: ordered.map {
-                PaneSnapshot(cwd: $0.surfaceView.currentWorkingDirectory, command: $0.command)
+                PaneSnapshot(
+                    cwd: $0.surfaceView.currentWorkingDirectory,
+                    command: $0.closeRiskCommand
+                )
             },
             focusedPaneIndex: ordered.firstIndex { $0.id == focusedPaneID } ?? 0,
             layout: Self.snapshotNode(root, indexByID: indexByID),
@@ -220,19 +232,34 @@ final class WorkspaceTab: Identifiable {
 
     // MARK: - Tree (de)serialization helpers
 
-    private static func snapshotNode(_ node: LayoutNode, indexByID: [UUID: Int]) -> LayoutSnapshot {
+    /// Serializes only retained leaf ids. Missing leaves are exited panes;
+    /// collapse their parent split so the surviving layout still references
+    /// every persisted pane exactly once.
+    private static func snapshotNode(
+        _ node: LayoutNode,
+        indexByID: [UUID: Int]
+    ) -> LayoutSnapshot? {
         switch node {
         case let .leaf(id):
-            if let index = indexByID[id] { return .leaf(index) }
-            // Unreachable under the sessions⇄tree invariant. Surface it
-            // instead of silently coercing, so a future desync is visible
-            // (restore would then drop to the flat fallback). (v0.5 review.)
-            NSLog("herminal: snapshotNode leaf without a session index — tree/sessions desync")
-            return .leaf(0)
+            return indexByID[id].map(LayoutSnapshot.leaf)
         case let .split(info):
-            return .split(axis: info.axis, ratio: Double(info.ratio),
-                          first: snapshotNode(info.first, indexByID: indexByID),
-                          second: snapshotNode(info.second, indexByID: indexByID))
+            let first = snapshotNode(info.first, indexByID: indexByID)
+            let second = snapshotNode(info.second, indexByID: indexByID)
+            switch (first, second) {
+            case let (.some(first), .some(second)):
+                return .split(
+                    axis: info.axis,
+                    ratio: Double(info.ratio),
+                    first: first,
+                    second: second
+                )
+            case let (.some(first), .none):
+                return first
+            case let (.none, .some(second)):
+                return second
+            case (.none, .none):
+                return nil
+            }
         }
     }
 

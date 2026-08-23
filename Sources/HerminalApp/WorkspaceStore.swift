@@ -70,6 +70,24 @@ struct TabSnapshot: Codable, Sendable, Equatable {
 struct WorkspaceSnapshot: Codable, Sendable, Equatable {
     var tabs: [TabSnapshot]
     var activeTabIndex: Int
+
+    /// Removes tabs with no restorable panes before persistence. The active
+    /// selection moves to the next surviving tab, or the previous one when
+    /// there is no later tab.
+    static func compacting(tabs: [TabSnapshot], activeTabIndex: Int) -> WorkspaceSnapshot {
+        let retained = tabs.enumerated().filter { !$0.element.panes.isEmpty }
+        guard !retained.isEmpty else {
+            return WorkspaceSnapshot(tabs: [], activeTabIndex: 0)
+        }
+
+        let normalizedActive = max(activeTabIndex, 0)
+        let retainedBeforeActive = retained.count { $0.offset < normalizedActive }
+        let remappedActive = min(retainedBeforeActive, retained.count - 1)
+        return WorkspaceSnapshot(
+            tabs: retained.map(\.element),
+            activeTabIndex: remappedActive
+        )
+    }
 }
 
 enum WorkspaceStore {
@@ -123,13 +141,17 @@ enum WorkspaceStore {
     /// doesn't reference exactly the surviving panes (→ flat fallback).
     static func sanitise(_ snapshot: WorkspaceSnapshot) -> WorkspaceSnapshot? {
         let fm = FileManager.default
-        let tabs: [TabSnapshot] = snapshot.tabs.compactMap { tab in
-            guard !tab.panes.isEmpty else { return nil }
+        // Keep empty placeholders until the final compaction so the saved
+        // active index can be remapped by original tab position.
+        let tabs: [TabSnapshot] = snapshot.tabs.map { tab in
+            guard !tab.panes.isEmpty else { return tab }
             let panes = tab.panes.map { pane -> PaneSnapshot in
                 // Carry the spawn command through untouched — it's only
                 // ever replayed behind the opt-in toggle, and validated
                 // then (WorkspaceTab.safeRerunCommand).
-                guard let cwd = pane.cwd else { return PaneSnapshot(cwd: nil, command: pane.command) }
+                guard let cwd = WorkingDirectoryPath.validated(pane.cwd) else {
+                    return PaneSnapshot(cwd: nil, command: pane.command)
+                }
                 var isDir: ObjCBool = false
                 let exists = fm.fileExists(atPath: cwd, isDirectory: &isDir)
                 return PaneSnapshot(cwd: (exists && isDir.boolValue) ? cwd : nil, command: pane.command)
@@ -159,8 +181,10 @@ enum WorkspaceStore {
                 paneRatios: legacyRatios
             )
         }
-        guard !tabs.isEmpty else { return nil }
-        let active = min(max(snapshot.activeTabIndex, 0), tabs.count - 1)
-        return WorkspaceSnapshot(tabs: tabs, activeTabIndex: active)
+        let compacted = WorkspaceSnapshot.compacting(
+            tabs: tabs,
+            activeTabIndex: snapshot.activeTabIndex
+        )
+        return compacted.tabs.isEmpty ? nil : compacted
     }
 }
