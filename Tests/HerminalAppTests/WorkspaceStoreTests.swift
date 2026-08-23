@@ -36,11 +36,38 @@ struct WorkspaceStoreTests {
         #expect(out.activeTabIndex == 0)
     }
 
+    @Test("sanitise preserves the active retained tab across earlier empty tabs")
+    func sanitiseRemapsActiveTab() throws {
+        let empty = TabSnapshot(panes: [], focusedPaneIndex: 0, layout: nil,
+                                isVerticalSplit: nil, paneRatios: nil)
+        let snap = WorkspaceSnapshot(
+            tabs: [empty, tab(panes: 1), empty, tab(panes: 1)],
+            activeTabIndex: 1
+        )
+
+        let out = try #require(WorkspaceStore.sanitise(snap))
+        #expect(out.tabs.count == 2)
+        #expect(out.activeTabIndex == 0)
+    }
+
     @Test("a snapshot with no usable tabs returns nil")
     func allEmptyIsNil() {
         let empty = TabSnapshot(panes: [], focusedPaneIndex: 0, layout: nil,
                                 isVerticalSplit: nil, paneRatios: nil)
         #expect(WorkspaceStore.sanitise(WorkspaceSnapshot(tabs: [empty], activeTabIndex: 0)) == nil)
+    }
+
+    @Test("snapshot compaction drops empty tabs and keeps the nearest active tab")
+    func compactionDropsEmptyTabs() {
+        let empty = TabSnapshot(panes: [], focusedPaneIndex: 0, layout: nil,
+                                isVerticalSplit: nil, paneRatios: nil)
+        let snapshot = WorkspaceSnapshot.compacting(
+            tabs: [tab(panes: 1), empty, tab(panes: 1)],
+            activeTabIndex: 1
+        )
+
+        #expect(snapshot.tabs.count == 2)
+        #expect(snapshot.activeTabIndex == 1)
     }
 
     @Test("an out-of-range focus index is clamped")

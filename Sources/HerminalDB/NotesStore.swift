@@ -34,6 +34,14 @@ public enum NotesError: Error, Equatable {
 /// CRUD store for notes. Use from a single isolation domain (the notes UI
 /// runs on the main actor; tests drive it synchronously).
 public final class NotesStore {
+    private struct StoredNoteRow {
+        let id: String
+        let sessionID: String
+        let body: String
+        let createdAt: Double
+        let updatedAt: Double
+    }
+
     private let db: Connection
 
     /// Opens (or creates) a notes database at `location` and runs migrations.
@@ -59,39 +67,56 @@ public final class NotesStore {
 
     /// The note for a session, if one exists.
     public func note(forSession sessionID: UUID) throws -> Note? {
-        let rows = try db.prepare(
-            """
-            SELECT id, session_id, body, created_at, updated_at
-            FROM notes WHERE session_id = ? LIMIT 1
-            """,
-            sessionID.uuidString
-        )
-        for row in rows {
-            return try Self.decode(row)
-        }
-        return nil
+        guard let row = try canonicalRow(forSession: sessionID) else { return nil }
+        return try Self.decode(row)
     }
 
-    /// Inserts or updates a note (keyed by `id`).
+    /// Inserts or updates a note, treating `session_id` as the logical key.
+    /// A fresh caller-supplied UUID must not create a second row for the same
+    /// session if a canonical note already exists.
     public func upsert(_ note: Note) throws {
-        try db.run(
-            """
-            INSERT INTO notes (id, session_id, body, created_at, updated_at)
-            VALUES (?, ?, ?, ?, ?)
-            ON CONFLICT(id) DO UPDATE SET
-                body = excluded.body,
-                updated_at = excluded.updated_at
-            """,
-            note.id.uuidString,
-            note.sessionID.uuidString,
-            note.body,
-            note.createdAt.timeIntervalSince1970,
-            note.updatedAt.timeIntervalSince1970
-        )
+        try db.transaction(.immediate) {
+            if let existing = try canonicalRow(forSession: note.sessionID) {
+                try db.run(
+                    """
+                    UPDATE notes
+                    SET body = ?, updated_at = ?
+                    WHERE id = ?
+                    """,
+                    note.body,
+                    note.updatedAt.timeIntervalSince1970,
+                    existing.id
+                )
+                return
+            }
+
+            let insertID = try insertID(for: note)
+            try db.run(
+                """
+                INSERT INTO notes (id, session_id, body, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?)
+                """,
+                insertID,
+                note.sessionID.uuidString,
+                note.body,
+                note.createdAt.timeIntervalSince1970,
+                note.updatedAt.timeIntervalSince1970
+            )
+        }
     }
 
     public func delete(id: UUID) throws {
-        try db.run("DELETE FROM notes WHERE id = ?", id.uuidString)
+        try db.transaction(.immediate) {
+            guard
+                let sessionID = try db.scalar(
+                    "SELECT session_id FROM notes WHERE id = ? LIMIT 1",
+                    id.uuidString
+                ) as? String
+            else {
+                return
+            }
+            try db.run("DELETE FROM notes WHERE session_id = ?", sessionID)
+        }
     }
 
     /// All notes, most recently updated first.
@@ -99,28 +124,85 @@ public final class NotesStore {
         let rows = try db.prepare(
             """
             SELECT id, session_id, body, created_at, updated_at
-            FROM notes ORDER BY updated_at DESC
+            FROM (
+                SELECT id, session_id, body, created_at, updated_at,
+                       ROW_NUMBER() OVER (
+                           PARTITION BY session_id
+                           ORDER BY updated_at DESC, created_at DESC, rowid DESC
+                       ) AS session_rank
+                FROM notes
+            )
+            WHERE session_rank = 1
+            ORDER BY updated_at DESC, created_at DESC, session_id ASC, id ASC
             """
         )
-        return try rows.map { try Self.decode($0) }
+        return try rows.map { try Self.decode(try Self.decodeStoredRow($0)) }
     }
 
-    private static func decode(_ row: [Binding?]) throws -> Note {
+    private func canonicalRow(forSession sessionID: UUID) throws -> StoredNoteRow? {
+        let rows = try db.prepare(
+            """
+            SELECT id, session_id, body, created_at, updated_at
+            FROM notes
+            WHERE session_id = ?
+            ORDER BY updated_at DESC, created_at DESC, rowid DESC
+            LIMIT 1
+            """,
+            sessionID.uuidString
+        )
+        for row in rows {
+            return try Self.decodeStoredRow(row)
+        }
+        return nil
+    }
+
+    private func insertID(for note: Note) throws -> String {
         guard
-            let idString = row[0] as? String, let id = UUID(uuidString: idString),
-            let sessionString = row[1] as? String, let sessionID = UUID(uuidString: sessionString),
+            let existingSessionID = try db.scalar(
+                "SELECT session_id FROM notes WHERE id = ? LIMIT 1",
+                note.id.uuidString
+            ) as? String
+        else {
+            return note.id.uuidString
+        }
+
+        return existingSessionID == note.sessionID.uuidString
+            ? note.id.uuidString
+            : UUID().uuidString
+    }
+
+    private static func decodeStoredRow(_ row: [Binding?]) throws -> StoredNoteRow {
+        guard
+            let id = row[0] as? String,
+            let sessionID = row[1] as? String,
             let body = row[2] as? String,
             let created = row[3] as? Double,
             let updated = row[4] as? Double
         else {
             throw NotesError.malformedRow
         }
-        return Note(
+        return StoredNoteRow(
             id: id,
             sessionID: sessionID,
             body: body,
-            createdAt: Date(timeIntervalSince1970: created),
-            updatedAt: Date(timeIntervalSince1970: updated)
+            createdAt: created,
+            updatedAt: updated
+        )
+    }
+
+    private static func decode(_ row: StoredNoteRow) throws -> Note {
+        guard
+            let id = UUID(uuidString: row.id),
+            let sessionID = UUID(uuidString: row.sessionID)
+        else {
+            throw NotesError.malformedRow
+        }
+        return Note(
+            id: id,
+            sessionID: sessionID,
+            body: row.body,
+            createdAt: Date(timeIntervalSince1970: row.createdAt),
+            updatedAt: Date(timeIntervalSince1970: row.updatedAt)
         )
     }
 }

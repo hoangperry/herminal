@@ -15,7 +15,7 @@ final class TerminalSession: Identifiable {
     let surfaceView: HerminalSurfaceView
     var title: String
     /// The command this pane was spawned with (ssh / claude from the
-    /// managers), or nil for a plain login shell. Persisted in the
+    /// managers), or nil for a plain shell pane. Persisted in the
     /// snapshot so "re-run commands on restore" (v0.5.4, opt-in) can
     /// replay it; a plain shell carries nil and is never replayed.
     let command: String?
@@ -23,15 +23,28 @@ final class TerminalSession: Identifiable {
     /// session with the libghostty login process spawned alongside it
     /// (Nth-oldest login → Nth-oldest session).
     let createdAt: TimeInterval
+    /// A terminal may remain in the layout after its PTY exits so an at-risk
+    /// note can still be retried or exported. It must no longer represent
+    /// live command or agent work in close-risk decisions.
+    private(set) var hasExited = false
+
+    var closeRiskCommand: String? {
+        hasExited ? nil : command
+    }
 
     init(app: ghostty_app_t, title: String = TerminalSession.defaultTitle,
          command: String? = nil, workingDirectory: String? = nil) {
+        let normalizedCommand = Self.normalizedSpawnCommand(command)
         self.surfaceView = HerminalSurfaceView(
-            app: app, command: command, workingDirectory: workingDirectory
+            app: app, command: normalizedCommand, workingDirectory: workingDirectory
         )
         self.title = title
-        self.command = command
+        self.command = normalizedCommand
         self.createdAt = Date().timeIntervalSince1970
+    }
+
+    func markExited() {
+        hasExited = true
     }
 
     /// What the tab strip shows. A program/shell that set its own title
@@ -48,5 +61,13 @@ final class TerminalSession: Identifiable {
             return PathLabel.tabLabel(for: cwd)
         }
         return title
+    }
+
+    /// Empty-string spawn commands are an internal sentinel meaning
+    /// "open a plain shell in this working directory", not a real custom
+    /// command. Normalize once here so restore, close-risk, and persisted
+    /// snapshots all describe the pane truthfully.
+    private static func normalizedSpawnCommand(_ command: String?) -> String? {
+        command == "" ? nil : command
     }
 }

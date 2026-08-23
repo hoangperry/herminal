@@ -105,6 +105,9 @@ public final class SSHHostsStore {
     }
 
     public func upsert(_ host: SSHHost) throws {
+        guard (1...65_535).contains(host.port) else {
+            throw SSHHostError.invalidPort(host.port)
+        }
         try db.run(
             """
             INSERT INTO ssh_hosts
@@ -117,7 +120,10 @@ public final class SSHHostsStore {
                 username = excluded.username,
                 port = excluded.port,
                 updated_at = excluded.updated_at,
-                last_connected_at = excluded.last_connected_at
+                last_connected_at = COALESCE(
+                    excluded.last_connected_at,
+                    ssh_hosts.last_connected_at
+                )
             """,
             host.id.uuidString,
             host.nickname,
@@ -128,6 +134,16 @@ public final class SSHHostsStore {
             host.updatedAt.timeIntervalSince1970,
             host.lastConnectedAt?.timeIntervalSince1970
         )
+    }
+
+    /// Imports a group atomically so a storage error cannot leave a partly
+    /// populated sidebar that contradicts the reported import result.
+    public func upsert(_ hosts: [SSHHost]) throws {
+        try db.transaction {
+            for host in hosts {
+                try upsert(host)
+            }
+        }
     }
 
     public func delete(id: UUID) throws {
@@ -180,6 +196,9 @@ public final class SSHHostsStore {
             let created = row[5] as? Double,
             let updated = row[6] as? Double
         else {
+            throw SSHHostError.malformedRow
+        }
+        guard (1...65_535).contains(portRaw) else {
             throw SSHHostError.malformedRow
         }
         let lastConnected = (row[7] as? Double).map(Date.init(timeIntervalSince1970:))
