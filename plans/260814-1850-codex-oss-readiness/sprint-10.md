@@ -1,6 +1,6 @@
 # Sprint 10 — Gate Verifiers and External Evidence
 
-**Status:** planned
+**Status:** in progress
 **Priority:** P1 — highest-leverage next move
 **Effort:** 2–3 maintainer hours plus 7–14 calendar days
 **Depends on:** public `v1.0.0`, issues #2 and #13, contributor-ready QA checklist
@@ -9,7 +9,8 @@
 
 Stop feature work. Do not submit the Codex for Open Source application yet.
 The next bottleneck is independent human evidence, not code quality or release
-machinery.
+machinery. PR #33 is already closed as superseded by `#32` / `485c9f9`, so
+there is no open PR coordination issue.
 
 Use a two-wave funnel:
 
@@ -21,36 +22,39 @@ Gate verifiers are not automatically counted as completed beta testers. One
 person counts once per metric. Stars, downloads, and bot PRs are never treated
 as adoption.
 
-## Current checkpoint — 2026-08-17
+## Current checkpoint — 2026-08-20
 
 | Signal | State |
 |---|---|
+| Main branch snapshot | `0389e22` on 2026-08-20 |
 | Public release | `v1.0.0`, signed/notarized/stapled |
 | Install paths | DMG + audited Homebrew cask |
 | Release provenance | checksums + deterministic dependency manifest |
-| CI/security | 220 tests, CodeQL, Dependabot enabled |
-| Repository interest | 58 stars, 2 forks; supporting signal only |
+| CI/security | green at `10f6b13` (CI `32184735881`; Security `32184736405`) |
+| Repository interest | 52 stars, 2 forks; supporting signal only |
+| Open issues | `#2`, `#13` (blocking); `#36` (optional evidence only) |
+| Open PRs | none — `#33` closed as superseded by `#32` / `485c9f9` |
 | Clean-account install | Missing — issue #13 |
 | Complete live Telex/VNI matrix | Missing — issue #2 |
 | Verified installs / 3-day testers | 0 / 0 |
 | External reports / contributions | 0 / 0 |
-| Open coordination risk | PR #33 is conflicting and controlled by parallel work |
+
+Issue #36 can run in parallel as CJK compatibility evidence. It does not
+replace #2 or #13 and it does not gate the application.
 
 ## Phase 0 — Repository hygiene and outreach packet
 
 **Timebox:** 30 minutes
 
-1. Coordinate with the active owner of PR #33. When the parallel session ends,
-   either close it as superseded by `485c9f9` or rewrite it around evidence that
-   still has independent value. Do not merge conflicting duplicate metrics code.
-2. Confirm `main` CI is green and issue #2/#13 instructions still match the
-   public release.
-3. Prepare one link packet only:
+1. Record the current `main` SHA, confirm the latest green CI/security evidence,
+   and verify the public issue set before outreach. The dated checkpoint above
+   used `0389e22` and CI/security evidence pinned to `10f6b13`.
+2. Prepare one link packet only:
    - release: <https://github.com/hoangperry/herminal/releases/tag/v1.0.0>
    - IME gate: <https://github.com/hoangperry/herminal/issues/2>
    - clean install gate: <https://github.com/hoangperry/herminal/issues/13>
    - beta expectations: [`docs/BETA.md`](../../docs/BETA.md)
-4. Ask for testing, not stars, praise, testimonials, or public identity.
+3. Ask for testing, not stars, praise, testimonials, or public identity.
 
 ### Success criteria
 
@@ -87,6 +91,12 @@ Use issue #2 and `docs/QA/vietnamese-ime-checklist.md`:
 
 Close #2 only when T1/T2/T5/T6/T7 pass with no DROP/DUP. Any DROP/DUP failure
 stops beta expansion and requires a tested patch.
+
+### Optional parallel evidence — issue #36
+
+If a reviewer already has the app open, collect a bounded CJK compatibility
+note for issue #36 in parallel. Treat it as supporting evidence only; it does
+not gate #2/#13 or application readiness.
 
 ### Outreach copy
 
@@ -160,7 +170,7 @@ After the beta window:
 
 | Day | Action | Evidence |
 |---|---|---|
-| 0 | Resolve PR #33 coordination; send 3–5 gate requests | Links sent; no private data stored |
+| 0 | Send 3–5 gate requests using the latest evidence packet | Links sent; no private data stored |
 | 1–2 | Support #2/#13 verifiers; triage failures | Issue comment or result PR |
 | 2 | Go/no-go for wider beta | Both critical gates pass; no P0/P1 |
 | 2–5 | Invite beta cohort; acknowledge reports | Beta issue links |

@@ -15,15 +15,15 @@ blocks: []
 | Sprint | Scope | Status |
 |---|---|---|
 | Sprint 1 | Phase 0: IME Tab blocker + release truth | In progress — public signed/notarized v1 and Homebrew cask are live; blocked only on dated live Telex/VNI and clean-account install evidence |
-| Sprint 2 | Phase 1: security and supply-chain hardening | Complete — full CI + 152 tests and targeted CodeQL green; entitlement experiment tracked in issue #4 |
+| Sprint 2 | Phase 1: security and supply-chain hardening | Complete — dated CI/CodeQL evidence recorded in Sprint 2; entitlement audit complete |
 | Sprint 3 | Phase 2–3: agent interoperability + contributor surface | Complete — neutral event boundary, official hooks research, contributor fast path, triage policy, and issues #2–#7 |
 | Sprint 4 | Phase 4: closed beta and feedback releases | In progress — signed v1 distribution and intake/privacy/evidence infrastructure are ready; recruitment can begin while live IME evidence is completed |
 | Sprint 5 | Phase 5–7: launch evidence + application | In progress — maintainer AI policy and truth-gated application skeleton ready; evidence/submission blocked on Sprint 4 |
-| Sprint 6 | Existing-feature completion | Complete for automatable scope — issues #3/#5/#6/#7 closed with 153-test CI and CodeQL; owner gates #2/#4/#13 remain |
+| Sprint 6 | Existing-feature completion | Complete for automatable scope — issues #3/#5/#6/#7 closed with dated CI/CodeQL evidence; owner gates #2/#13 remain |
 | Sprint 7 | Owner-gate automation | Tooling complete — privacy-safe IME recorder, entitlement experiment, and signing readiness preflight ready; owner execution pending |
 | Sprint 8 | Agent worktree cockpit | Complete — isolated worktrees, whitelisted agent/lazygit launch, pane focus, off-main bounded git runner; CI + CodeQL green |
 | Sprint 9 | Remote release build, local signing | Public v1 shipped — read-only build, local Developer ID/notarization/staple/Gatekeeper, release assets, checksums, deterministic dependency manifest, and audited Homebrew cask complete; clean-account install pending |
-| Sprint 10 | Gate verifiers and external evidence | Planned — stop feature work; close #2/#13 with independent evidence, then run a bounded three-day beta |
+| Sprint 10 | Gate verifiers and external evidence | In progress — stop feature work; close #2/#13 with independent evidence, then run a bounded three-day beta; keep #36 optional |
 
 ## 1. Objective
 
@@ -62,16 +62,18 @@ Gaps and credibility risks:
 - **Release-blocking Vietnamese UX bug:** pressing Tab while macOS Vietnamese IME still has underlined marked text drops the Tab instead of committing the preedit and invoking shell completion. This reproduces Ghostty behavior but not iTerm2 behavior and directly contradicts Herminal's Vietnamese-first promise.
 - Security policy exists, but a public threat model, automated code scanning, release provenance, and explicit agent-specific trust boundaries are missing.
 
-### Current checkpoint (verified 2026-08-17)
+### Current checkpoint (verified 2026-08-20)
 
 The starting gaps above are retained as historical context. Since then Herminal
-has shipped signed/notarized `v1.0.0`, an audited Homebrew cask, 220-test CI,
-CodeQL, Dependabot, deterministic release provenance, contributor docs, and 58
-stars / 2 forks. The active blockers are now human evidence rather than another
-engineering wave:
+has shipped signed/notarized `v1.0.0`, an audited Homebrew cask, CodeQL,
+Dependabot, deterministic release provenance, contributor docs, and 52 stars /
+2 forks. The latest green main CI/Security evidence is pinned to `10f6b13`.
+The active blockers are now human evidence rather than another engineering
+wave:
 
 - issue #13: clean-account DMG and Homebrew installation;
 - issue #2: complete visual Telex/VNI T1–T7 matrix;
+- issue #36: optional CJK compatibility evidence only; not an application gate.
 - 0 verified installs, completed three-day testers, external reports, or
   external contributions in the evidence ledger;
 - 0 public, human-reviewed Codex maintenance examples.

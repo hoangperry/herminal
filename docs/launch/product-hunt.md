@@ -71,7 +71,7 @@ Title font: SF Pro Display (system); body: SF Mono.
 PH allows up to 8 gallery images. Suggested:
 
 1. **Agent dashboard close-up** — full sidebar with all 4 status
-   states (running, idle, needs-input, starting) visible. Tab N
+   states (running, idle, needs-input, starting) visible. Pane N
    chip clearly readable.
 2. **Vietnamese IME composition** — mid-typing screenshot of
    `tieesng vieejt → tiếng việt` with the underlined preedit

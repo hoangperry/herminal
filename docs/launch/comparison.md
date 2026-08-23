@@ -81,7 +81,7 @@ deferred to v0.2.x per roadmap Theme C).
 
 | Terminal | Detects Claude / Codex / Aider | Per-pane attribution | Status discrimination |
 |---|---|---|---|
-| **herminal** | ✓ — native, via process tree walk | ✓ — `Tab N` chip | running / idle / needs-input / starting |
+| **herminal** | ✓ — native, via process tree walk | ✓ — `Pane N` chip | running / idle / needs-input / starting |
 | iTerm2 | ✗ — no agent surface | — | — |
 | Ghostty | ✗ — no agent surface | — | — |
 | Warp | partial — proprietary "AI assist" replaces agent CLIs rather than detecting them | n/a | n/a |
