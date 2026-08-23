@@ -17,10 +17,10 @@ feedback. Items whose shape depends on beta input remain deferred.
 
 | # | Status | Task | Notes |
 |---|---|---|---|
-| M9/A3 | ✅ | Agent↔pane mapping (closes Theme A) | `AgentPaneMapper` pairs logins (sorted by kernel start time) to sessions (sorted by creation time); `DetectedAgent.tabHint` rendered as `Tab N` chip |
+| M9/A3 | ✅ | Agent↔pane mapping (closes Theme A) | `AgentPaneMapper` pairs logins (sorted by kernel start time) to live panes (sorted by creation time); `DetectedAgent.tabHint` rendered as `Pane N` chip |
 | M9/F | ✅ | `Diary.exportRedacted()` (Theme F) | User-home + `/Users/*` path rewriting + libghostty address anonymisation; PIDs preserved as useful + non-PII |
 | M9/C-light | ✅ | Light theme variant (closes Q5-002) | Every Palette token branches on `HerminalDesign.currentTheme`; `⌘⇧L` toggles |
-| M9/B | ✅ | `~/.ssh/config` import (Theme B slice 1) | `SSHConfigImporter` parses Host blocks; File menu triggers; additive merge via fresh UUIDs |
+| M9/B | ✅ | `~/.ssh/config` import (Theme B slice 1) | `SSHConfigImporter` parses Host blocks; File menu triggers; stable alias IDs make re-imports refresh instead of duplicate |
 | M9/G-patterns | ✅ | `docs/PATTERNS.md` (Theme G slice 1) | 7 recurring patterns documented from M1-M8 lessons |
 | M9/G-vn-readme | ✅ | `README.vi.md` (Theme G slice 2) | Vietnamese mirror of `README.md` for target audience |
 | M9/D | ✅ | KR/JP/CN IME smoke checklists (Theme D) | Owner-manual matrices for Korean / Japanese / Chinese — automate-bridge tests still cover the Swift state machine |
@@ -87,14 +87,14 @@ Last Theme A item lands. `AgentPaneMapper.annotate`:
   `p_pid` / `p_ppid` / `p_comm` — one extra field, no extra sysctl.
 - Mapper lists herminal's `login` children sorted by kernel start
   time, pairs nth-oldest login → nth-oldest session (by `createdAt`).
-- Agent → tab walked via PPID chain → login ancestor → tabHint.
+- Agent → pane walked via PPID chain → login ancestor → tabHint.
 - Failure mode is degradation: when pairing doesn't resolve, tabHint
   stays nil. No false attribution.
 
-UX: dashboard shows `Tab N` chip (1-based) next to the agent name
-when tabHint is set; VoiceOver appends "in tab N." Bell promotion
-from M8/A2 keeps the existing behaviour but now carries tabHint
-through, so `needs input` rows also show which tab made noise.
+UX: dashboard shows `Pane N` chip (1-based) next to the agent name
+when tabHint is set; VoiceOver appends "in pane N." Bell promotion
+uses the mapped pane when available, so `needs input` rows show which
+pane made noise; unmapped agents retain the conservative any-bell fallback.
 
 ### 2026-05-25 — M9/F Diary.exportRedacted
 
@@ -136,8 +136,9 @@ unknown directives (IdentityFile, ProxyJump, …) ignored without
 breaking the active block.
 
 File menu triggers `WorkspaceView.importSSHConfig`; upserts every
-parsed row with fresh UUIDs (additive merge, no silent overwrite);
-opens the SSH sidebar so the user sees the imported list.
+parsed row with a stable alias-derived ID, so importing again refreshes
+the matching saved host without duplicating it; opens the SSH sidebar
+so the user sees typed progress, success, or recovery feedback.
 
 ### 2026-05-25 — M9/G PATTERNS.md + Vietnamese README
 

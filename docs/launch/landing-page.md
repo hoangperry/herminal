@@ -56,13 +56,13 @@ catches it within 2 seconds:
 ┌──────────────────────────┐
 │  AGENTS                3 │
 ├──────────────────────────┤
-│  ● Claude Code   Tab 1   │  ← running (blue)
+│  ● Claude Code  Pane 1   │  ← running (blue)
 │    pid 53241 · running   │
 │                          │
-│  ● Codex         Tab 2   │  ← needs input (BEL fired)
+│  ● Codex        Pane 2   │  ← needs input (BEL fired)
 │    pid 53244 · needs in… │
 │                          │
-│  ○ Aider         Tab 3   │  ← idle
+│  ○ Aider        Pane 3   │  ← idle
 │    pid 53289 · idle      │
 └──────────────────────────┘
 ```
@@ -155,7 +155,12 @@ The audit trail is the value proposition.
 
 ```sh
 curl -LO https://github.com/hoangperry/herminal/releases/download/v1.0.0/herminal-v1.0.0.dmg
-unzip herminal.zip -d /Applications/
+open herminal-v1.0.0.dmg
+```
+
+Drag `herminal.app` into `/Applications`, then launch it:
+
+```sh
 open /Applications/herminal.app
 ```
 

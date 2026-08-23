@@ -1,7 +1,7 @@
 # Codex for Open Source application — working draft
 
 > **PASTE-READY DRAFT; MAINTAINER SUBMISSION DECISION.** These answers are
-> truthful as of 2026-08-17 and explicitly disclose Herminal's early-stage
+> truthful as of 2026-08-20 and explicitly disclose Herminal's early-stage
 > adoption and open manual gates. The internal readiness plan still recommends
 > completing issues #2 and #13 before submission. Recheck the official form and
 > program terms immediately before sending.
@@ -14,6 +14,7 @@
 - Pitch: A local-first native macOS terminal focused on Vietnamese input and
   privacy-minimized visibility into local coding-agent sessions.
 - Current public release: [`v1.0.0`](https://github.com/hoangperry/herminal/releases/tag/v1.0.0)
+- Snapshot main on 2026-08-20: `0389e22`
 - Current development state: post-v1 reliability and chrome fixes on `main`
 
 Herminal combines libghostty with a Swift/AppKit interface, an
@@ -48,7 +49,7 @@ Each answer is within the form's 500-character limit.
 
 ### 2. Why does this repository qualify? — 483 characters
 
-> Herminal is a 58-star, MIT-licensed macOS terminal for developers whose
+> Herminal is a 52-star, MIT-licensed macOS terminal for developers whose
 > languages depend on input methods, starting with Vietnamese Telex/VNI and
 > designed for Japanese, Korean and Chinese IME workflows. In terminals,
 > marked-text bugs can drop keystrokes, duplicate text or break shell completion;
@@ -77,7 +78,7 @@ Each answer is within the form's 500-character limit.
 
 ### 5. Additional context — 488 characters
 
-> Herminal is early-stage (58 stars, 2 forks), so I am not claiming broad
+> Herminal is early-stage (52 stars, 2 forks), so I am not claiming broad
 > adoption. Its value is ecosystem specificity: native Vietnamese input and
 > privacy-minimized coding-agent workflows on macOS. Signed v1 and Homebrew are
 > public. Clean-account installation and the Telex/VNI T1–T7 matrix remain
@@ -118,11 +119,11 @@ No row may be marked ready without a dated public source.
 | Claim | Required source | Current evidence | Ready? |
 |---|---|---|---|
 | Maintainer/write access | Repository ownership | Public repository owner | Yes |
-| CI health | GitHub Actions run | 220-test run [`32027126478`](https://github.com/hoangperry/herminal/actions/runs/32027126478) | Yes |
-| Security scanning | GitHub Actions run | CodeQL run [`32027126468`](https://github.com/hoangperry/herminal/actions/runs/32027126468); Dependabot alerts and security updates enabled | Yes |
+| CI health | GitHub Actions run | latest green main CI run [`32184735881`](https://github.com/hoangperry/herminal/actions/runs/32184735881) at `10f6b13` | Yes |
+| Security scanning | GitHub Actions run | latest green Security run [`32184736405`](https://github.com/hoangperry/herminal/actions/runs/32184736405) at `10f6b13`; Dependabot alerts and security updates enabled | Yes |
 | Release supply chain | Workflow + owner-gate record | Candidate run `31830331678`; public signed/notarized assets, checksums, and deterministic dependency manifest in [`v1.0.0`](https://github.com/hoangperry/herminal/releases/tag/v1.0.0) | Yes |
 | Public v1 install | Release + DMG/Homebrew/Gatekeeper verification | Public DMG and audited Homebrew v1 cask exist; clean-account verification remains | Partial |
-| Repository interest | Public GitHub counters | 58 stars and 2 forks on 2026-08-17 | Supporting signal only — not adoption |
+| Repository interest | Public GitHub counters | 52 stars and 2 forks on 2026-08-20 | Supporting signal only — not adoption |
 | Live Telex/VNI completion | Dated checklist result linked from issue #2 | Missing | No |
 | Verified installs | Privacy-safe beta ledger | 0 | No |
 | Completed 3-day testers | Opt-in completion records | 0 | No |
@@ -152,6 +153,8 @@ needs an API integration.
 - Public `v1.0.0` and an audited Homebrew v1 cask exist, but final clean-account
   verification is not yet recorded.
 - Live Telex/VNI behavior still lacks a dated system-input-source owner run.
+- Issue #36 is optional CJK compatibility evidence only; it does not gate
+  submission.
 - Current agent status is heuristic process/CPU/bell signaling; no official
   Codex lifecycle adapter is claimed.
 - No verified external adoption or contribution evidence exists yet.

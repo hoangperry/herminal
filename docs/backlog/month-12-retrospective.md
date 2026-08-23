@@ -17,7 +17,7 @@ Five files added, six touched.
 |---|---|---|
 | P1 — Preferences foundation | `Preferences` + `PreferencesView` + `PreferencesWindow` + AppMenu integration | ⌘, opens Settings. Theme picker (Dark/Light/Follow System) flips chrome live. 8 keys defaulted at launch. |
 | P2 — Status bar | `StatusBarView` 22 pt strip at window bottom | Live tick p95 / agent count / diary size / theme. Toggleable via `showStatusBar` preference. |
-| P3 — First-run welcome | `WelcomeOverlayView` translucent card | Shows once on first launch (`firstRunCompleted == false`), 7 most-used shortcuts. Dismiss = persist. |
+| P3 — First-run welcome | `WelcomeOverlayView` translucent card | Shows once on first launch (`firstRunCompleted == false`), focuses “Got it”, and persists only explicit button/Escape dismissal; backdrop clicks are ignored. |
 | P4 — Close confirmation | NSAlert in `closeTab` + `closeActivePane` | Prompts only when tab being collapsed AND a pane note has non-empty body. Gated by `confirmCloseWithNote` preference. |
 | P5 — Window restoration | `WindowState` namespace + `NSWindowDelegate` on AppDelegate | Frame + sidebar visibility + notes visibility persist. Off-screen frames discarded. |
 

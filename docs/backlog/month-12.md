@@ -14,8 +14,9 @@ five parallel polish slices:
    SwiftUI Settings scene + AppKit live-update bridge.
 2. **P2 — Status bar.** 22 pt strip at the window bottom showing live
    tick p95 / agent count / diary size / theme.
-3. **P3 — First-run welcome hint.** One-shot overlay listing the 7
-   most-used shortcuts. Dismiss = `markFirstRunCompleted()`.
+3. **P3 — First-run welcome hint.** One-shot overlay listing starter
+   shortcuts. Explicit “Got it” or Escape dismissal calls
+   `markFirstRunCompleted()`; backdrop clicks are ignored.
 4. **P4 — Tab close confirmation.** NSAlert when closing a tab whose
    panes hold a non-empty note. Gated by the M12-P1 preference.
 5. **P5 — Window state restoration.** Frame + sidebar visibility +
