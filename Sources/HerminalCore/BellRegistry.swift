@@ -62,6 +62,17 @@ public final class BellRegistry: @unchecked Sendable {
         return Date().timeIntervalSince(last) <= window
     }
 
+    /// Deterministic clock seam for boundary tests. Production callers use
+    /// the public overload above so its time-sampling order remains unchanged.
+    func hasRecentBell(
+        forSurfaceAddress address: Int,
+        within window: TimeInterval,
+        at instant: Date
+    ) -> Bool {
+        guard let last = lastBell(forSurfaceAddress: address) else { return false }
+        return instant.timeIntervalSince(last) <= window
+    }
+
     /// Drop everything — used by tests to keep cases independent and by
     /// callers that want to reset state when the user clears a notification.
     public func reset() {

@@ -40,6 +40,15 @@ public final class GhosttyApp {
         guard let configHandle = ghostty_config_new() else {
             throw .configFailed
         }
+        guard GhosttyBaselineConfig.load(into: configHandle) else {
+            ghostty_config_free(configHandle)
+            GhosttyApp.logger.critical(
+                "Herminal Ghostty baseline config is missing or invalid"
+            )
+            throw .configFailed
+        }
+        // User config deliberately loads after Herminal's safety baseline so
+        // explicit clipboard read/write allow/deny choices still win.
         ghostty_config_load_default_files(configHandle)
         ghostty_config_finalize(configHandle)
 
@@ -91,7 +100,7 @@ public final class GhosttyApp {
             wakeup_cb: { _ in },
             action_cb: Self.handleAction,
             read_clipboard_cb: Self.readClipboard,
-            confirm_read_clipboard_cb: { _, _, _, _ in },
+            confirm_read_clipboard_cb: Self.confirmReadClipboard,
             write_clipboard_cb: Self.writeClipboard,
             close_surface_cb: Self.closeSurface
         )
@@ -127,18 +136,23 @@ public final class GhosttyApp {
     // fired but never moved any bytes — what the user saw as "Cmd+C
     // doesn't copy".
 
+    private nonisolated static let clipboardAuthorizationGate =
+        ClipboardAuthorizationGate()
+
     /// libghostty asks us to fill the clipboard with `content`. We write
     /// the first text/plain entry to NSPasteboard.general (or skip if no
     /// text entry — non-text MIME types aren't useful for a terminal).
-    /// `confirm == true` would normally prompt the user (OSC 52 from a
-    /// remote shell can be hostile); for now we treat both the same and
-    /// just write. Wrapping that in an NSAlert is a follow-up.
+    /// Normal copy actions arrive with `confirm == false`; an OSC 52 write
+    /// configured as `ask` is copied into owned Swift storage and approved
+    /// on the main actor before it can replace the clipboard.
     ///
     /// NSPasteboard is documented thread-safe; libghostty calls this
     /// from whichever thread is processing the ⌘C keybinding (in our
     /// runtime that's main, because `tick()` runs on main), so no extra
     /// hop is needed.
-    private nonisolated static let writeClipboard: ghostty_runtime_write_clipboard_cb = { _, location, contentPtr, len, _ in
+    private nonisolated static let writeClipboard:
+        ghostty_runtime_write_clipboard_cb = {
+            userdata, location, contentPtr, len, confirm in
         guard location == GHOSTTY_CLIPBOARD_STANDARD else { return }
         guard let contentPtr, len > 0 else { return }
         // Walk the contents looking for the first text/plain entry.
@@ -147,10 +161,36 @@ public final class GhosttyApp {
             guard let mimePtr = entry.mime, let dataPtr = entry.data else { continue }
             let mime = String(cString: mimePtr)
             guard mime == "text/plain" else { continue }
-            let text = String(cString: dataPtr)
-            let pb = NSPasteboard.general
-            pb.clearContents()
-            pb.setString(text, forType: .string)
+            guard let text = TerminalClipboardAuthorizationPolicy.decodedPayload(
+                from: dataPtr
+            ) else {
+                return
+            }
+            guard TerminalClipboardAuthorizationPolicy.requiresWriteAuthorization(
+                confirm: confirm
+            ) else {
+                if Thread.isMainThread {
+                    _ = MainActor.assumeIsolated {
+                        replaceStandardClipboard(with: text)
+                    }
+                } else {
+                    DispatchQueue.main.async {
+                        replaceStandardClipboard(with: text)
+                    }
+                }
+                return
+            }
+            guard let owner = clipboardOwner(from: userdata),
+                  owner.surface != nil else { return }
+            guard clipboardAuthorizationGate.reserve() else { return }
+            let pending = PendingClipboardWriteAuthorization(
+                owner: owner,
+                text: text,
+                gate: clipboardAuthorizationGate
+            )
+            DispatchQueue.main.async {
+                pending.resolve()
+            }
             return
         }
     }
@@ -167,8 +207,72 @@ public final class GhosttyApp {
               let surface = clipboardOwner.surface else { return false }
         guard let text = NSPasteboard.general.string(forType: .string) else { return false }
         return text.withCString { ptr in
-            ghostty_surface_complete_clipboard_request(surface, ptr, state, true)
+            // `false` lets libghostty enforce unsafe-paste protection and
+            // clipboard-read=ask. A rejected request is completed later by
+            // `confirmReadClipboard` with an empty payload so its retained
+            // state is released without disclosing clipboard contents.
+            ghostty_surface_complete_clipboard_request(surface, ptr, state, false)
             return true
+        }
+    }
+
+    /// Handles the second phase of unsafe paste and OSC 52 read requests.
+    /// libghostty preserves `state` while this callback is outstanding, but
+    /// the C string belongs to the original call, so copy it before hopping
+    /// to the main actor for the native alert.
+    private nonisolated static let confirmReadClipboard:
+        ghostty_runtime_confirm_read_clipboard_cb = {
+            userdata, dataPtr, state, request in
+        guard let state else { return }
+        guard let owner = clipboardOwner(from: userdata),
+              let surface = owner.surface else { return }
+        guard let kind = TerminalClipboardAuthorizationPolicy.authorizationKind(
+            for: request
+        ), let text = TerminalClipboardAuthorizationPolicy.decodedPayload(
+            from: dataPtr
+        ) else {
+            completeDeniedClipboardRequest(surface: surface, state: state)
+            return
+        }
+        guard clipboardAuthorizationGate.reserve() else {
+            completeDeniedClipboardRequest(surface: surface, state: state)
+            return
+        }
+        let pending = PendingClipboardReadAuthorization(
+            owner: owner,
+            surface: surface,
+            state: state,
+            text: text,
+            kind: kind,
+            gate: clipboardAuthorizationGate
+        )
+        DispatchQueue.main.async {
+            pending.resolve()
+        }
+    }
+
+    private nonisolated static func clipboardOwner(
+        from userdata: UnsafeMutableRawPointer?
+    ) -> ClipboardOwner? {
+        guard let userdata else { return nil }
+        let owner = Unmanaged<AnyObject>.fromOpaque(userdata).takeUnretainedValue()
+        return owner as? ClipboardOwner
+    }
+
+    private nonisolated static func completeDeniedClipboardRequest(
+        surface: ghostty_surface_t,
+        state: UnsafeMutableRawPointer
+    ) {
+        TerminalClipboardAuthorizationPolicy.completionPayload(
+            "",
+            approved: false
+        ).withCString { pointer in
+            ghostty_surface_complete_clipboard_request(
+                surface,
+                pointer,
+                state,
+                true
+            )
         }
     }
 

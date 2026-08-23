@@ -1,0 +1,76 @@
+import AppKit
+
+@MainActor
+enum DiagnosticDiaryClipboard {
+    enum Outcome: Equatable {
+        case copied
+        case empty
+        case failed
+    }
+
+    struct Feedback: Equatable {
+        let announcement: String
+        let shouldBeep: Bool
+    }
+
+    /// Writes only meaningful diagnostic payloads. An empty diary leaves the
+    /// user's existing clipboard untouched. A failed write restores every
+    /// pasteboard item that existed before the attempted replacement.
+    @discardableResult
+    static func write(
+        _ payload: String,
+        to pasteboard: NSPasteboard = .general,
+        commit: (String, NSPasteboard) -> Bool = { payload, pasteboard in
+            pasteboard.setString(payload, forType: .string)
+        }
+    ) -> Outcome {
+        guard !payload.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            return .empty
+        }
+
+        let priorItems = snapshotItems(from: pasteboard)
+        pasteboard.clearContents()
+        guard commit(payload, pasteboard) else {
+            pasteboard.clearContents()
+            if !priorItems.isEmpty {
+                pasteboard.writeObjects(priorItems)
+            }
+            return .failed
+        }
+        return .copied
+    }
+
+    static func feedback(for outcome: Outcome) -> Feedback {
+        switch outcome {
+        case .copied:
+            return Feedback(
+                announcement: "Redacted diagnostics copied for your bug report.",
+                shouldBeep: false
+            )
+        case .empty:
+            return Feedback(
+                announcement: "No diagnostics are available to copy yet.",
+                shouldBeep: true
+            )
+        case .failed:
+            return Feedback(
+                announcement: "Could not copy redacted diagnostics.",
+                shouldBeep: true
+            )
+        }
+    }
+
+    private static func snapshotItems(
+        from pasteboard: NSPasteboard
+    ) -> [NSPasteboardItem] {
+        pasteboard.pasteboardItems?.map { source in
+            let snapshot = NSPasteboardItem()
+            for type in source.types {
+                if let data = source.data(forType: type) {
+                    snapshot.setData(data, forType: type)
+                }
+            }
+            return snapshot
+        } ?? []
+    }
+}
