@@ -28,4 +28,37 @@ struct SSHCommandTests {
                            user: "us'er", port: 22)
         #expect(WorkspaceView.sshCommand(for: host) == "ssh 'us'\\''er'@'h'\\''ost'")
     }
+
+    @Test("SSH diary messages keep only structural connection metadata")
+    func sshDiaryMessageOmitsIdentityFields() {
+        let host = SSHHost(
+            nickname: "prod",
+            hostname: "internal.example.com",
+            user: "deploy",
+            port: 2222
+        )
+
+        let message = WorkspaceView.sshConnectionDiaryMessage(for: host)
+
+        #expect(message == "ssh connect requested port=2222")
+        #expect(!message.contains(host.hostname))
+        #expect(!message.contains(host.user))
+        #expect(!message.contains(host.nickname))
+    }
+
+    @Test("custom tab diary messages omit command payloads and cwd paths")
+    func customTabDiaryMessageStaysStructural() {
+        let command = "ssh 'deploy'@'internal.example.com'"
+        let cwd = "/Users/alice/private/project"
+
+        let message = WorkspaceView.customTabDiaryMessage(
+            command: command,
+            workingDirectory: cwd
+        )
+
+        #expect(message == "addTab customCommand=true cwdSet=true")
+        #expect(!message.contains(command))
+        #expect(!message.contains(cwd))
+        #expect(!message.contains("internal.example.com"))
+    }
 }

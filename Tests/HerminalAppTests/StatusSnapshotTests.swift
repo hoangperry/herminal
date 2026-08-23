@@ -55,4 +55,51 @@ struct StatusSnapshotTests {
         #expect(text(2_048) == "2.0 KB")
         #expect(text(5_242_880) == "5.00 MB")
     }
+
+    @Test("A stored full home path is abbreviated only for presentation")
+    func cwdPresentationAbbreviatesStoredFullPath() {
+        let fullPath = NSHomeDirectory() + "/pet-project/herminal"
+        let snapshot = StatusSnapshot(
+            agentCount: 0,
+            latencyP95: nil,
+            diaryBytes: 0,
+            themeText: "dark",
+            cwd: fullPath,
+            gitBranch: nil
+        )
+
+        #expect(snapshot.cwd == fullPath)
+        #expect(snapshot.cwdText == "~/pet-project/herminal")
+        #expect(
+            snapshot.workingDirectoryAccessibilityValue
+                == "Working directory ~/pet-project/herminal"
+        )
+    }
+
+    @Test("Accessibility summary speaks every visible status once")
+    func accessibilitySummaryIncludesEveryStatus() {
+        let fullPath = NSHomeDirectory() + "/pet-project/herminal"
+        let value = StatusSnapshot(
+            agentCount: 1,
+            latencyP95: 0.042,
+            diaryBytes: 2_048,
+            themeText: "dark",
+            cwd: fullPath,
+            gitBranch: "main"
+        ).accessibilityValue
+
+        #expect(
+            value == "Working directory ~/pet-project/herminal, Git branch main, "
+                + "tick p95 42 microseconds, 1 agent, diary 2.0 kilobytes, theme dark"
+        )
+    }
+
+    @Test("Accessibility summary replaces visual placeholders with spoken states")
+    func accessibilitySummarySpeaksUnavailableStates() {
+        #expect(
+            StatusSnapshot.empty.accessibilityValue
+                == "Working directory unavailable, tick p95 warming up, "
+                + "0 agents, diary empty, theme unavailable"
+        )
+    }
 }

@@ -24,7 +24,8 @@ enum AgentLaunch {
         }
     }
 
-    /// nil means "plain login shell" — libghostty's default.
+    /// nil means "plain shell pane" — libghostty starts the macOS login
+    /// shell unless Settings bootstraps a validated override.
     static func command(for kind: Kind) -> String? {
         switch kind {
         case .claude: return "claude"

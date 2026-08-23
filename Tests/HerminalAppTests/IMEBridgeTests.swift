@@ -109,7 +109,7 @@ struct IMEBridgeTests {
     @Test("Tab that commits marked text is replayed for shell completion")
     func committedMarkedTextReplaysTab() {
         let decision = HerminalSurfaceView.imeKeyRoutingDecision(
-            keyCode: 48,
+            keyCode: HerminalSurfaceView.tabKeyCode,
             hadMarkedText: true,
             hasMarkedText: false,
             committedTextCount: 1
@@ -120,7 +120,7 @@ struct IMEBridgeTests {
     @Test("Tab is not replayed while the IME still owns marked text")
     func activeCompositionDoesNotReplayTab() {
         let decision = HerminalSurfaceView.imeKeyRoutingDecision(
-            keyCode: 48,
+            keyCode: HerminalSurfaceView.tabKeyCode,
             hadMarkedText: true,
             hasMarkedText: true,
             committedTextCount: 0
@@ -131,7 +131,7 @@ struct IMEBridgeTests {
     @Test("plain Tab without a composition keeps standard routing")
     func plainTabKeepsStandardRouting() {
         let decision = HerminalSurfaceView.imeKeyRoutingDecision(
-            keyCode: 48,
+            keyCode: HerminalSurfaceView.tabKeyCode,
             hadMarkedText: false,
             hasMarkedText: false,
             committedTextCount: 0
@@ -142,7 +142,7 @@ struct IMEBridgeTests {
     @Test("an empty IME commit does not replay Tab")
     func emptyCommitDoesNotReplayTab() {
         let decision = HerminalSurfaceView.imeKeyRoutingDecision(
-            keyCode: 48,
+            keyCode: HerminalSurfaceView.tabKeyCode,
             hadMarkedText: true,
             hasMarkedText: false,
             committedTextCount: 0
@@ -153,7 +153,7 @@ struct IMEBridgeTests {
     @Test("non-Tab commit keeps standard IME routing")
     func nonTabCommitKeepsStandardRouting() {
         let decision = HerminalSurfaceView.imeKeyRoutingDecision(
-            keyCode: 36, // Return
+            keyCode: HerminalSurfaceView.returnKeyCode,
             hadMarkedText: true,
             hasMarkedText: false,
             committedTextCount: 1

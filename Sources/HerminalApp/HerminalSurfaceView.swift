@@ -18,6 +18,10 @@ final class HerminalSurfaceView: NSView, ClipboardOwner, NSUserInterfaceValidati
     /// rules as `commandBuffer`. Set when a tab is opened in a specific
     /// dir (e.g. resuming a Claude session). (v0.4-S1a.)
     private nonisolated(unsafe) let workingDirectoryBuffer: UnsafeMutablePointer<CChar>?
+    /// Bootstrap input sent only to new plain-shell panes so the macOS login
+    /// shell can hand off to a validated executable. The login shell starts
+    /// first; this avoids libghostty's command/wait-after-command path.
+    private nonisolated(unsafe) let initialInputBuffer: UnsafeMutablePointer<CChar>?
     // nonisolated(unsafe): a C handle freed once in deinit (NSView deinit is nonisolated).
     // Internal visibility (was `private`) so we can satisfy the public
     // `ClipboardOwner.surface` requirement from HerminalCore — the
@@ -51,9 +55,10 @@ final class HerminalSurfaceView: NSView, ClipboardOwner, NSUserInterfaceValidati
     /// IME's committed text instead of sending it straight to the PTY.
     private var keyTextAccumulator: [String]?
 
-    /// Physical macOS key code for Tab. Kept local instead of importing Carbon
-    /// solely for one constant.
-    private static let tabKeyCode: UInt16 = 48
+    /// Physical macOS key codes used by the terminal input bridge. Kept local
+    /// instead of importing Carbon solely for two constants.
+    static let tabKeyCode: UInt16 = 48
+    static let returnKeyCode: UInt16 = 36
 
     enum IMEKeyRoutingDecision: Equatable {
         case standard
@@ -69,12 +74,20 @@ final class HerminalSurfaceView: NSView, ClipboardOwner, NSUserInterfaceValidati
     private var currentCursor: NSCursor = .iBeam
 
     init(app: ghostty_app_t, command: String? = nil, workingDirectory: String? = nil) {
+        let validatedWorkingDirectory = WorkingDirectoryPath.validated(workingDirectory)
+        let initialInput = Self.initialInputForNewSurface(
+            command: command,
+            validatedShellPath: Preferences.validatedDefaultShellPath()
+        )
         self.app = app
         self.commandBuffer = command.flatMap { $0.isEmpty ? nil : strdup($0) }
-        self.workingDirectoryBuffer = workingDirectory.flatMap { $0.isEmpty ? nil : strdup($0) }
+        self.workingDirectoryBuffer = validatedWorkingDirectory.flatMap { strdup($0) }
+        self.initialInputBuffer = initialInput.flatMap { strdup($0) }
         // Seed the live cwd with the spawn dir so a freshly opened tab
-        // reports its dir before the shell emits its first OSC 7.
-        self.currentWorkingDirectory = workingDirectory
+        // reports its dir before the shell emits its first OSC 7. Invalid
+        // restored cwd payloads fail closed here for the same reason they
+        // fail closed on live OSC 7 updates.
+        self.currentWorkingDirectory = validatedWorkingDirectory
         // Non-zero frame: libghostty's renderer needs non-zero layer bounds
         // (see Ghostty's SurfaceView_AppKit init comment).
         super.init(frame: NSRect(x: 0, y: 0, width: 800, height: 600))
@@ -112,6 +125,12 @@ final class HerminalSurfaceView: NSView, ClipboardOwner, NSUserInterfaceValidati
         // command is provided so the pane stays visible after `ssh` exits.
         if let commandBuffer {
             config.command = UnsafePointer(commandBuffer)
+        }
+        // Plain-shell panes can request a handoff to a validated executable
+        // after the macOS login shell starts. Explicit commands (ssh / claude /
+        // tmux / agents) never receive this input.
+        if let initialInputBuffer {
+            config.initial_input = UnsafePointer(initialInputBuffer)
         }
         // Spawn in a specific directory (e.g. the cwd of a Claude session
         // being resumed). libghostty cd's the PTY child here before exec.
@@ -203,16 +222,12 @@ final class HerminalSurfaceView: NSView, ClipboardOwner, NSUserInterfaceValidati
     /// string, Select All is always available while a surface exists.
     func validateUserInterfaceItem(_ item: any NSValidatedUserInterfaceItem) -> Bool {
         guard let surface else { return false }
-        switch item.action {
-        case #selector(copy(_:)), #selector(cut(_:)):
-            return ghostty_surface_has_selection(surface)
-        case #selector(paste(_:)):
-            return NSPasteboard.general.string(forType: .string) != nil
-        case #selector(selectAll(_:)):
-            return true
-        default:
-            return true
-        }
+        return Self.editActionIsEnabled(
+            item.action,
+            hasSurface: true,
+            hasSelection: ghostty_surface_has_selection(surface),
+            hasPasteboardString: NSPasteboard.general.string(forType: .string) != nil
+        )
     }
 
     private func runBindingAction(_ action: String) {
@@ -284,7 +299,7 @@ final class HerminalSurfaceView: NSView, ClipboardOwner, NSUserInterfaceValidati
     private func sendEnterKey(to surface: ghostty_surface_t) {
         var keyEvent = ghostty_input_key_s()
         keyEvent.action = GHOSTTY_ACTION_PRESS
-        keyEvent.keycode = 36 // kVK_Return
+        keyEvent.keycode = UInt32(Self.returnKeyCode)
         keyEvent.mods = GHOSTTY_MODS_NONE
         keyEvent.consumed_mods = GHOSTTY_MODS_NONE
         keyEvent.composing = false
@@ -364,6 +379,24 @@ final class HerminalSurfaceView: NSView, ClipboardOwner, NSUserInterfaceValidati
             return .standard
         }
         return .commitThenReplay
+    }
+
+    nonisolated static func initialInputForNewSurface(
+        command: String?,
+        validatedShellPath: @autoclosure () -> String?
+    ) -> String? {
+        guard command?.isEmpty != false,
+              let validatedShellPath = validatedShellPath(),
+              !validatedShellPath.isEmpty else {
+            return nil
+        }
+        // Put the executable before `-l`: both POSIX shells and fish accept
+        // this form, while fish rejects the `exec -l <command>` form.
+        return "exec \(posixSingleQuoted(validatedShellPath)) -l\n"
+    }
+
+    nonisolated private static func posixSingleQuoted(_ value: String) -> String {
+        "'" + value.replacingOccurrences(of: "'", with: "'\"'\"'") + "'"
     }
 
     /// Emits text committed by an IME without associating it with the physical
@@ -477,22 +510,13 @@ final class HerminalSurfaceView: NSView, ClipboardOwner, NSUserInterfaceValidati
         ghostty_surface_mouse_pos(surface, x, y, mods)
         // v0.3 polish: when libghostty isn't capturing the right click
         // (no vim-style mouse mode active), pop our own context menu
-        // instead of falling through to a silent no-op. Items target
-        // `self` via the standard Cut/Copy/Paste/SelectAll responders.
+        // instead of falling through to a silent no-op. Local edit
+        // actions target this surface; Find follows the responder chain
+        // to the owning WorkspaceView.
         let claimed = ghostty_surface_mouse_button(surface, GHOSTTY_MOUSE_PRESS, GHOSTTY_MOUSE_RIGHT, mods)
         guard !claimed else { return }
-        let menu = NSMenu()
-        menu.addItem(makeMenuItem("Copy", #selector(copy(_:))))
-        menu.addItem(makeMenuItem("Paste", #selector(paste(_:))))
-        menu.addItem(.separator())
-        menu.addItem(makeMenuItem("Select All", #selector(selectAll(_:))))
+        let menu = makeFallbackContextMenu()
         NSMenu.popUpContextMenu(menu, with: event, for: self)
-    }
-
-    private func makeMenuItem(_ title: String, _ action: Selector) -> NSMenuItem {
-        let item = NSMenuItem(title: title, action: action, keyEquivalent: "")
-        item.target = self
-        return item
     }
 
     override func rightMouseUp(with event: NSEvent) {
@@ -651,13 +675,16 @@ final class HerminalSurfaceView: NSView, ClipboardOwner, NSUserInterfaceValidati
         if let workingDirectoryBuffer {
             free(workingDirectoryBuffer)
         }
+        if let initialInputBuffer {
+            free(initialInputBuffer)
+        }
     }
 
     /// Updates the tracked cwd from libghostty's OSC 7 report. Called by
     /// WorkspaceView when GHOSTTY_ACTION_PWD fires for this surface.
     /// (v0.4-S1a.)
     func applyPwd(_ path: String) {
-        currentWorkingDirectory = path.isEmpty ? nil : path
+        currentWorkingDirectory = WorkingDirectoryPath.validated(path)
         // Recompute the branch off the new cwd — a bounded `.git/HEAD`
         // read, run once per shell prompt (not on a timer).
         currentGitBranch = currentWorkingDirectory.flatMap { GitInfo.branch(forDirectory: $0) }

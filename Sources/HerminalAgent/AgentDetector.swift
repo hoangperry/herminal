@@ -23,9 +23,9 @@ public struct DetectedAgent: Sendable, Equatable, Identifiable {
     /// Activity inferred from CPU sampling between two `AgentStatusTracker`
     /// calls. `.unknown` when only one sample exists (first sighting).
     public let status: AgentStatus
-    /// Tab index (0-based) hosting this agent, or nil if the
-    /// `AgentPaneMapper` heuristic couldn't pair it. Shown in the
-    /// dashboard as "Tab N" so the user knows where to look.
+    /// Flattened live-pane index (0-based) hosting this agent, or nil if the
+    /// `AgentPaneMapper` heuristic couldn't pair it. Shown in the dashboard
+    /// as "Pane N" so the user knows where to look.
     public let tabHint: Int?
 
     public var pid: pid_t { id }
@@ -397,7 +397,7 @@ public final class ProcessSnapshot {
     }
 }
 
-/// Pairs detected agents with the herminal tab their PTY lives in.
+/// Pairs detected agents with the herminal pane their PTY lives in.
 ///
 /// libghostty doesn't expose a per-surface PID, so the mapper guesses by
 /// process-tree position: it finds each agent's nearest `login` ancestor,
@@ -408,19 +408,20 @@ public final class ProcessSnapshot {
 /// happen inline on the main actor — the pairing is exact.
 ///
 /// Edge cases the heuristic handles cleanly:
-/// - Tab close: the corresponding login disappears, the next call's
+/// - Pane close: the corresponding login disappears, the next call's
 ///   pairing shifts by one and re-aligns.
 /// - Concurrent splits / multiple panes per tab: each pane's surface
 ///   spawns its own login, so panes get their own entry in the pairing.
-/// - Tab reorder via drag (post-MVP, not shipped yet): would break the
+/// - Pane reorder (not shipped today): would break the
 ///   pairing — caller would need to switch to a stable ID join when
 ///   that lands.
 public enum AgentPaneMapper {
     /// Annotates `agents` with `tabHint` indices using the heuristic
-    /// described above. Pass `sessionStartTimes` in *tab order* — each
-    /// entry is the wall-clock TimeInterval when the tab's first pane
-    /// was created. Returns the same agents in the same order; only
-    /// `tabHint` may change.
+    /// described above. Pass `sessionStartTimes` in flattened live-pane
+    /// order — each entry is the wall-clock TimeInterval when that pane's
+    /// surface was created. Returns the same agents in the same order;
+    /// only `tabHint` may change. The property keeps its legacy name for
+    /// source compatibility.
     public static func annotate(
         _ agents: [DetectedAgent],
         herminalPID: pid_t = getpid(),
@@ -438,23 +439,23 @@ public enum AgentPaneMapper {
             .sorted { $0.startTime < $1.startTime }
 
         // Sort sessions by their creation time and remember the original
-        // tab-order index — we want `tabHint` to refer to the user-visible
-        // tab order, not the start-time-sorted order.
+        // pane-order index — we want `tabHint` to refer to the user-visible
+        // flattened pane order, not the start-time-sorted order.
         let sessionsByStart = sessionStartTimes.enumerated()
             .map { (originalIndex: $0.offset, startTime: $0.element) }
             .sorted { $0.startTime < $1.startTime }
 
         // Pair nth-oldest login → nth-oldest session.
-        var tabIndexForLoginPID: [pid_t: Int] = [:]
+        var paneIndexForLoginPID: [pid_t: Int] = [:]
         for (n, login) in loginsByStart.enumerated() {
             guard n < sessionsByStart.count else { break }
-            tabIndexForLoginPID[login.pid] = sessionsByStart[n].originalIndex
+            paneIndexForLoginPID[login.pid] = sessionsByStart[n].originalIndex
         }
 
         // For each agent, walk up to a login ancestor and look it up.
         return agents.map { agent in
             guard let loginPID = snap.nearestAncestor(of: agent.pid, named: "login"),
-                  let tabIndex = tabIndexForLoginPID[loginPID] else {
+                  let paneIndex = paneIndexForLoginPID[loginPID] else {
                 return agent
             }
             return DetectedAgent(
@@ -462,7 +463,7 @@ public enum AgentPaneMapper {
                 kind: agent.kind,
                 processName: agent.processName,
                 status: agent.status,
-                tabHint: tabIndex
+                tabHint: paneIndex
             )
         }
     }

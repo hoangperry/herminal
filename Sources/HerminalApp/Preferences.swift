@@ -19,6 +19,10 @@ import Foundation
 import SwiftUI
 
 public enum Preferences {
+    struct CloseNoteWarningPresentation: Equatable {
+        let title: String
+        let help: String
+    }
 
     // MARK: - Keys
 
@@ -33,7 +37,6 @@ public enum Preferences {
         public static let defaultShellPath = "preferences.shell.path"
         public static let showStatusBar = "preferences.window.statusBar"
         public static let confirmCloseWithNote = "preferences.window.confirmCloseWithNote"
-        public static let confirmCloseWithLiveProcess = "preferences.window.confirmCloseWithLiveProcess"
         public static let restoreSessionOnLaunch = "preferences.window.restoreSession"
         public static let rerunCommandsOnRestore = "preferences.window.rerunCommandsOnRestore"
         public static let firstRunCompleted = "preferences.firstRun.completed"
@@ -72,12 +75,9 @@ public enum Preferences {
             Key.terminalFontSize: 13.0,
             Key.terminalPadding: 4.0,
             Key.cursorBlink: true,
-            Key.defaultShellPath: "",  // empty = inherit from $SHELL
+            Key.defaultShellPath: "",  // empty = use the macOS login shell
             Key.showStatusBar: true,
             Key.confirmCloseWithNote: true,
-            // Losing a running agent to a reflex ⌘W is unrecoverable, so
-            // this guard is on by default.
-            Key.confirmCloseWithLiveProcess: true,
             Key.restoreSessionOnLaunch: true,
             Key.rerunCommandsOnRestore: false,  // conservative: layout+cwd only
             Key.firstRunCompleted: false,
@@ -104,6 +104,54 @@ public enum Preferences {
         UserDefaults.standard.double(forKey: Key.terminalPadding)
     }
 
+    struct TerminalControlPresentation: Equatable {
+        let visibleValue: String
+        let accessibilityLabel: String
+        let accessibilityValue: String
+        let accessibilityHint: String
+    }
+
+    static func terminalFontSizePresentation(
+        for value: Double
+    ) -> TerminalControlPresentation {
+        let points = Int(value.rounded())
+        return TerminalControlPresentation(
+            visibleValue: "\(points)",
+            accessibilityLabel: "Terminal font size",
+            accessibilityValue: accessibilityMeasurementValue(
+                for: points,
+                singularUnit: "point",
+                pluralUnit: "points"
+            ),
+            accessibilityHint: "Applies to new tabs."
+        )
+    }
+
+    static func terminalPaddingPresentation(
+        for value: Double
+    ) -> TerminalControlPresentation {
+        let pixels = Int(value.rounded())
+        return TerminalControlPresentation(
+            visibleValue: "\(pixels)px",
+            accessibilityLabel: "Terminal padding",
+            accessibilityValue: accessibilityMeasurementValue(
+                for: pixels,
+                singularUnit: "pixel",
+                pluralUnit: "pixels"
+            ),
+            accessibilityHint: "Applies to new tabs."
+        )
+    }
+
+    private static func accessibilityMeasurementValue(
+        for roundedValue: Int,
+        singularUnit: String,
+        pluralUnit: String
+    ) -> String {
+        let unit = roundedValue == 1 ? singularUnit : pluralUnit
+        return "\(roundedValue) \(unit)"
+    }
+
     public static var cursorBlink: Bool {
         UserDefaults.standard.bool(forKey: Key.cursorBlink)
     }
@@ -112,37 +160,196 @@ public enum Preferences {
         UserDefaults.standard.string(forKey: Key.defaultShellPath) ?? ""
     }
 
-    /// Validates a shell path before passing it to libghostty as
-    /// `config.command`. Returns nil for paths that should be rejected.
-    /// Callers that hand the raw `defaultShellPath` to libghostty MUST
-    /// route through this helper — a UserDefaults plist is non-sandboxed
-    /// and an attacker who can write the user's defaults can otherwise
-    /// pre-stage `/tmp/evil-shell` (or a symlink to one). Empty input is
-    /// treated as "inherit from $SHELL" and returns nil so the caller
-    /// falls back to the default behaviour. (M12 review MEDIUM —
-    /// security-reviewer finding 3; full consumption gated to M13+.)
+    struct ShellOverridePresentation: Equatable {
+        enum Kind: Equatable {
+            case inherited
+            case active
+            case invalid
+        }
+
+        enum AnnouncementIdentity: Equatable {
+            case inherited
+            case active(String)
+            case unsafeCharacters
+            case relativePath
+            case temporaryPath
+            case notExecutable
+        }
+
+        let kind: Kind
+        let announcementIdentity: AnnouncementIdentity
+        let message: String
+        let fieldAccessibilityHint: String
+        let statusAccessibilityLabel: String
+        let systemImage: String
+        let canResetToLoginShell: Bool
+    }
+
+    private enum ShellOverrideValidation: Equatable {
+        case inherited
+        case valid(savedPath: String, launchPath: String)
+        case unsafeCharacters
+        case relativePath
+        case temporaryPath
+        case notExecutable(String)
+    }
+
+    static func shellOverridePresentation(
+        for rawPath: String,
+        isExecutable: ((String) -> Bool)? = nil,
+        resolvePath: (String) -> String = {
+            URL(fileURLWithPath: $0).resolvingSymlinksInPath().path
+        }
+    ) -> ShellOverridePresentation {
+        let validation = shellOverrideValidation(
+            for: rawPath,
+            isExecutable: isExecutable ?? isExecutableRegularFile,
+            resolvePath: resolvePath
+        )
+        let kind: ShellOverridePresentation.Kind
+        let announcementIdentity: ShellOverridePresentation.AnnouncementIdentity
+        let message: String
+        let systemImage: String
+
+        switch validation {
+        case .inherited:
+            kind = .inherited
+            announcementIdentity = .inherited
+            message = "Using your macOS login shell for new plain-shell tabs and splits."
+            systemImage = "checkmark.circle"
+        case let .valid(savedPath, _):
+            kind = .active
+            announcementIdentity = .active(savedPath)
+            message = "New plain-shell tabs and splits start your macOS login shell, then request a handoff to \(savedPath). Login-shell startup files run first; existing panes are unchanged."
+            systemImage = "checkmark.circle.fill"
+        case .unsafeCharacters:
+            kind = .invalid
+            announcementIdentity = .unsafeCharacters
+            message = "Invalid shell path: control characters aren't allowed. This value is ignored."
+            systemImage = "exclamationmark.triangle"
+        case .relativePath:
+            kind = .invalid
+            announcementIdentity = .relativePath
+            message = "Invalid shell path: enter an absolute path, such as /opt/homebrew/bin/fish. This value is ignored."
+            systemImage = "exclamationmark.triangle"
+        case .temporaryPath:
+            kind = .invalid
+            announcementIdentity = .temporaryPath
+            message = "Invalid shell path: executables under /tmp aren't allowed. This value is ignored."
+            systemImage = "exclamationmark.triangle"
+        case let .notExecutable(path):
+            kind = .invalid
+            announcementIdentity = .notExecutable
+            message = "Invalid shell path: no executable file exists at \(path). This value is ignored."
+            systemImage = "exclamationmark.triangle"
+        }
+
+        return ShellOverridePresentation(
+            kind: kind,
+            announcementIdentity: announcementIdentity,
+            message: message,
+            fieldAccessibilityHint: shellOverrideFieldAccessibilityHint,
+            statusAccessibilityLabel: "Shell override status. \(message)",
+            systemImage: systemImage,
+            canResetToLoginShell: validation != .inherited
+        )
+    }
+
+    private static let shellOverrideFieldAccessibilityHint =
+        "Set an absolute executable path, such as /opt/homebrew/bin/fish. New plain-shell tabs and splits start your macOS login shell, then request a handoff to this path."
+
+    static func shellOverrideStatusAnnouncement(
+        from previous: ShellOverridePresentation,
+        to current: ShellOverridePresentation
+    ) -> String? {
+        guard previous.announcementIdentity != current.announcementIdentity else { return nil }
+        return current.statusAccessibilityLabel
+    }
+
+    static func validatedShellOverridePath(
+        for rawPath: String,
+        isExecutable: ((String) -> Bool)? = nil,
+        resolvePath: (String) -> String = {
+            URL(fileURLWithPath: $0).resolvingSymlinksInPath().path
+        }
+    ) -> String? {
+        guard case let .valid(_, path) = shellOverrideValidation(
+            for: rawPath,
+            isExecutable: isExecutable ?? isExecutableRegularFile,
+            resolvePath: resolvePath
+        ) else { return nil }
+        return path
+    }
+
+    /// Validates the stored path before a new plain-shell pane uses it as a
+    /// bootstrap override. Empty input means "use the macOS login shell" and
+    /// returns nil.
     public static func validatedDefaultShellPath() -> String? {
-        let raw = defaultShellPath
-        guard !raw.isEmpty else { return nil }
-        let absolute = (raw as NSString).standardizingPath
-        guard absolute.hasPrefix("/"),
-              !absolute.hasPrefix("/tmp"),
-              !absolute.hasPrefix("/private/tmp"),
-              FileManager.default.isExecutableFile(atPath: absolute) else { return nil }
-        return absolute
+        validatedShellOverridePath(for: defaultShellPath)
+    }
+
+    private static func shellOverrideValidation(
+        for rawPath: String,
+        isExecutable: (String) -> Bool,
+        resolvePath: (String) -> String
+    ) -> ShellOverrideValidation {
+        guard rawPath.rangeOfCharacter(from: .controlCharacters) == nil else {
+            return .unsafeCharacters
+        }
+        let trimmed = rawPath.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return .inherited }
+
+        let savedPath = (trimmed as NSString).standardizingPath
+        guard savedPath.hasPrefix("/") else { return .relativePath }
+        let launchPath = (resolvePath(savedPath) as NSString).standardizingPath
+        guard !isTemporaryShellPath(savedPath),
+              !isTemporaryShellPath(launchPath) else { return .temporaryPath }
+        guard isExecutable(launchPath) else { return .notExecutable(savedPath) }
+        return .valid(savedPath: savedPath, launchPath: launchPath)
+    }
+
+    private static func isTemporaryShellPath(_ path: String) -> Bool {
+        path == "/tmp" || path.hasPrefix("/tmp/")
+            || path == "/private/tmp" || path.hasPrefix("/private/tmp/")
+    }
+
+    private static func isExecutableRegularFile(_ path: String) -> Bool {
+        var isDirectory = ObjCBool(false)
+        guard FileManager.default.fileExists(
+            atPath: path,
+            isDirectory: &isDirectory
+        ), !isDirectory.boolValue else {
+            return false
+        }
+        return FileManager.default.isExecutableFile(atPath: path)
     }
 
     public static var showStatusBar: Bool {
         UserDefaults.standard.bool(forKey: Key.showStatusBar)
     }
 
+    /// Shared write path for menu and command-palette visibility toggles.
+    /// Keeping persistence and the AppKit refresh notification together
+    /// prevents callers from changing the stored value without relayout.
+    @discardableResult
+    public static func toggleStatusBarVisibility() -> Bool {
+        let isVisible = !showStatusBar
+        UserDefaults.standard.set(isVisible, forKey: Key.showStatusBar)
+        broadcastChange()
+        return isVisible
+    }
+
     public static var confirmCloseWithNote: Bool {
         UserDefaults.standard.bool(forKey: Key.confirmCloseWithNote)
     }
 
-    public static var confirmCloseWithLiveProcess: Bool {
-        UserDefaults.standard.bool(forKey: Key.confirmCloseWithLiveProcess)
-    }
+    static let closeNotesWarningHelpText =
+        "Live-work warnings remain on to protect running SSH, tmux, and agent sessions."
+
+    static let closeNoteWarningPresentation = CloseNoteWarningPresentation(
+        title: "Warn when closing sessions with notes",
+        help: closeNotesWarningHelpText
+    )
 
     public static var restoreSessionOnLaunch: Bool {
         UserDefaults.standard.bool(forKey: Key.restoreSessionOnLaunch)

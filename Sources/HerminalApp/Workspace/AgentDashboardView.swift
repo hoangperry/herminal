@@ -10,10 +10,95 @@ import SwiftUI
 import HerminalAgent
 
 struct AgentDashboardView: View {
+    static let filterAccessibilityLabel = "Filter agents"
+    static let filterAccessibilityHint =
+        "Filters running agents by tool, process, status, or pane"
+
+    struct ActionAccessibilityPresentation: Equatable {
+        let label: String
+        let hint: String
+    }
+
+    struct PrimaryRowActionPresentation: Equatable {
+        let accessibility: ActionAccessibilityPresentation
+        let leadingIconSystemName: String
+        let includesLeadingIconInPrimaryHitRegion: Bool
+        let minimumHeight: CGFloat
+    }
+
+    static let compactInteractiveControlSize = HerminalDesign.Geometry.compactInteractiveControlSize
+    static let rowActionControlSize = HerminalDesign.Geometry.minimumInteractiveControlSize
+    static let rowMinimumHeight = HerminalDesign.Geometry.minimumInteractiveControlSize
+    static func primaryActionAccessibilityLabel(for agent: DetectedAgent) -> String {
+        AgentDashboardRow.primaryActionAccessibilityLabel(for: agent)
+    }
+    static func primaryActionAccessibilityValue(for agent: DetectedAgent) -> String {
+        AgentDashboardRow.primaryActionAccessibilityValue(for: agent)
+    }
+    static let primaryActionAccessibilityHint = AgentDashboardRow.primaryActionAccessibilityHint
+
+    static func worktreePrimaryActionPresentation(
+        for tree: GitWorktree.Entry
+    ) -> PrimaryRowActionPresentation {
+        PrimaryRowActionPresentation(
+            accessibility: .init(
+                label: "Open worktree \(tree.label)",
+                hint: "Press Return or Space to open this worktree"
+            ),
+            leadingIconSystemName: "arrow.triangle.branch",
+            includesLeadingIconInPrimaryHitRegion: true,
+            minimumHeight: rowMinimumHeight
+        )
+    }
+
+    static func worktreeClaudeActionAccessibility(
+        for tree: GitWorktree.Entry
+    ) -> ActionAccessibilityPresentation {
+        .init(
+            label: "Open Claude in \(tree.label)",
+            hint: "Opens a new Claude pane in this worktree"
+        )
+    }
+
+    static func worktreeRemoveActionAccessibility(
+        for tree: GitWorktree.Entry
+    ) -> ActionAccessibilityPresentation {
+        .init(
+            label: "Remove worktree \(tree.label)",
+            hint: "Removes this linked worktree checkout"
+        )
+    }
+
+    static func tmuxPrimaryActionPresentation(
+        for session: TmuxLaunch.Session,
+        openHere: Bool
+    ) -> PrimaryRowActionPresentation {
+        PrimaryRowActionPresentation(
+            accessibility: .init(
+                label: tmuxA11yLabel(session, openHere: openHere),
+                hint: "Press Return or Space to attach this tmux session"
+            ),
+            leadingIconSystemName: "square.split.2x1",
+            includesLeadingIconInPrimaryHitRegion: true,
+            minimumHeight: rowMinimumHeight
+        )
+    }
+
+    static func tmuxKillActionAccessibility(
+        for session: TmuxLaunch.Session
+    ) -> ActionAccessibilityPresentation {
+        .init(
+            label: "Kill tmux session \(session.name)",
+            hint: "Permanently ends this tmux session"
+        )
+    }
     let agents: [DetectedAgent]
+    @ObservedObject var filterState: SidebarFilterState
+    var initialFocusRequestID: UUID? = nil
     var worktrees: [GitWorktree.Entry] = []
     var inGitRepo: Bool = false
     var primaryWorktreePath: String? = nil
+    var onInitialFocusConsumed: ((UUID) -> Void)?
     var onSelectAgent: ((DetectedAgent) -> Void)?
     var onNewAgent: (() -> Void)?
     var onNewWorktree: (() -> Void)?
@@ -28,19 +113,50 @@ struct AgentDashboardView: View {
     var onKillTmux: ((String) -> Void)?
     var onAttachOrCreateTmux: (() -> Void)?
     var onNewNamedTmux: (() -> Void)?
-
+    enum EmptyActionID: Hashable { case newAgentPane, newAgentWorktree, clearFilter }
+    enum InitialFocusTarget: Equatable { case none, newAgentPane, filter, firstAgent(pid_t) }
+    @State private var consumedInitialFocusRequestID: UUID?
+    @State private var recoveryFilterFocusRequestID: UUID?
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             header
             Divider().overlay(HerminalDesign.Palette.divider)
+            if !agents.isEmpty {
+                SidebarFilterField(
+                    query: $filterState.agentDashboardQuery,
+                    prompt: "Filter agents",
+                    accessibilityLabel: Self.filterAccessibilityLabel,
+                    accessibilityHint: Self.filterAccessibilityHint,
+                    clearAccessibilityLabel: "Clear agent filter",
+                    requestsInitialFocus: initialFocusTarget == .filter,
+                    focusRequestID: recoveryFilterFocusRequestID,
+                    resultAnnouncement: AgentDashboardFilterPolicy.resultAccessibilityAnnouncement(
+                        visible: filteredAgents.count,
+                        total: agents.count,
+                        isFiltering: isFiltering
+                    ),
+                    onFocusRequestApplied: consumeRecoveryFilterFocusRequest,
+                    onInitialFocusApplied: consumeFilterFocusRequest
+                )
+                .padding(.horizontal, PanelChrome.rail)
+                .padding(.top, HerminalDesign.Spacing.sm)
+                .padding(.bottom, HerminalDesign.Spacing.xs)
+            }
             ScrollView {
                 VStack(alignment: .leading, spacing: HerminalDesign.Spacing.sm) {
                     if agents.isEmpty {
                         emptyState
+                    } else if showsNoMatches {
+                        noMatchesState
                     } else {
                         VStack(alignment: .leading, spacing: HerminalDesign.Spacing.xxs) {
-                            ForEach(agents) { agent in
-                                agentRow(agent)
+                            ForEach(filteredAgents) { agent in
+                                AgentDashboardRow(
+                                    agent: agent,
+                                    requestsInitialFocus: initialFocusTarget == .firstAgent(agent.id),
+                                    onSelect: { onSelectAgent?(agent) },
+                                    onInitialFocusApplied: { consumeFocusRequest(for: agent.id) }
+                                )
                             }
                         }
                     }
@@ -53,7 +169,6 @@ struct AgentDashboardView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .background(HerminalDesign.Palette.surfaceElevated)
     }
-
     private var header: some View {
         HStack(spacing: HerminalDesign.Spacing.xs) {
             Text("AGENTS")
@@ -61,13 +176,27 @@ struct AgentDashboardView: View {
                 .tracking(HerminalDesign.Typography.headerTracking)
                 .foregroundStyle(HerminalDesign.Palette.textTertiary)
                 .accessibilityAddTraits(.isHeader)
-            Text("\(agents.count)")
+            Text(
+                AgentDashboardFilterPolicy.countLabel(
+                    visible: filteredAgents.count,
+                    total: agents.count,
+                    isFiltering: isFiltering
+                )
+            )
                 .font(HerminalDesign.Typography.caption)
                 .foregroundStyle(HerminalDesign.Palette.textSecondary)
-                .accessibilityLabel("\(agents.count) agent\(agents.count == 1 ? "" : "s") running")
+                .accessibilityLabel(
+                    AgentDashboardFilterPolicy.countAccessibilityLabel(
+                        visible: filteredAgents.count,
+                        total: agents.count,
+                        isFiltering: isFiltering
+                    )
+                )
             Spacer(minLength: 0)
             headerButton("plus", label: "New agent pane", action: onNewAgent)
-            headerButton("square.stack.3d.up", label: "New agent worktree", action: onNewWorktree)
+            if inGitRepo {
+                headerButton("square.stack.3d.up", label: "New agent worktree", action: onNewWorktree)
+            }
             headerButton("arrow.triangle.branch", label: "Open lazygit", action: onOpenLazygit)
         }
         // PanelChrome.rail keeps this title on the same leading rail as the
@@ -75,23 +204,21 @@ struct AgentDashboardView: View {
         .padding(.horizontal, PanelChrome.rail)
         .frame(height: TabBarView.barHeight)
     }
-
     /// One hairline construction for every per-row separator in this panel.
     private var rowDivider: some View {
         HerminalDesign.Palette.divider.frame(height: 1)
     }
-
     /// Section title plus an optional trailing shortcut chip.
     ///
     /// The horizontal inset matches the rows' own padding so titles, status
     /// dots and note text all share one leading rail — without it headers
     /// sat 8 pt to the left of every row and the panel read as ragged.
-    /// `chipLabel == nil` hides the chip from assistive tech, for cases
-    /// where the panel header already exposes the same action.
+    /// A missing action omits the chip instead of showing an unavailable
+    /// affordance.
     private func sectionHeader(
         _ title: String,
         chip: String,
-        chipLabel: String?,
+        chipLabel: String,
         action: (() -> Void)?
     ) -> some View {
         HStack {
@@ -101,27 +228,17 @@ struct AgentDashboardView: View {
                 .foregroundStyle(HerminalDesign.Palette.textTertiary)
                 .accessibilityAddTraits(.isHeader)
             Spacer(minLength: 0)
-            Button { action?() } label: {
-                Text(chip)
-                    .font(HerminalDesign.Typography.monoCaption)
-                    .foregroundStyle(HerminalDesign.Palette.textSecondary)
-                    .padding(.horizontal, HerminalDesign.Spacing.xs)
-                    .padding(.vertical, HerminalDesign.Spacing.xxs)
-                    .background(
-                        RoundedRectangle(cornerRadius: HerminalDesign.Radius.sm)
-                            .fill(HerminalDesign.Palette.surfaceOverlay)
-                    )
-                    .contentShape(Rectangle())
+            if let action {
+                AgentDashboardTextButton(
+                    title: chip,
+                    accessibilityLabel: chipLabel,
+                    action: action
+                )
             }
-            .buttonStyle(.plain)
-            .disabled(action == nil)
-            .accessibilityLabel(chipLabel ?? "")
-            .accessibilityHidden(chipLabel == nil)
         }
         .padding(.horizontal, HerminalDesign.Spacing.sm)
         .padding(.top, HerminalDesign.Spacing.xs)
     }
-
     /// Tertiary explanatory line under a section header, on the same rail.
     private func sectionNote(_ text: String) -> some View {
         Text(text)
@@ -130,77 +247,181 @@ struct AgentDashboardView: View {
             .padding(.horizontal, HerminalDesign.Spacing.sm)
             .fixedSize(horizontal: false, vertical: true)
     }
-
     private func headerButton(_ systemName: String, label: String, action: (() -> Void)?) -> some View {
-        Button(action: { action?() }) {
-            Image(systemName: systemName)
-                .font(.system(size: 10, weight: .semibold))
-                .foregroundStyle(HerminalDesign.Palette.textSecondary)
-                .frame(width: 18, height: 18)
-                .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .disabled(action == nil)
-        .accessibilityLabel(label)
+        AgentDashboardIconButton(
+            systemName: systemName,
+            accessibilityLabel: label,
+            controlSize: Self.compactInteractiveControlSize,
+            action: action
+        )
     }
-
     private var emptyState: some View {
         PanelChrome.emptyState(
-            "No agents running",
-            "⌘⌥A splits a Claude pane. ⌘⌥W spins an isolated worktree."
+            Self.emptyStateContent(inGitRepo: inGitRepo),
+            initiallyFocusedActionID: initialFocusTarget == .newAgentPane ? .newAgentPane : nil
+        ) { action in
+            switch action {
+            case .newAgentPane:
+                onNewAgent?()
+            case .newAgentWorktree:
+                onNewWorktree?()
+            case .clearFilter:
+                clearFilterAndFocus()
+            }
+        }
+        .onAppear(perform: consumeEmptyStateFocusRequest)
+    }
+    static func emptyStateContent(inGitRepo: Bool) -> PanelChrome.EmptyStateContent<EmptyActionID> {
+        let paneAction = PanelChrome.EmptyStateAction(
+            id: EmptyActionID.newAgentPane,
+            title: "New Agent Pane",
+            systemImage: "plus.rectangle.on.rectangle",
+            accessibilityLabel: "Open a new agent pane",
+            accessibilityHint: "Splits the current workspace and starts Claude in a new pane",
+            prominence: .primary
+        )
+        let worktreeActions = inGitRepo
+            ? [
+                PanelChrome.EmptyStateAction(
+                    id: EmptyActionID.newAgentWorktree,
+                    title: "New Agent Worktree",
+                    systemImage: "square.stack.3d.up",
+                    accessibilityLabel: "Create a new agent worktree",
+                    accessibilityHint: "Creates an isolated checkout and opens Claude there",
+                    prominence: .secondary
+                )
+            ]
+            : []
+
+        return .init(
+            headline: "No agents running",
+            detail: inGitRepo
+                ? "Split a Claude pane here, or branch into an isolated worktree for repo-safe experiments."
+                : "Split a Claude pane here to start a fresh session in the current workspace.",
+            actions: [paneAction] + worktreeActions
         )
     }
 
-    // v1.0 polish: rows read as a flat list with hairline dividers and the
-    // pane chip on the trailing edge — matches the launch-site hero mockup.
-    private func agentRow(_ agent: DetectedAgent) -> some View {
-        HStack(spacing: HerminalDesign.Spacing.sm) {
-            Circle()
-                .fill(Self.color(for: agent.status))
-                .frame(width: 7, height: 7)
-                .accessibilityHidden(true)
-            VStack(alignment: .leading, spacing: 1) {
-                Text(Self.label(for: agent.kind))
-                    .font(HerminalDesign.Typography.bodyEmphasis)
-                    .foregroundStyle(HerminalDesign.Palette.textPrimary)
-                Text("pid \(agent.pid) · \(Self.statusText(agent.status))")
-                    .font(HerminalDesign.Typography.caption)
-                    .foregroundStyle(HerminalDesign.Palette.textTertiary)
-            }
-            Spacer(minLength: 0)
-            if let tab = agent.tabHint {
-                // AgentPaneMapper returns a flattened session/pane
-                // index, not a tab-strip index. Number it 1-based.
-                // Neutral chip: this is locator metadata, so it must not
-                // out-shout the agent name next to it.
-                Text("Pane \(tab + 1)")
-                    .font(HerminalDesign.Typography.caption)
-                    .foregroundStyle(HerminalDesign.Palette.textSecondary)
-                    .padding(.horizontal, HerminalDesign.Spacing.xs)
-                    .padding(.vertical, HerminalDesign.Spacing.xxs)
-                    .background(
-                        RoundedRectangle(cornerRadius: HerminalDesign.Radius.sm)
-                            .fill(HerminalDesign.Palette.surfaceOverlay)
-                    )
-            }
+    static let noMatchesContent = PanelChrome.EmptyStateContent(
+        headline: "No matching agents",
+        detail: "Try another tool, process, status, or pane.",
+        actions: [
+            PanelChrome.EmptyStateAction(
+                id: EmptyActionID.clearFilter,
+                title: "Clear Filter",
+                systemImage: "xmark.circle",
+                accessibilityLabel: "Clear agent filter",
+                accessibilityHint: "Clears the filter and shows every running agent",
+                prominence: .primary
+            )
+        ]
+    )
+
+    private var filteredAgents: [DetectedAgent] {
+        AgentDashboardFilterPolicy.filtered(
+            agents,
+            query: filterState.agentDashboardQuery
+        )
+    }
+
+    private var isFiltering: Bool {
+        !agents.isEmpty && SidebarFilterQuery.isActive(filterState.agentDashboardQuery)
+    }
+
+    private var showsNoMatches: Bool {
+        AgentDashboardFilterPolicy.showsNoMatches(
+            total: agents.count,
+            visible: filteredAgents.count,
+            query: filterState.agentDashboardQuery
+        )
+    }
+
+    private var noMatchesState: some View {
+        PanelChrome.emptyState(Self.noMatchesContent) { action in
+            guard action == .clearFilter else { return }
+            clearFilterAndFocus()
         }
-        .padding(.horizontal, HerminalDesign.Spacing.sm)
-        .padding(.vertical, HerminalDesign.Spacing.xs)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .overlay(alignment: .bottom) { rowDivider }
-        .contentShape(Rectangle())
-        .onTapGesture { onSelectAgent?(agent) }
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel(Self.a11yLabel(for: agent))
-        .accessibilityAddTraits(.isButton)
+    }
+
+    private var initialFocusTarget: InitialFocusTarget {
+        Self.initialFocusTarget(
+            agents: agents,
+            query: filterState.agentDashboardQuery,
+            initialFocusRequestID: initialFocusRequestID,
+            consumedInitialFocusRequestID: consumedInitialFocusRequestID
+        )
+    }
+    static func initialFocusTarget(
+        agents: [DetectedAgent],
+        query: String = "",
+        initialFocusRequestID: UUID?,
+        consumedInitialFocusRequestID: UUID?
+    ) -> InitialFocusTarget {
+        guard let initialFocusRequestID,
+              initialFocusRequestID != consumedInitialFocusRequestID else {
+            return .none
+        }
+        if !agents.isEmpty, SidebarFilterQuery.isActive(query) {
+            return .filter
+        }
+        if let agent = agents.first(where: { $0.tabHint != nil }) {
+            return .firstAgent(agent.id)
+        }
+        return agents.isEmpty ? .newAgentPane : .none
+    }
+    static func retainedInitialFocusRequestID(
+        _ requestID: UUID?,
+        agents: [DetectedAgent],
+        query: String = ""
+    ) -> UUID? {
+        agents.isEmpty
+            || SidebarFilterQuery.isActive(query)
+            || agents.contains(where: { $0.tabHint != nil })
+            ? requestID
+            : nil
+    }
+    private func consumeEmptyStateFocusRequest() {
+        guard initialFocusTarget == .newAgentPane,
+              let initialFocusRequestID else { return }
+        DispatchQueue.main.async {
+            consumedInitialFocusRequestID = initialFocusRequestID
+            onInitialFocusConsumed?(initialFocusRequestID)
+        }
+    }
+    private func consumeFocusRequest(for agentID: pid_t) {
+        guard initialFocusTarget == .firstAgent(agentID),
+              let initialFocusRequestID else { return }
+        consumedInitialFocusRequestID = initialFocusRequestID
+        onInitialFocusConsumed?(initialFocusRequestID)
+    }
+
+    private func consumeFilterFocusRequest() {
+        guard initialFocusTarget == .filter,
+              let initialFocusRequestID else { return }
+        consumedInitialFocusRequestID = initialFocusRequestID
+        onInitialFocusConsumed?(initialFocusRequestID)
+    }
+
+    private func clearFilterAndFocus() {
+        filterState.agentDashboardQuery = ""
+        recoveryFilterFocusRequestID = UUID()
+    }
+
+    private func consumeRecoveryFilterFocusRequest(_ requestID: UUID) {
+        recoveryFilterFocusRequestID = SidebarFilterFocusPolicy.remainingRequest(
+            currentRequestID: recoveryFilterFocusRequestID,
+            appliedRequestID: requestID
+        )
     }
 
     private var worktreeSection: some View {
         VStack(alignment: .leading, spacing: HerminalDesign.Spacing.xxs) {
-            // chipLabel nil: the panel header's square.stack.3d.up button
-            // already exposes onNewWorktree, and a second identically
-            // labelled control would read as a duplicate in VoiceOver.
-            sectionHeader("WORKTREES", chip: "⌘⌥W", chipLabel: nil, action: onNewWorktree)
+            sectionHeader(
+                "WORKTREES",
+                chip: "⌘⌥W",
+                chipLabel: "New agent worktree",
+                action: inGitRepo ? onNewWorktree : nil
+            )
             if !inGitRepo {
                 sectionNote("Current pane is not a git repo")
             } else if worktrees.isEmpty {
@@ -214,34 +435,31 @@ struct AgentDashboardView: View {
     }
 
     private func worktreeRow(_ tree: GitWorktree.Entry) -> some View {
-        HStack(spacing: HerminalDesign.Spacing.xs) {
-            // Glyph lives inside the button so the row's leading edge is
-            // part of the click target, not a dead zone.
-            Button { onOpenWorktree?(tree) } label: {
-                HStack(spacing: HerminalDesign.Spacing.xs) {
-                    Image(systemName: "arrow.triangle.branch")
-                        .font(.system(size: 10, weight: .semibold))
-                        .foregroundStyle(HerminalDesign.Palette.accent)
-                        .accessibilityHidden(true)
-                    worktreeRowText(tree)
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .contentShape(Rectangle())
+        let primaryPresentation = Self.worktreePrimaryActionPresentation(for: tree)
+        return HStack(spacing: HerminalDesign.Spacing.xs) {
+            AgentDashboardPrimaryRowButton(
+                presentation: primaryPresentation,
+                action: { onOpenWorktree?(tree) }
+            ) {
+                worktreeRowText(tree)
             }
-            .buttonStyle(.plain)
-            .accessibilityLabel("Open worktree \(tree.label)")
-            tinyButton("sparkles", label: "Open Claude in \(tree.label)") {
+            tinyButton(
+                "sparkles",
+                accessibility: Self.worktreeClaudeActionAccessibility(for: tree)
+            ) {
                 onAgentInWorktree?(tree)
             }
             if !GitWorktree.pathsEqual(tree.path, primaryWorktreePath) {
-                tinyButton("trash", label: "Remove worktree \(tree.label)") {
+                tinyButton(
+                    "trash",
+                    accessibility: Self.worktreeRemoveActionAccessibility(for: tree)
+                ) {
                     onRemoveWorktree?(tree)
                 }
             }
         }
         .padding(.horizontal, HerminalDesign.Spacing.sm)
-        .padding(.vertical, HerminalDesign.Spacing.xs)
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(maxWidth: .infinity, minHeight: Self.rowMinimumHeight, alignment: .leading)
         .overlay(alignment: .bottom) { rowDivider }
     }
 
@@ -297,31 +515,24 @@ struct AgentDashboardView: View {
     }
 
     private func headerChip(_ title: String, label: String, action: (() -> Void)?) -> some View {
-        Button { action?() } label: {
-            Text(title)
-                .font(HerminalDesign.Typography.monoCaption)
-                .foregroundStyle(HerminalDesign.Palette.textSecondary)
-                .padding(.horizontal, HerminalDesign.Spacing.xs)
-                .padding(.vertical, HerminalDesign.Spacing.xxs)
-                .background(
-                    RoundedRectangle(cornerRadius: HerminalDesign.Radius.sm)
-                        .fill(HerminalDesign.Palette.surfaceOverlay)
-                )
-                .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .disabled(action == nil)
-        .accessibilityLabel(label)
+        AgentDashboardTextButton(
+            title: title,
+            accessibilityLabel: label,
+            action: action
+        )
     }
 
     private func tmuxRow(_ session: TmuxLaunch.Session) -> some View {
         let openHere = tmuxAttachedHere.contains(session.name)
+        let primaryPresentation = Self.tmuxPrimaryActionPresentation(
+            for: session,
+            openHere: openHere
+        )
         return HStack(spacing: HerminalDesign.Spacing.xs) {
-            Image(systemName: "square.split.2x1")
-                .font(.system(size: 10, weight: .semibold))
-                .foregroundStyle(HerminalDesign.Palette.accent)
-                .accessibilityHidden(true)
-            Button { onAttachTmux?(session.name) } label: {
+            AgentDashboardPrimaryRowButton(
+                presentation: primaryPresentation,
+                action: { onAttachTmux?(session.name) }
+            ) {
                 VStack(alignment: .leading, spacing: 1) {
                     Text(session.name)
                         .font(HerminalDesign.Typography.bodyEmphasis)
@@ -332,11 +543,7 @@ struct AgentDashboardView: View {
                         .foregroundStyle(HerminalDesign.Palette.textTertiary)
                         .lineLimit(1)
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .contentShape(Rectangle())
             }
-            .buttonStyle(.plain)
-            .accessibilityLabel(Self.tmuxA11yLabel(session, openHere: openHere))
             if openHere {
                 Text("Here")
                     .font(HerminalDesign.Typography.caption)
@@ -349,25 +556,30 @@ struct AgentDashboardView: View {
                     )
                     .accessibilityHidden(true)
             }
-            tinyButton("trash", label: "Kill tmux session \(session.name)") {
+            tinyButton(
+                "trash",
+                accessibility: Self.tmuxKillActionAccessibility(for: session)
+            ) {
                 onKillTmux?(session.name)
             }
         }
         .padding(.horizontal, HerminalDesign.Spacing.sm)
-        .padding(.vertical, HerminalDesign.Spacing.xs)
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(maxWidth: .infinity, minHeight: Self.rowMinimumHeight, alignment: .leading)
         .overlay(alignment: .bottom) { rowDivider }
     }
 
-    private func tinyButton(_ systemName: String, label: String, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Image(systemName: systemName)
-                .font(.system(size: 10, weight: .semibold))
-                .foregroundStyle(HerminalDesign.Palette.textSecondary)
-                .frame(width: 16, height: 16)
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel(label)
+    private func tinyButton(
+        _ systemName: String,
+        accessibility: ActionAccessibilityPresentation,
+        action: @escaping () -> Void
+    ) -> some View {
+        AgentDashboardIconButton(
+            systemName: systemName,
+            accessibilityLabel: accessibility.label,
+            controlSize: Self.rowActionControlSize,
+            accessibilityHint: accessibility.hint,
+            action: action
+        )
     }
 
     private static func tmuxA11yLabel(_ session: TmuxLaunch.Session, openHere: Bool) -> String {
@@ -376,42 +588,4 @@ struct AgentDashboardView: View {
         return label
     }
 
-    private static func a11yLabel(for agent: DetectedAgent) -> String {
-        let base = "\(label(for: agent.kind)) agent \(statusText(agent.status)), pid \(agent.pid)"
-        if let tab = agent.tabHint {
-            return "\(base), in pane \(tab + 1)"
-        }
-        return base
-    }
-
-    private static func color(for status: AgentStatus) -> Color {
-        switch status {
-        case .running: HerminalDesign.Palette.statusRunning
-        case .idle: HerminalDesign.Palette.statusIdle
-        case .needsInput: HerminalDesign.Palette.statusNeedsInput
-        case .exitedSuccess: HerminalDesign.Palette.statusDone
-        case .exitedError: HerminalDesign.Palette.statusError
-        case .unknown: HerminalDesign.Palette.statusIdle
-        }
-    }
-
-    private static func statusText(_ status: AgentStatus) -> String {
-        switch status {
-        case .running: "running"
-        case .idle: "idle"
-        case .needsInput: "needs input"
-        case .exitedSuccess: "done"
-        case .exitedError: "error"
-        case .unknown: "starting"
-        }
-    }
-
-    private static func label(for kind: AgentKind) -> String {
-        switch kind {
-        case .claudeCode: "Claude Code"
-        case .codex: "Codex"
-        case .aider: "Aider"
-        case .unknown: "Agent"
-        }
-    }
 }

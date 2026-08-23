@@ -253,6 +253,10 @@ enum HerminalDesign {
     // the workspace's 4-point grid (1.5 ticks).
     enum Geometry {
         static let surfaceInset: CGFloat = 6
+        /// Full-size target for rows and prominent actions.
+        static let minimumInteractiveControlSize: CGFloat = 44
+        /// Dense macOS toolbar target; intentionally fits the 36 pt panel header.
+        static let compactInteractiveControlSize: CGFloat = 28
         // Tab bar inactive opacity — used by TabBarView so non-focused
         // tabs read as background. (v0.3 polish.)
         static let tabInactiveOpacity: CGFloat = 0.62

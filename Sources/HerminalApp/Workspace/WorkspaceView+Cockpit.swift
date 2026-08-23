@@ -43,6 +43,10 @@ extension WorkspaceView {
         field.frame = NSRect(x: 0, y: 26, width: 280, height: 22)
 
         let popup = NSPopUpButton(frame: NSRect(x: 0, y: 0, width: 280, height: 22), pullsDown: false)
+        ModalControlAccessibility.prepare(
+            popup,
+            label: ModalControlAccessibility.Labels.agentKind
+        )
         for kind in [AgentLaunch.Kind.claude, .codex, .aider, .shell] {
             popup.addItem(withTitle: kind.displayName)
             popup.lastItem?.representedObject = kind.rawValue
@@ -52,7 +56,11 @@ extension WorkspaceView {
         accessory.addSubview(field)
         accessory.addSubview(popup)
         alert.accessoryView = accessory
-        alert.window.initialFirstResponder = field
+        ModalControlAccessibility.prepare(
+            field,
+            label: ModalControlAccessibility.Labels.worktreeBranchName,
+            initialResponderIn: alert
+        )
 
         guard alert.runModal() == .alertFirstButtonReturn else { return }
         let name = field.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
