@@ -31,6 +31,16 @@ either axis, nesting like tmux. Use ⌥⌘+arrow to move focus between
 nested panes by direction (v0.5.1); the first arrow while zoomed exits
 zoom. `⌘⇧↩` maximizes the focused pane and toggles back (v1.0).
 
+With macOS Full Keyboard Access enabled, Tab/Shift-Tab can also move
+directly through the tab strip. Return or Space selects the focused tab;
+the next focus stop closes that tab, and the final `+` control opens a
+new terminal tab. A visible teal outline follows keyboard focus.
+
+Tab can also focus a split divider. Use ← / → on a vertical divider or
+↑ / ↓ on a horizontal divider to resize the adjacent panes in 5% steps;
+Return or Space balances that split back to 50/50. VoiceOver exposes the
+same divider as an adjustable splitter and announces its current percentage.
+
 ## Font size
 
 | Shortcut | Action | Notes |
@@ -38,6 +48,44 @@ zoom. `⌘⇧↩` maximizes the focused pane and toggles back (v1.0).
 | ⌘+ | Bigger text | Scales every pane; View menu (v1.0) |
 | ⌘− | Smaller text | Scales every pane |
 | ⌘0 | Actual size | Resets to the Settings default |
+
+## App + window management
+
+| Shortcut | Action | Notes |
+|---|---|---|
+| ⌘, | Settings… | Standard macOS app-settings binding |
+| ⌘H | Hide herminal | Standard app hide |
+| ⌘⌥H | Hide Others | Hides every other app |
+| ⌘M | Minimize | Native macOS window minimize |
+| ⌥Space | Show Hotkey Window | In-app fallback if the global hotkey cannot be registered |
+
+About herminal, Services, Show All, window Zoom, and Bring All to Front
+stay in the native menus with no default shortcut.
+
+## Workspace chrome
+
+| Shortcut | Action | Notes |
+|---|---|---|
+| (no shortcut) | Show / Hide Status Bar | View menu or search “status” in ⌘⇧P |
+
+The status bar exposes the focused pane directory as a keyboard-accessible
+actions menu for copying the full path or revealing it in Finder. VoiceOver
+keeps that menu and the read-only workspace diagnostics as two concise stops;
+the diagnostics include tick p95, agent count, diary size, and theme.
+
+## Search + command surfaces
+
+| Shortcut | Action | Notes |
+|---|---|---|
+| ⌘F | Find in terminal… | Opens the scrollback search overlay; press again to refocus its query |
+| ⌘G | Find next | Search overlay or Edit menu |
+| ⌘⇧G | Find previous | Search overlay or Edit menu |
+| ⌘/ | Keyboard Shortcuts… | Opens the searchable reference generated from the current app menus |
+| ⌘⇧P | Command Palette… | Search commands, settings, and support actions |
+
+The command palette also exposes **Copy Redacted Diagnostics for Bug
+Report** with no direct shortcut. Type `diagnostics` to reach the same
+privacy-safe copy flow available from the Help menu.
 
 ---
 
@@ -60,11 +108,30 @@ shortcuts *launch* them.
 |---|---|---|
 | ⌘⇧A | Toggle agent dashboard | Left side; mutex with SSH manager |
 | ⌘⇧S | Toggle SSH manager | Left side; mutex with agent dashboard |
+| ⌘⇧C | Toggle Claude Sessions | Left side; browse and resume local Claude projects |
 | ⌘⇧N | Toggle notes panel | Right side; per-session content |
 | ⌘⇧L | Toggle light / dark theme | Persists for the session |
 
 The left slot holds at most one sidebar — opening one closes the
 other. Closing both reclaims ~280 px of terminal real estate.
+
+Inside the Agent Dashboard, an intentional ⌘⇧A open focuses New Agent
+Pane when no agents are running, or the first running agent mapped to a
+terminal pane. Return or Space launches the empty-state action or jumps
+to the mapped pane; in a git repo, Tab also reaches New Agent Worktree.
+Routine sidebar refreshes do not reclaim focus.
+
+Inside the SSH manager, an intentional ⌘⇧S open moves focus to the
+first useful action: Import for an empty list, or the first saved host.
+Use Tab/Shift-Tab to move and Return or Space to connect. Tab once more
+to the host's Actions menu for Edit/Delete. In the host form, Hostname
+receives focus; Return saves a valid host and Escape cancels. Validation
+returns focus to the field that needs attention.
+
+Inside Claude Sessions, an intentional ⌘⇧C open focuses New Agent Pane
+when no sessions exist, or Filter sessions when the list is populated.
+Tab reaches resumable sessions and their Actions menus for Open Shell Here.
+Refreshes and restored sidebar state do not take focus away from the terminal.
 
 ---
 

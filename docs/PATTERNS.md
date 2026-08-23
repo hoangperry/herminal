@@ -235,23 +235,15 @@ claims something. Promote uncertainty by labelling broadly, then
 narrow as data accrues.
 
 ```swift
-// M8/A2 ships this — `any bell anywhere → all agents promoted to .needsInput`.
-let anyBell = surfaceAddresses.contains {
-    BellRegistry.shared.hasRecentBell(forSurfaceAddress: $0)
-}
-let final = anyBell
-    ? annotated.map { agent in
-        guard agent.status == .idle || agent.status == .running else { return agent }
-        return DetectedAgent(..., status: .needsInput)
-    }
-    : annotated
-```
-
-```swift
-// M9/A3 ships per-tab attribution — promotion now CARRIES tabHint
-// through so the user sees both `needs input` AND the tab number.
+// Pair agents to flattened live panes, then scope each bell to that pane.
+// Only an unmapped agent uses the conservative any-bell fallback.
 let mapped = AgentPaneMapper.annotate(annotated,
                                       sessionStartTimes: sessionStarts)
+let final = AgentPaneMapper.promoteOnBell(
+    mapped,
+    bellAddresses: recentBellAddresses,
+    addressesByTab: addressesByPaneIndex
+)
 ```
 
 **Existing hits:** `AgentStatusTracker` first-sighting `.unknown`,

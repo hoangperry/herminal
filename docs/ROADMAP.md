@@ -37,6 +37,8 @@ Every PRD v1 feature plus the post-MVP workspace and session waves:
   signals
 - Per-tab attribution: each detected agent shows the tab number
   hosting its PTY
+- Filter by tool, process, status, or pane with keyboard focus and
+  VoiceOver result announcements
 
 ### SSH manager
 - Local SQLite store; add / edit / delete with inline form
@@ -44,6 +46,7 @@ Every PRD v1 feature plus the post-MVP workspace and session waves:
   libghostty `config.command`
 - One-click import from `~/.ssh/config`
 - Recency-sorted sidebar
+- Filter by nickname, host, user, or port with clear no-match recovery
 
 ### Per-session notes
 - SQLite WAL store; autosave; per-session isolation
@@ -89,9 +92,10 @@ input signal arrives that confirms the work's shape.
 
 ### Theme B — SSH manager v1 (slice 1 shipped)
 - **Shipped:** `~/.ssh/config` import
+- **Shipped:** Search / filter by nickname, host, user, or port, including
+  keyboard-first focus and clear no-match recovery
 - **Deferred:** Groups / folders (wait: how many hosts before
   flat list hurts?)
-- **Deferred:** Search / filter (same — usability gate)
 - **Deferred:** Per-host keypair UI (security review needed
   first; .ssh/config is the canonical source today)
 
@@ -122,7 +126,7 @@ Retro: `docs/backlog/v0.4-sessions-retrospective.md`.
   spawn (v0.4.0 foundation)
 - **Shipped:** Claude session browser (⌘⇧C) — reads
   `~/.claude/projects`, one-click `claude --resume` in the right cwd
-  (v0.4.0)
+  (v0.4.0), with filtering by project, path, or Git branch
 - **Shipped:** Session restore — last layout + per-pane cwd reopened
   on launch, toggle in Settings (v0.4.1)
 - **Shipped:** Named workspaces — save/open/delete layouts via the

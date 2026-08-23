@@ -101,11 +101,11 @@ Shipped in [`v1.0.0`](https://github.com/hoangperry/herminal/releases/tag/v1.0.0
 - [x] Native terminal core via libghostty (Metal renderer, p95 keystroke <5ms)
 - [x] Vietnamese IME bridge with automated Tab/preedit regressions; live Telex/VNI release gate pending¹
 - [x] Multi-session workspace: tmux-style recursive splits, drag-to-resize dividers, directional pane focus, pane zoom
-- [x] Agent dashboard: running / idle / starting / needs-input badges, npx/python wrapper detection, per-tab attribution
+- [x] Agent dashboard: running / idle / starting / needs-input badges, npx/python wrapper detection, per-pane attribution, accessible filtering
 - [x] Agent worktree cockpit — ⌘⌥W spawns an agent in an isolated git worktree
-- [x] Session continuity: restore-on-launch, named workspaces, Claude session browser (⌘⇧C → `claude --resume`)
+- [x] Session continuity: restore-on-launch, named workspaces, filterable Claude session browser (⌘⇧C → `claude --resume`)
 - [x] Per-session notes (SQLite WAL) with Markdown round-trip
-- [x] SSH Connection Manager with one-click spawn + `~/.ssh/config` import
+- [x] SSH Connection Manager with one-click spawn, `~/.ssh/config` import, and host filtering
 - [x] Dark + light chrome with follow-system (Raycast/Linear style)
 - [x] tmux compatibility verified against vim, less, htop, fzf, lazygit, btop, starship
 - [x] Telemetry-free local crash diary with redacted export
@@ -118,8 +118,10 @@ The full T1–T7 visual matrix still wants an owner pass — see
 [issue #2](https://github.com/hoangperry/herminal/issues/2).
 
 Still deferred — see [docs/ROADMAP.md](docs/ROADMAP.md) for the feedback
-gates: groups / search / per-host keypair UI in the SSH manager, Sparkle
-auto-update (wiring stub only today), App Store distribution
+gates: groups / folders and per-host keypair UI in the SSH manager, Sparkle
+auto-update (today the app's manual **Check for Updates…** action opens the
+official GitHub releases page; automatic Sparkle checks are still stub-only),
+App Store distribution
 (sandbox-incompatible by design), Linux / Windows.
 
 ## Install
