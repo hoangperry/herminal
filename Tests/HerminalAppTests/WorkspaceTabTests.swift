@@ -273,6 +273,17 @@ struct WorkspaceTabTests {
         #expect(tab.snapshot().panes.isEmpty)
     }
 
+    @Test("bell promotion ignores retained exited pane surfaces")
+    func bellPromotionIgnoresExitedPaneSurfaces() {
+        let addresses = WorkspaceView.liveBellSurfaceAddresses(from: [
+            (address: 0x1000, hasExited: false),
+            (address: 0x2000, hasExited: true),
+            (address: nil, hasExited: false),
+        ])
+
+        #expect(addresses == [0x1000])
+    }
+
     @Test("snapshot pruning preserves only live panes and a valid layout")
     func snapshotPrunesExitedPane() throws {
         let tab = WorkspaceTab(app: dummyApp, command: "ssh ops@host")

@@ -1067,7 +1067,9 @@ final class WorkspaceView: NSView {
         // to the mapped live pane; only unmapped agents use the conservative
         // any-bell fallback so a stalled agent is not silently missed.
         let bellAddresses = Set(
-            surfaceAddresses.filter { BellRegistry.shared.hasRecentBell(forSurfaceAddress: $0) }
+            liveSurfaceAddresses.filter {
+                BellRegistry.shared.hasRecentBell(forSurfaceAddress: $0)
+            }
         )
         // Ask the mapper for flattened live-pane indices. Creation order and
         // the caller's flat live-pane order share the same index domain.
@@ -1226,12 +1228,25 @@ final class WorkspaceView: NSView {
         currentRequestID == consumedRequestID ? nil : currentRequestID
     }
 
-    /// All libghostty surface addresses across every tab + every pane.
-    /// Used by the bell-needs-input promotion in `refreshAgents()`.
-    private var surfaceAddresses: [Int] {
-        tabs.flatMap { tab in
-            tab.panes.compactMap { $0.surfaceView.surfaceAddress }
+    /// Filters bell candidates to surfaces whose PTY is still live. Retained
+    /// exited panes may keep their surface object while notes are recoverable,
+    /// but their old bell must not trigger the unmapped-agent fallback.
+    nonisolated static func liveBellSurfaceAddresses(
+        from candidates: [(address: Int?, hasExited: Bool)]
+    ) -> [Int] {
+        candidates.compactMap { candidate in
+            candidate.hasExited ? nil : candidate.address
         }
+    }
+
+    /// Live libghostty surface addresses across every tab + pane. Used by the
+    /// bell-needs-input promotion in `refreshAgents()`.
+    private var liveSurfaceAddresses: [Int] {
+        Self.liveBellSurfaceAddresses(
+            from: tabs.flatMap(\.panes).map { pane in
+                (pane.surfaceView.surfaceAddress, pane.hasExited)
+            }
+        )
     }
 
     // MARK: - Status bar snapshot (M12-P2)
