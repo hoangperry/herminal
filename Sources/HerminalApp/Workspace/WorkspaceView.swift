@@ -19,6 +19,114 @@ final class WorkspaceView: NSView {
     private static let claudePanelWidth: CGFloat = 300
     private static let notesWidth: CGFloat = 280
 
+    enum RefreshFocusPolicy: Equatable {
+        case activePane
+        case tabBar(TabBarView.FocusTarget)
+
+        var focusesActivePane: Bool {
+            self == .activePane
+        }
+
+        var tabBarTarget: TabBarView.FocusTarget? {
+            guard case let .tabBar(target) = self else { return nil }
+            return target
+        }
+    }
+
+    struct TabBarFocusRetention {
+        private(set) var target: TabBarView.FocusTarget?
+        private(set) var generation = 0
+
+        mutating func beginRebuild(
+            requestedTarget: TabBarView.FocusTarget? = nil
+        ) -> Int {
+            if let requestedTarget {
+                target = requestedTarget
+            }
+            generation += 1
+            return generation
+        }
+
+        mutating func focusDidChange(
+            _ changedTarget: TabBarView.FocusTarget,
+            isFocused: Bool,
+            generation changedGeneration: Int
+        ) {
+            guard changedGeneration == generation else { return }
+            if isFocused {
+                target = changedTarget
+            } else if target == changedTarget {
+                target = nil
+            }
+        }
+
+        mutating func clear() {
+            target = nil
+        }
+    }
+
+    nonisolated static func activeTabIndexAfterClosing(
+        closedIndex: Int,
+        activeIndex: Int,
+        remainingCount: Int
+    ) -> Int {
+        guard remainingCount > 0 else { return 0 }
+        if closedIndex < activeIndex {
+            return max(activeIndex - 1, 0)
+        }
+        if closedIndex == activeIndex {
+            return min(closedIndex, remainingCount - 1)
+        }
+        return min(activeIndex, remainingCount - 1)
+    }
+
+    enum CloseTabOutcome: Equatable {
+        case closeWindow
+        case keepWorkspace(activeIndex: Int, focusPolicy: RefreshFocusPolicy)
+    }
+
+    nonisolated static func closeTabOutcome(
+        closedIndex: Int,
+        activeIndex: Int,
+        remainingTabIDs: [UUID],
+        retainTabBarFocus: Bool
+    ) -> CloseTabOutcome {
+        guard !remainingTabIDs.isEmpty else { return .closeWindow }
+        let nextActiveIndex = activeTabIndexAfterClosing(
+            closedIndex: closedIndex,
+            activeIndex: activeIndex,
+            remainingCount: remainingTabIDs.count
+        )
+        let focusPolicy: RefreshFocusPolicy = retainTabBarFocus
+            ? .tabBar(.tab(remainingTabIDs[nextActiveIndex]))
+            : .activePane
+        return .keepWorkspace(activeIndex: nextActiveIndex, focusPolicy: focusPolicy)
+    }
+
+    @discardableResult
+    @MainActor
+    static func reuseExistingSearchOverlay(
+        hasOverlay: Bool,
+        sameTarget: Bool,
+        state: SearchOverlayState?
+    ) -> Bool {
+        guard hasOverlay, sameTarget, let state else { return false }
+        state.requestFieldFocus()
+        return true
+    }
+
+    @MainActor
+    static func searchNavigationIsEnabled(
+        hasOverlay: Bool,
+        state: SearchOverlayState?
+    ) -> Bool {
+        guard hasOverlay, let state else { return false }
+        return SearchOverlayView.matchNavigationIsEnabled(
+            needle: state.needle,
+            total: state.total
+        )
+    }
+
     /// At most one widget occupies the left sidebar — agents, SSH, and the
     /// Claude session browser share the slot so the surface always gets
     /// the maximum content width.
@@ -31,12 +139,15 @@ final class WorkspaceView: NSView {
 
     private let app: ghostty_app_t
     private let notesStore: NotesStore
+    private let notesStorageIsDurable: Bool
     private let sshHostsStore: SSHHostsStore
+    private let sshHostsStorageIsDurable: Bool
     private let agentStatusTracker = AgentStatusTracker()
     private var tabs: [WorkspaceTab] = []
     private var activeTabIndex = 0
 
     private let tabHost: NSHostingView<TabBarView>
+    private var tabBarFocusRetention = TabBarFocusRetention()
     private let surfaceContainer: NSView
     private let dashboardHost: NSHostingView<AgentDashboardView>
     private let sshPanelHost: NSHostingView<AnyView>
@@ -59,9 +170,10 @@ final class WorkspaceView: NSView {
     /// removed (and nil'd) after the user dismisses. Stays nil forever
     /// after that on every subsequent launch. (M12-P3)
     private var welcomeOverlay: NSHostingView<WelcomeOverlayView>?
-    /// Per-pane ⌘F search overlay state. Lives across show/hide so a
-    /// re-open restores the last needle (matches Safari + Chrome
-    /// muscle memory). The host is nil'd when search ends. (v0.3.2.)
+    /// Active ⌘F search overlay state for the currently bound pane.
+    /// While the overlay is visible, repeated ⌘F reuses this state and
+    /// returns focus to the query field. Dismissal tears down the state,
+    /// host, and binding subscription together.
     private var searchOverlayState: SearchOverlayState?
     private var searchOverlayHost: NSHostingView<SearchOverlayView>?
     /// View whose `searchState` the overlay is bound to — used by the
@@ -80,6 +192,12 @@ final class WorkspaceView: NSView {
     /// the status bar needs it even when the panel is closed.
     private var latestAgentCount: Int = 0
     private var latestDisplayedAgents: [DetectedAgent] = []
+    private var pendingAgentDashboardFocusRequestID: UUID?
+    private var sshImportState = SSHImportState()
+    private let sidebarFilterState: SidebarFilterState
+    /// Failed autosaves survive SwiftUI host rebuilds (theme changes, tab
+    /// refreshes, and focus changes). Successful saves are never cached here.
+    private var notesPanelRecoveries: [UUID: NotesPanelRecovery] = [:]
     /// Last `git worktree list` for the focused pane. Refreshed when the
     /// dashboard opens, cwd changes, or the user adds/removes a worktree
     /// — never on the 2s agent poll.
@@ -95,6 +213,9 @@ final class WorkspaceView: NSView {
     private var tmuxAvailable = false
     /// Discards stale async `tmux list-sessions` results.
     private var tmuxRefreshGeneration = 0
+    /// Discards stale async Claude session scans so an older
+    /// focus-bearing refresh cannot land after a newer passive refresh.
+    private var claudePanelRefreshGate = ClaudePanelRefreshGate()
     private var lastTmuxRefreshAt: Date?
     /// Gates session-restore persistence. False during init + restore so
     /// the default/launch tab churn doesn't clobber the saved snapshot;
@@ -102,16 +223,31 @@ final class WorkspaceView: NSView {
     /// (v0.4.1.)
     private var sessionPersistenceEnabled = false
 
-    init(app: ghostty_app_t, notesStore: NotesStore, sshHostsStore: SSHHostsStore) {
+    init(
+        app: ghostty_app_t,
+        notesStore: NotesStore,
+        notesStorageIsDurable: Bool = true,
+        sshHostsStore: SSHHostsStore,
+        sshHostsStorageIsDurable: Bool = true
+    ) {
         self.app = app
         self.notesStore = notesStore
+        self.notesStorageIsDurable = notesStorageIsDurable
         self.sshHostsStore = sshHostsStore
+        self.sshHostsStorageIsDurable = sshHostsStorageIsDurable
         self.surfaceContainer = NSView(frame: .zero)
         self.tabHost = NSHostingView(rootView: TabBarView(
             tabs: [], activeID: nil,
             onSelect: { _ in }, onClose: { _ in }, onNew: {}
         ))
-        self.dashboardHost = NSHostingView(rootView: AgentDashboardView(agents: []))
+        let sidebarFilterState = SidebarFilterState()
+        self.sidebarFilterState = sidebarFilterState
+        self.dashboardHost = NSHostingView(
+            rootView: AgentDashboardView(
+                agents: [],
+                filterState: sidebarFilterState
+            )
+        )
         self.sshPanelHost = NSHostingView(rootView: AnyView(EmptyView()))
         self.claudePanelHost = NSHostingView(rootView: AnyView(EmptyView()))
         self.notesHost = NSHostingView(rootView: AnyView(EmptyView()))
@@ -543,9 +679,13 @@ final class WorkspaceView: NSView {
                 return made
             }()
             divider.isVertical = spec.isVertical
+            divider.ratio = activeTab?.ratio(ofSplit: spec.id) ?? 0.5
             divider.frame = spec.rect
             divider.onDrag = { [weak self] delta in
                 self?.resizeSplit(spec.id, byPointDelta: delta, isVertical: spec.isVertical)
+            }
+            divider.onAdjustment = { [weak self] adjustment in
+                self?.adjustSplit(spec.id, adjustment: adjustment)
             }
             if divider.superview !== surfaceContainer {
                 surfaceContainer.addSubview(divider)
@@ -568,17 +708,40 @@ final class WorkspaceView: NSView {
         layoutPanes()
     }
 
+    /// Moves a focused divider by a stable ratio step, independent of the
+    /// window's current size. VoiceOver increment/decrement actions share
+    /// this path with keyboard arrows; Return/Space balances the split.
+    private func adjustSplit(_ id: UUID, adjustment: PaneDividerView.Adjustment) {
+        guard let tab = activeTab, let current = tab.ratio(ofSplit: id) else { return }
+        tab.adjustRatio(
+            splitID: id,
+            to: PaneDividerView.targetRatio(from: current, adjustment: adjustment)
+        )
+        layoutPanes()
+    }
+
     // MARK: - Tab management
 
     func addTab() {
+        addTab(focusPolicy: .activePane)
+    }
+
+    private func addTabFromTabBar() {
+        addTab(focusPolicy: .tabBar(.newTab))
+    }
+
+    private func addTab(focusPolicy: RefreshFocusPolicy) {
         // Open the new tab in the focused pane's directory (OSC 7), the way
         // Terminal.app / iTerm2 do — `⌘T` from ~/proj lands in ~/proj, not
         // home. nil (no cwd reported yet) falls back to the shell default.
         let inheritedCwd = activeTab?.focusedPane.surfaceView.currentWorkingDirectory
-        tabs.append(WorkspaceTab(app: app, workingDirectory: inheritedCwd))
+        tabs.append(WorkspaceTab(
+            app: app,
+            workingDirectory: inheritedCwd
+        ))
         activeTabIndex = tabs.count - 1
         Diary.shared.log("addTab — total=\(tabs.count)", category: "tabs")
-        refresh()
+        refresh(focusPolicy)
         persistWorkspaceIfReady()
     }
 
@@ -588,13 +751,21 @@ final class WorkspaceView: NSView {
     /// the session's working directory.
     func addTab(command: String, title: String, workingDirectory: String? = nil) {
         tabs.append(WorkspaceTab(
-            app: app, command: command, title: title, workingDirectory: workingDirectory
+            app: app,
+            command: command,
+            title: title,
+            workingDirectory: workingDirectory
         ))
         activeTabIndex = tabs.count - 1
         // Commands may contain session IDs, hostnames, or user-provided
         // arguments. Record only structural metadata in the local diary.
-        Diary.shared.log("addTab customCommand=\(!command.isEmpty) cwdSet=\(workingDirectory != nil)",
-                         category: "tabs")
+        Diary.shared.log(
+            Self.customTabDiaryMessage(
+                command: command,
+                workingDirectory: workingDirectory
+            ),
+            category: "tabs"
+        )
         refresh()
         persistWorkspaceIfReady()
     }
@@ -614,7 +785,7 @@ final class WorkspaceView: NSView {
     private func selectTab(id: UUID) {
         guard let index = tabs.firstIndex(where: { $0.id == id }) else { return }
         activeTabIndex = index
-        refresh()
+        refresh(.tabBar(.tab(id)))
     }
 
     private func closeTab(id: UUID) {
@@ -625,56 +796,159 @@ final class WorkspaceView: NSView {
         // Re-derive the live index by UUID AFTER the modal returns so we
         // don't close the wrong tab if `tabs` mutated underneath us.
         // (M12 review HIGH — security-reviewer finding 1.)
-        guard confirmCloseIfNoteExists(forSessionIDs: sessionIDs) else { return }
+        guard confirmCloseRisk(
+            forSessionIDs: sessionIDs,
+            action: .closeTab
+        ) else { return }
         guard let liveIndex = tabs.firstIndex(where: { $0.id == id }) else { return }
-        closeTabImmediately(at: liveIndex)
+        closeTabImmediately(at: liveIndex, retainTabBarFocus: true)
     }
 
     /// Removes the tab at `index` without prompting — internal helper for
     /// callers that have already done the M12-P4 note-confirmation check
     /// (e.g. `closeActivePane()` after it knows the tab will collapse).
-    private func closeTabImmediately(at index: Int) {
+    private func closeTabImmediately(at index: Int, retainTabBarFocus: Bool = false) {
+        let previousActiveTabIndex = activeTabIndex
         tabs.remove(at: index)
-        if tabs.isEmpty {
+        let outcome = Self.closeTabOutcome(
+            closedIndex: index,
+            activeIndex: previousActiveTabIndex,
+            remainingTabIDs: tabs.map(\.id),
+            retainTabBarFocus: retainTabBarFocus
+        )
+
+        switch outcome {
+        case .closeWindow:
             // Don't persist an empty workspace — the window is closing.
             // The last non-empty snapshot stays on disk for next launch.
             window?.close()
-            return
+        case .keepWorkspace(let nextActiveIndex, let focusPolicy):
+            activeTabIndex = nextActiveIndex
+            refresh(focusPolicy)
+            persistWorkspaceIfReady()
         }
-        activeTabIndex = min(activeTabIndex, tabs.count - 1)
-        refresh()
-        persistWorkspaceIfReady()
     }
 
     /// Returns true if it's safe to proceed with closing the panes
-    /// identified by `sessionIDs`. Shows a blocking NSAlert when (a) the
-    /// user has the confirmation preference enabled AND (b) at least
-    /// one of those sessions has a non-empty note body. (M12-P4 +
-    /// M12-review HIGH fix — signature now takes IDs instead of a whole
-    /// `WorkspaceTab` so single-pane closes inside a multi-pane tab
-    /// also benefit from the safety check.)
+    /// identified by `sessionIDs`. Notes honor the owner's preference;
+    /// mapped live agents and known long-lived launch commands always warn.
     ///
     /// Why NSAlert (not a SwiftUI sheet): the surface we'd attach the
     /// sheet to is the focused libghostty NSView, which doesn't host a
     /// SwiftUI environment. `NSAlert.runModal()` re-enters the main run
     /// loop while it's up — callers MUST re-derive any positional state
     /// (tab indices) after this method returns true.
-    private func confirmCloseIfNoteExists(forSessionIDs sessionIDs: [UUID]) -> Bool {
-        guard Preferences.confirmCloseWithNote else { return true }
-        let hasNote = sessionIDs.contains { sessionID in
-            guard let body = loadNote(sessionID)?.body else { return false }
-            return !body.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-        }
-        guard hasNote else { return true }
+    private func confirmCloseRisk(
+        forSessionIDs sessionIDs: [UUID],
+        action: CloseRiskAction
+    ) -> Bool {
+        let context = closeRiskContext(forSessionIDs: sessionIDs)
+        guard context.assessment.requiresConfirmation else { return true }
+        return presentCloseRiskAlert(context.assessment, action: action)
+    }
 
+    private func presentCloseRiskAlert(
+        _ assessment: CloseRiskAssessment,
+        action: CloseRiskAction
+    ) -> Bool {
+        let presentation = CloseRiskAlertPresentation(
+            action: action,
+            assessment: assessment
+        )
         let alert = NSAlert()
         alert.alertStyle = .warning
-        alert.messageText = "Close pane with notes?"
-        alert.informativeText = "This pane has notes attached. Closing it does not delete them from disk, but you won't see them in the UI again — the session ID is single-use."
-        alert.addButton(withTitle: "Close")
-        alert.addButton(withTitle: "Cancel")
+        alert.messageText = presentation.messageText
+        alert.informativeText = presentation.informativeText
+        alert.addButton(withTitle: presentation.defaultButtonTitle)
+        let destructiveButton = alert.addButton(
+            withTitle: presentation.destructiveButtonTitle
+        )
+        destructiveButton.hasDestructiveAction = true
         let response = alert.runModal()
-        return response == .alertFirstButtonReturn
+        return response == .alertSecondButtonReturn
+    }
+
+    func confirmCloseForWindow(action: CloseRiskAction) -> CloseRiskWindowDecision {
+        let context = closeRiskContext(
+            forSessionIDs: tabs.flatMap { $0.panes.map(\.id) }
+        )
+        guard context.assessment.requiresConfirmation else {
+            return CloseRiskWindowDecision(approved: true, approvedFingerprint: nil)
+        }
+        let approved = presentCloseRiskAlert(context.assessment, action: action)
+        return CloseRiskWindowDecision(
+            approved: approved,
+            approvedFingerprint: approved ? context.fingerprint : nil
+        )
+    }
+
+    func closeRiskFingerprint() -> CloseRiskFingerprint {
+        closeRiskContext(
+            forSessionIDs: tabs.flatMap { $0.panes.map(\.id) }
+        ).fingerprint
+    }
+
+    private struct CloseRiskContext {
+        let sessions: [CloseRiskSession]
+        let includeNotes: Bool
+
+        var assessment: CloseRiskAssessment {
+            CloseRiskAssessment.assess(sessions, includeNotes: includeNotes)
+        }
+
+        var fingerprint: CloseRiskFingerprint {
+            CloseRiskFingerprint(sessions: Set(sessions), includeNotes: includeNotes)
+        }
+    }
+
+    private func closeRiskContext(forSessionIDs sessionIDs: [UUID]) -> CloseRiskContext {
+        let targetIDs = Set(sessionIDs)
+        let includeNotes = Preferences.confirmCloseWithNote
+        guard !targetIDs.isEmpty else {
+            return CloseRiskContext(sessions: [], includeNotes: includeNotes)
+        }
+
+        let allSessions = tabs.flatMap(\.panes)
+        let activeSessions = tabs.flatMap(\.livePanes)
+        let mappedAgents = AgentPaneMapper.annotate(
+            AgentDetector.detectAgents(),
+            sessionStartTimes: activeSessions.map(\.createdAt)
+        )
+        let mappedAgentSessionIDs = Set<UUID>(mappedAgents.compactMap { agent in
+            guard let index = agent.tabHint,
+                  activeSessions.indices.contains(index) else { return nil }
+            return activeSessions[index].id
+        })
+        let riskSessions = allSessions
+            .filter { targetIDs.contains($0.id) }
+            .map { session in
+                CloseRiskSession(
+                    id: session.id,
+                    hasNote: includeNotes && sessionHasNote(session.id),
+                    spawnedCommand: session.closeRiskCommand,
+                    hasMappedAgent: !session.hasExited
+                        && mappedAgentSessionIDs.contains(session.id),
+                    hasLiveProcess: !session.hasExited
+                        && session.surfaceView.surface.map(
+                            ghostty_surface_needs_confirm_quit
+                        ) == true
+                )
+            }
+        return CloseRiskContext(sessions: riskSessions, includeNotes: includeNotes)
+    }
+
+    private func sessionHasNote(_ sessionID: UUID) -> Bool {
+        if let recovery = notesPanelRecoveries[sessionID],
+           !recovery.state.draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            return true
+        }
+        switch loadNoteResult(sessionID) {
+        case .success(let note):
+            guard let body = note?.body else { return false }
+            return !body.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        case .failure:
+            return true
+        }
     }
 
     // MARK: - Split / pane management
@@ -705,7 +979,7 @@ final class WorkspaceView: NSView {
     private var tmuxAttachedHere: Set<String> {
         Set(tabs.flatMap { tab in
             tab.panes.compactMap { pane in
-                pane.command.flatMap(TmuxLaunch.sessionName(fromSpawnCommand:))
+                pane.closeRiskCommand.flatMap(TmuxLaunch.sessionName(fromSpawnCommand:))
             }
         })
     }
@@ -722,12 +996,12 @@ final class WorkspaceView: NSView {
         return false
     }
 
-    /// `tabHint` from AgentPaneMapper is a flattened pane index
-    /// (`tabs.flatMap(\.panes)`), not a tab strip index.
+    /// `tabHint` from AgentPaneMapper is a flattened live-pane index,
+    /// not a tab strip index. Retained exited panes are intentionally skipped.
     func focusSession(flatIndex: Int) {
         var i = 0
         for (tabIndex, tab) in tabs.enumerated() {
-            for pane in tab.panes {
+            for pane in tab.livePanes {
                 if i == flatIndex {
                     activeTabIndex = tabIndex
                     tab.focusPane(id: pane.id)
@@ -751,13 +1025,19 @@ final class WorkspaceView: NSView {
         // the post-hoc check at closeTab() never fires for non-final
         // panes. (M12 review HIGH — code-reviewer finding 2.)
         let focusedID = tab.focusedPane.id
-        guard confirmCloseIfNoteExists(forSessionIDs: [focusedID]) else { return }
-        if tab.closeFocusedPane() {
+        guard confirmCloseRisk(
+            forSessionIDs: [focusedID],
+            action: .closePane
+        ) else { return }
+        guard let liveTab = tabs.first(where: { $0.id == tab.id }),
+              liveTab.panes.contains(where: { $0.id == focusedID }) else { return }
+        liveTab.focusPane(id: focusedID)
+        if liveTab.closeFocusedPane() {
             Diary.shared.log("closeActivePane → active tab empty, closing tab", category: "panes")
-            guard let index = tabs.firstIndex(where: { $0.id == tab.id }) else { return }
+            guard let index = tabs.firstIndex(where: { $0.id == liveTab.id }) else { return }
             closeTabImmediately(at: index)
         } else {
-            Diary.shared.log("closeActivePane remaining=\(tab.panes.count)", category: "panes")
+            Diary.shared.log("closeActivePane remaining=\(liveTab.panes.count)", category: "panes")
             refresh()
             persistWorkspaceIfReady()
         }
@@ -793,25 +1073,37 @@ final class WorkspaceView: NSView {
         let bellAddresses = Set(
             surfaceAddresses.filter { BellRegistry.shared.hasRecentBell(forSurfaceAddress: $0) }
         )
-        let anyBell = !bellAddresses.isEmpty
-
         // M9/A3: ask the mapper for tab indices. Session creation order =
         // tab order in the current single-axis layout.
-        let sessionStarts = tabs.flatMap { $0.panes.map { $0.createdAt } }
+        let sessionStarts = tabs.flatMap { $0.livePanes.map { $0.createdAt } }
         let mapped = AgentPaneMapper.annotate(annotated,
                                               sessionStartTimes: sessionStarts)
 
-        let final: [DetectedAgent] = mapped.map { agent in
-            guard anyBell else { return agent }
-            guard agent.status == .idle || agent.status == .running else { return agent }
-            return DetectedAgent(
-                id: agent.pid, kind: agent.kind,
-                processName: agent.processName,
-                status: .needsInput,
-                tabHint: agent.tabHint
-            )
-        }
+        // `tabHint` is a flattened live-pane index. Build the address map in
+        // that exact order so a bell in pane 2 of a split tab cannot promote
+        // an agent in pane 1 or in the next tab.
+        let addressesByPaneIndex = Dictionary(
+            uniqueKeysWithValues: tabs
+                .flatMap(\.livePanes)
+                .enumerated()
+                .map { index, pane in
+                    (
+                        index,
+                        Set(pane.surfaceView.surfaceAddress.map { [$0] } ?? [])
+                    )
+                }
+        )
+        let final = AgentPaneMapper.promoteOnBell(
+            mapped,
+            bellAddresses: bellAddresses,
+            addressesByTab: addressesByPaneIndex
+        )
         latestDisplayedAgents = final
+        pendingAgentDashboardFocusRequestID = AgentDashboardView.retainedInitialFocusRequestID(
+            pendingAgentDashboardFocusRequestID,
+            agents: final,
+            query: sidebarFilterState.agentDashboardQuery
+        )
         dashboardHost.rootView = makeAgentDashboard(agents: final)
     }
 
@@ -896,9 +1188,18 @@ final class WorkspaceView: NSView {
     func makeAgentDashboard(agents: [DetectedAgent]) -> AgentDashboardView {
         return AgentDashboardView(
             agents: agents,
+            filterState: sidebarFilterState,
+            initialFocusRequestID: pendingAgentDashboardFocusRequestID,
             worktrees: worktreeEntries,
             inGitRepo: worktreesInGitRepo,
             primaryWorktreePath: primaryWorktreePath,
+            onInitialFocusConsumed: { [weak self] requestID in
+                guard let self else { return }
+                self.pendingAgentDashboardFocusRequestID = Self.agentDashboardFocusRequestID(
+                    self.pendingAgentDashboardFocusRequestID,
+                    afterConsuming: requestID
+                )
+            },
             onSelectAgent: { [weak self] agent in
                 if let hint = agent.tabHint { self?.focusSession(flatIndex: hint) }
             },
@@ -922,6 +1223,13 @@ final class WorkspaceView: NSView {
         )
     }
 
+    nonisolated static func agentDashboardFocusRequestID(
+        _ currentRequestID: UUID?,
+        afterConsuming consumedRequestID: UUID
+    ) -> UUID? {
+        currentRequestID == consumedRequestID ? nil : currentRequestID
+    }
+
     /// All libghostty surface addresses across every tab + every pane.
     /// Used by the bell-needs-input promotion in `refreshAgents()`.
     private var surfaceAddresses: [Int] {
@@ -940,7 +1248,7 @@ final class WorkspaceView: NSView {
         // the surface (branch recomputed only on cd) — no filesystem I/O
         // on the 1 Hz tick, just two string reads.
         let surface = activeTab?.focusedPane.surfaceView
-        let cwd = surface?.currentWorkingDirectory.map { PathLabel.abbreviateHome($0) }
+        let cwd = surface?.currentWorkingDirectory
         return StatusSnapshot(
             agentCount: latestAgentCount,
             latencyP95: LatencyProbe.shared.snapshotP95Milliseconds(),
@@ -971,10 +1279,39 @@ final class WorkspaceView: NSView {
 
     private func dismissWelcomeOverlay() {
         guard let overlay = welcomeOverlay else { return }
-        overlay.removeFromSuperview()
+        let focusTarget = activeTab?.focusedPane.surfaceView
+        // Clear ownership before invoking callbacks so a duplicate action
+        // cannot persist onboarding twice while the first dismissal is still
+        // unwinding through SwiftUI/AppKit.
         welcomeOverlay = nil
-        Preferences.markFirstRunCompleted()
+        tabBarFocusRetention.clear()
+        guard Self.completeWelcomeOverlayDismissal(
+            overlay: overlay,
+            window: window,
+            returningFocusTo: focusTarget,
+            markCompleted: Preferences.markFirstRunCompleted
+        ) else { return }
         Diary.shared.log("welcome overlay dismissed", category: "ui")
+    }
+
+    /// AppKit boundary shared by production and the responder-chain regression
+    /// test. The overlay must still be installed; that makes dismissal
+    /// idempotent and prevents a repeated Escape/default-button callback from
+    /// consuming one-shot onboarding more than once.
+    @discardableResult
+    static func completeWelcomeOverlayDismissal(
+        overlay: NSView?,
+        window: NSWindow?,
+        returningFocusTo focusTarget: NSView?,
+        markCompleted: () -> Void
+    ) -> Bool {
+        guard let overlay, overlay.superview != nil else { return false }
+        overlay.removeFromSuperview()
+        markCompleted()
+        if let focusTarget {
+            window?.makeFirstResponder(focusTarget)
+        }
+        return true
     }
 
     /// Resolves the user-facing theme label, including the "(system)" tag
@@ -992,25 +1329,47 @@ final class WorkspaceView: NSView {
 
     // MARK: - Claude sessions panel (v0.4-S1)
 
-    private func refreshClaudePanel() {
+    struct ClaudePanelRefreshGate {
+        private(set) var latestGeneration = 0
+
+        mutating func beginRefresh() -> Int {
+            latestGeneration += 1
+            return latestGeneration
+        }
+
+        func shouldApply(_ generation: Int) -> Bool {
+            generation == latestGeneration
+        }
+    }
+
+    private func refreshClaudePanel(initialFocusRequestID: UUID? = nil) {
         // Scanning ~/.claude/projects (a dir stat + 16 KB read per project)
         // is filesystem I/O — keep it off the main thread so a user with
         // hundreds of projects doesn't see the sidebar jank on open / theme
         // change / prefs change. Hop back to MainActor to swap the view.
         // (v0.4.3 review HIGH-4.)
+        let refreshGeneration = claudePanelRefreshGate.beginRefresh()
         Task { [weak self] in
             let sessions = await Task.detached(priority: .utility) {
                 ClaudeSessionStore.recentProjects()
             }.value
-            guard let self else { return }
-            self.claudePanelHost.rootView = AnyView(
-                ClaudeSessionsPanel(
-                    sessions: sessions,
-                    onResume: { [weak self] session in self?.resumeClaude(session) },
-                    onOpenShell: { [weak self] session in self?.openShell(in: session.cwd, title: session.projectName) },
-                    onRefresh: { [weak self] in self?.refreshClaudePanel() }
+            await MainActor.run {
+                guard let self else { return }
+                guard self.claudePanelRefreshGate.shouldApply(refreshGeneration) else { return }
+                self.claudePanelHost.rootView = AnyView(
+                    ClaudeSessionsPanel(
+                        sessions: sessions,
+                        filterState: self.sidebarFilterState,
+                        initialFocusRequestID: initialFocusRequestID,
+                        onResume: { [weak self] session in self?.resumeClaude(session) },
+                        onOpenShell: { [weak self] session in
+                            self?.openShell(in: session.cwd, title: session.projectName)
+                        },
+                        onNewAgentPane: { [weak self] in self?.newAgentPane(nil) },
+                        onRefresh: { [weak self] in self?.refreshClaudePanel() }
+                    )
                 )
-            )
+            }
         }
     }
 
@@ -1027,7 +1386,9 @@ final class WorkspaceView: NSView {
         )
     }
 
-    /// Opens a plain login shell already cd'd into `cwd`.
+    /// Opens a plain shell pane already cd'd into `cwd`. With no shell
+    /// override this is the macOS login shell; otherwise the validated
+    /// override bootstraps after launch.
     private func openShell(in cwd: String, title: String) {
         Diary.shared.log("open project shell requested", category: "claude")
         addTab(command: "", title: title, workingDirectory: cwd)
@@ -1048,14 +1409,20 @@ final class WorkspaceView: NSView {
         }
     }
 
-    private func refreshSSHPanel() {
+    private func refreshSSHPanel(initialFocusRequestID: UUID? = nil) {
         let hosts = loadHosts()
         sshPanelHost.rootView = AnyView(
             SSHHostsPanel(
                 hosts: hosts,
+                storageIsDurable: sshHostsStorageIsDurable,
+                filterState: sidebarFilterState,
+                importFeedback: sshImportState.feedback,
+                initialFocusRequestID: initialFocusRequestID,
                 onConnect: { [weak self] host in self?.connectSSH(host) },
                 onSave: { [weak self] host in self?.saveSSHHost(host) },
-                onDelete: { [weak self] id in self?.deleteSSHHost(id: id) }
+                onDelete: { [weak self] id in self?.deleteSSHHost(id: id) },
+                onImportConfig: { [weak self] in self?.importSSHConfig(nil) },
+                onDismissImportFeedback: { [weak self] in self?.dismissSSHImportFeedback() }
             )
         )
     }
@@ -1063,10 +1430,11 @@ final class WorkspaceView: NSView {
     private func saveSSHHost(_ host: SSHHost) {
         do {
             try sshHostsStore.upsert(host)
+            sshImportState.clearAfterManualHostSave()
         } catch {
             Self.sshLog.error("host save failed: \(error, privacy: .private(mask: .hash))")
         }
-        refreshSSHPanel()
+        refreshSSHPanel(initialFocusRequestID: UUID())
     }
 
     private func deleteSSHHost(id: UUID) {
@@ -1078,32 +1446,106 @@ final class WorkspaceView: NSView {
         refreshSSHPanel()
     }
 
-    /// M9/B: pull every concrete Host block from `~/.ssh/config` and
-    /// upsert them as SSHHost rows. Conflicts with existing rows are
-    /// resolved by generating fresh UUIDs (additive merge — no row
-    /// is silently rewritten). Errors land in the diary; success
-    /// updates the count and refreshes the panel.
+    private enum SSHConfigReadResult: Sendable {
+        case hosts([SSHHost])
+        case configMissing(path: String)
+        case fileTooLarge(bytes: Int)
+        case failed
+    }
+
+    /// M9/B: read and parse `~/.ssh/config` off the UI actor, then import
+    /// every concrete Host block in one transaction. The same typed feedback
+    /// reaches the panel whether the action started there, in the menu, or in
+    /// the command palette.
     @objc func importSSHConfig(_ sender: Any?) {
+        guard sshImportState.begin() else { return }
+
+        revealSSHPanelForImport()
+
+        Task { @MainActor [weak self] in
+            let result = await Task.detached(priority: .userInitiated) {
+                Self.readSSHConfig()
+            }.value
+            self?.finishSSHConfigImport(result)
+        }
+    }
+
+    private nonisolated static func readSSHConfig() -> SSHConfigReadResult {
         do {
-            let imported = try SSHConfigImporter.parseHosts()
-            for host in imported {
-                try sshHostsStore.upsert(host)
-            }
-            Diary.shared.log("imported \(imported.count) ssh hosts from ~/.ssh/config",
-                             category: "ssh")
-            // Pop the panel open so the user sees the result immediately.
-            if leftSidebar != .ssh {
-                leftSidebar = .ssh
-                animateSidebarChange()
-            } else {
-                refreshSSHPanel()
-            }
+            return .hosts(try SSHConfigImporter.parseHosts())
         } catch SSHConfigImporter.ImportError.fileMissing(let path) {
+            return .configMissing(path: path)
+        } catch SSHConfigImporter.ImportError.fileTooLarge(_, let bytes) {
+            return .fileTooLarge(bytes: bytes)
+        } catch {
+            return .failed
+        }
+    }
+
+    private func finishSSHConfigImport(_ result: SSHConfigReadResult) {
+        switch result {
+        case .hosts(let imported):
+            do {
+                try sshHostsStore.upsert(imported)
+                sshImportState.complete(with: .result(importedCount: imported.count))
+                Diary.shared.log("imported \(imported.count) ssh hosts from ~/.ssh/config",
+                                 category: "ssh")
+            } catch {
+                sshImportState.complete(with: .failed)
+                Diary.shared.log("ssh config import failed", category: "ssh")
+                Self.sshLog.error(
+                    "ssh config persistence failed: \(error, privacy: .private(mask: .hash))"
+                )
+            }
+        case .configMissing(let path):
+            sshImportState.complete(with: .configMissing)
             Diary.shared.log("ssh config not found", category: "ssh")
             Self.sshLog.info("ssh config not found at \(path, privacy: .private(mask: .hash))")
-        } catch {
+        case .fileTooLarge(let bytes):
+            sshImportState.complete(with: .fileTooLarge)
+            Diary.shared.log("ssh config is too large", category: "ssh")
+            Self.sshLog.info("ssh config exceeds import limit bytes=\(bytes)")
+        case .failed:
+            sshImportState.complete(with: .failed)
             Diary.shared.log("ssh config import failed", category: "ssh")
-            Self.sshLog.error("ssh config import failed: \(error, privacy: .private(mask: .hash))")
+            Self.sshLog.error("ssh config read failed")
+        }
+
+        if leftSidebar == .ssh {
+            refreshSSHPanel()
+            announceSSHImportFeedback(sshImportState.feedback)
+        }
+    }
+
+    private func revealSSHPanelForImport() {
+        let wasVisible = leftSidebar == .ssh
+        leftSidebar = .ssh
+        refreshSSHPanel()
+        announceSSHImportFeedback(sshImportState.feedback)
+        if !wasVisible {
+            animateSidebarChange()
+        }
+    }
+
+    private func announceSSHImportFeedback(_ feedback: SSHImportFeedback?) {
+        guard let feedback else { return }
+        let priority: NSAccessibilityPriorityLevel = feedback.isImporting ? .low : .medium
+        NSAccessibility.post(
+            element: sshPanelHost,
+            notification: .announcementRequested,
+            userInfo: [
+                .announcement: feedback
+                    .content(storageIsDurable: sshHostsStorageIsDurable)
+                    .accessibilityLabel,
+                .priority: priority.rawValue
+            ]
+        )
+    }
+
+    private func dismissSSHImportFeedback() {
+        sshImportState.dismiss()
+        if leftSidebar == .ssh {
+            refreshSSHPanel()
         }
     }
 
@@ -1113,7 +1555,7 @@ final class WorkspaceView: NSView {
     private func connectSSH(_ host: SSHHost) {
         let command = Self.sshCommand(for: host)
         Self.sshLog.info("opening ssh tab on port \(host.port)")
-        Diary.shared.log("ssh connect requested port=\(host.port)", category: "ssh")
+        Diary.shared.log(Self.sshConnectionDiaryMessage(for: host), category: "ssh")
         addTab(command: command, title: host.nickname)
         do {
             try sshHostsStore.touchLastConnected(id: host.id)
@@ -1137,6 +1579,17 @@ final class WorkspaceView: NSView {
         return "ssh -p \(host.port) \(target)"
     }
 
+    static func sshConnectionDiaryMessage(for host: SSHHost) -> String {
+        "ssh connect requested port=\(host.port)"
+    }
+
+    static func customTabDiaryMessage(
+        command: String,
+        workingDirectory: String?
+    ) -> String {
+        "addTab customCommand=\(!command.isEmpty) cwdSet=\(workingDirectory != nil)"
+    }
+
     /// Single-quote a shell argument, escaping any embedded single quotes.
     private static func quoted(_ value: String) -> String {
         let escaped = value.replacingOccurrences(of: "'", with: "'\\''")
@@ -1149,44 +1602,155 @@ final class WorkspaceView: NSView {
         subsystem: "com.hoangperry.herminal", category: "notes"
     )
 
-    /// Loads a session's note, logging (not swallowing) any storage error.
-    private func loadNote(_ sessionID: UUID) -> Note? {
+    /// Loads a session's note and preserves the distinction between "missing"
+    /// and "storage failed" so the UI can lock instead of overwriting unknown
+    /// content with a blank draft.
+    private func loadNoteResult(_ sessionID: UUID) -> Result<Note?, Error> {
         do {
-            return try notesStore.note(forSession: sessionID)
+            return .success(try notesStore.note(forSession: sessionID))
         } catch {
             Self.notesLog.error("note load failed: \(error, privacy: .private(mask: .hash))")
-            return nil
+            return .failure(error)
         }
     }
 
-    /// Persists a note, logging any storage error.
-    private func persistNote(_ note: Note) {
+    /// Persists a note and reports whether the configured store accepted it.
+    /// The panel separately explains whether that store is durable or transient.
+    private func persistNote(_ note: Note) -> Bool {
+        let writeSucceeded: Bool
         do {
             try notesStore.upsert(note)
+            writeSucceeded = true
         } catch {
             Self.notesLog.error("note save failed: \(error, privacy: .private(mask: .hash))")
+            writeSucceeded = false
         }
+        return NotesStoragePolicy.canReportSaveSuccess(writeSucceeded: writeSucceeded)
     }
 
     /// Loads the active session's note into the notes panel.
     private func updateNotesPanel() {
         guard isNotesVisible, let session = activeTab?.focusedPane else { return }
         let sessionID = session.id
-        let body = loadNote(sessionID)?.body ?? ""
         let title = activeTab?.title ?? "herminal"
+        let recovery = notesPanelRecoveries[sessionID]
+        switch loadNoteResult(sessionID) {
+        case .success(let loadedNote):
+            let now = Date()
+            installNotesPanel(
+                title: title,
+                sessionID: sessionID,
+                noteID: recovery?.noteID ?? loadedNote?.id ?? UUID(),
+                createdAt: recovery?.createdAt ?? loadedNote?.createdAt ?? now,
+                initialState: Self.preferredNotesPanelState(
+                    loadedNote: loadedNote,
+                    recovery: recovery
+                )
+            )
+        case .failure where recovery != nil:
+            let now = Date()
+            installNotesPanel(
+                title: title,
+                sessionID: sessionID,
+                noteID: recovery?.noteID ?? UUID(),
+                createdAt: recovery?.createdAt ?? now,
+                initialState: recovery?.state ?? .loadFailed
+            )
+        case .failure:
+            notesHost.rootView = AnyView(
+                NotesPanelView(
+                    sessionTitle: title,
+                    initialState: .loadFailed,
+                    storageIsDurable: notesStorageIsDurable,
+                    onReload: { [weak self] in self?.updateNotesPanel() }
+                ) { _ in
+                    false
+                }
+                .id(sessionID)
+            )
+        }
+    }
+
+    static func preferredNotesPanelState(
+        loadedNote: Note?,
+        recovery: NotesPanelRecovery?
+    ) -> NotesPanelView.AutosaveState {
+        recovery?.state ?? NotesPanelView.AutosaveState(draft: loadedNote?.body ?? "")
+    }
+
+    private func installNotesPanel(
+        title: String,
+        sessionID: UUID,
+        noteID: UUID,
+        createdAt: Date,
+        initialState: NotesPanelView.AutosaveState
+    ) {
         notesHost.rootView = AnyView(
-            NotesPanelView(sessionTitle: title, initialText: body) { [weak self] newText in
-                self?.saveNote(sessionID: sessionID, body: newText)
+            NotesPanelView(
+                sessionTitle: title,
+                initialState: initialState,
+                storageIsDurable: notesStorageIsDurable,
+                onReload: { [weak self] in self?.updateNotesPanel() },
+                onSaveFailure: { [weak self] in self?.announceNoteSaveFailure() },
+                onStateChange: { [weak self] state in
+                    self?.retainNotesPanelRecovery(
+                        state,
+                        sessionID: sessionID,
+                        noteID: noteID,
+                        createdAt: createdAt
+                    )
+                }
+            ) { [weak self] newText in
+                self?.saveNote(
+                    id: noteID,
+                    sessionID: sessionID,
+                    createdAt: createdAt,
+                    body: newText
+                ) ?? false
             }
             .id(sessionID)
         )
     }
 
-    private func saveNote(sessionID: UUID, body: String) {
-        var note = loadNote(sessionID) ?? Note(sessionID: sessionID)
-        note.body = body
-        note.updatedAt = Date()
-        persistNote(note)
+    private func retainNotesPanelRecovery(
+        _ state: NotesPanelView.AutosaveState,
+        sessionID: UUID,
+        noteID: UUID,
+        createdAt: Date
+    ) {
+        notesPanelRecoveries[sessionID] = NotesPanelRecovery.retainingAtRisk(
+            state,
+            storageIsDurable: notesStorageIsDurable,
+            noteID: noteID,
+            createdAt: createdAt
+        )
+    }
+
+    private func pruneNotesPanelRecoveries() {
+        let liveSessionIDs = Set(tabs.flatMap { $0.panes.map(\.id) })
+        notesPanelRecoveries = notesPanelRecoveries.filter { liveSessionIDs.contains($0.key) }
+    }
+
+    private func saveNote(id: UUID, sessionID: UUID, createdAt: Date, body: String) -> Bool {
+        let note = Note(
+            id: id,
+            sessionID: sessionID,
+            body: body,
+            createdAt: createdAt,
+            updatedAt: Date()
+        )
+        return persistNote(note)
+    }
+
+    private func announceNoteSaveFailure() {
+        NSAccessibility.post(
+            element: notesHost,
+            notification: .announcementRequested,
+            userInfo: [
+                .announcement: "Note save failed. Retry is available in the notes footer.",
+                .priority: NSAccessibilityPriorityLevel.medium.rawValue
+            ]
+        )
     }
 
     // MARK: - Menu actions
@@ -1264,8 +1828,11 @@ final class WorkspaceView: NSView {
     @objc func toggleAgentDashboard(_ sender: Any?) {
         leftSidebar = (leftSidebar == .agents) ? .none : .agents
         if leftSidebar == .agents {
-            refreshWorktrees()
+            pendingAgentDashboardFocusRequestID = UUID()
             refreshAgents()
+            refreshWorktrees()
+        } else {
+            pendingAgentDashboardFocusRequestID = nil
         }
         persistSidebarState()
         animateSidebarChange()
@@ -1283,14 +1850,14 @@ final class WorkspaceView: NSView {
 
     @objc func toggleSSHHosts(_ sender: Any?) {
         leftSidebar = (leftSidebar == .ssh) ? .none : .ssh
-        if leftSidebar == .ssh { refreshSSHPanel() }
+        if leftSidebar == .ssh { refreshSSHPanel(initialFocusRequestID: UUID()) }
         persistSidebarState()
         animateSidebarChange()
     }
 
     @objc func toggleClaudeSessions(_ sender: Any?) {
         leftSidebar = (leftSidebar == .claude) ? .none : .claude
-        if leftSidebar == .claude { refreshClaudePanel() }
+        if leftSidebar == .claude { refreshClaudePanel(initialFocusRequestID: UUID()) }
         persistSidebarState()
         animateSidebarChange()
     }
@@ -1346,7 +1913,13 @@ final class WorkspaceView: NSView {
     func restoreWorkspace(_ snapshot: WorkspaceSnapshot) -> Bool {
         guard !snapshot.tabs.isEmpty else { return false }
         let rerun = Preferences.rerunCommandsOnRestore
-        tabs = snapshot.tabs.map { WorkspaceTab(app: app, restoring: $0, rerunCommands: rerun) }
+        tabs = snapshot.tabs.map {
+            WorkspaceTab(
+                app: app,
+                restoring: $0,
+                rerunCommands: rerun
+            )
+        }
         activeTabIndex = min(max(snapshot.activeTabIndex, 0), tabs.count - 1)
         Diary.shared.log("restored \(tabs.count) tab(s) from snapshot", category: "session")
         refresh()
@@ -1355,7 +1928,7 @@ final class WorkspaceView: NSView {
 
     /// Snapshots the whole workspace for persistence.
     func snapshotWorkspace() -> WorkspaceSnapshot {
-        WorkspaceSnapshot(
+        WorkspaceSnapshot.compacting(
             tabs: tabs.map { $0.snapshot() },
             activeTabIndex: activeTabIndex
         )
@@ -1434,15 +2007,21 @@ final class WorkspaceView: NSView {
     }
 
     /// ⌘G / ⌘⇧G next/prev match navigation. The bindings are routed
-    /// here from AppMenu items. Only fires when an overlay is up.
+    /// here from AppMenu items. Only fires when the active search has a match.
     @objc func findNext(_ sender: Any?) {
-        guard searchOverlayHost != nil else { return }
-        activeTab?.focusedPane.surfaceView.runBindingActionForHarness("navigate_search:next")
+        guard Self.searchNavigationIsEnabled(
+            hasOverlay: searchOverlayHost != nil,
+            state: searchOverlayState
+        ) else { return }
+        searchOverlayTarget?.runBindingActionForHarness("navigate_search:next")
     }
 
     @objc func findPrevious(_ sender: Any?) {
-        guard searchOverlayHost != nil else { return }
-        activeTab?.focusedPane.surfaceView.runBindingActionForHarness("navigate_search:previous")
+        guard Self.searchNavigationIsEnabled(
+            hasOverlay: searchOverlayHost != nil,
+            state: searchOverlayState
+        ) else { return }
+        searchOverlayTarget?.runBindingActionForHarness("navigate_search:previous")
     }
 
     @objc func surfaceSearchEvent(_ note: Notification) {
@@ -1475,8 +2054,11 @@ final class WorkspaceView: NSView {
                                       initialNeedle: String) {
         // If the same overlay is already up, just refocus its text
         // field — match Safari's ⌘F-when-already-open behaviour.
-        if let existing = searchOverlayHost, searchOverlayTarget === view {
-            existing.window?.makeFirstResponder(existing)
+        if Self.reuseExistingSearchOverlay(
+            hasOverlay: searchOverlayHost != nil,
+            sameTarget: searchOverlayTarget === view,
+            state: searchOverlayState
+        ) {
             return
         }
         // Different pane → tear down the old overlay first so the
@@ -1559,9 +2141,33 @@ final class WorkspaceView: NSView {
 
     @objc func surfaceDidClose(_ note: Notification) {
         guard let view = note.object as? HerminalSurfaceView else { return }
+        if view === searchOverlayTarget {
+            dismissSearchOverlay(sendEnd: false)
+        }
         // Locate the pane by identity.
         for (tabIndex, tab) in tabs.enumerated() {
             guard let pane = tab.panes.first(where: { $0.surfaceView === view }) else { continue }
+            if NotesStoragePolicy.shouldRetainClosedSurface(
+                recovery: notesPanelRecoveries[pane.id]
+            ) {
+                pane.markExited()
+                activeTabIndex = tabIndex
+                tab.focusPane(id: pane.id)
+                let wasNotesVisible = isNotesVisible
+                isNotesVisible = true
+                refresh()
+                persistSidebarState()
+                if !wasNotesVisible { animateSidebarChange() }
+                NSAccessibility.post(
+                    element: notesHost,
+                    notification: .announcementRequested,
+                    userInfo: [
+                        .announcement: NotesStoragePolicy.closedSurfaceRetentionAnnouncement,
+                        .priority: NSAccessibilityPriorityLevel.high.rawValue
+                    ]
+                )
+                return
+            }
             // Drop the pane. If it was the last pane in the tab, the
             // whole tab disappears. Skip the note-confirm prompt — the
             // shell exited on its own, prompting the user "are you
@@ -1618,7 +2224,26 @@ final class WorkspaceView: NSView {
             if menuItem.tag == 9 { return tabCount > 0 }
             return menuItem.tag >= 1 && menuItem.tag <= tabCount
         }
+        if menuItem.action == #selector(findNext(_:))
+            || menuItem.action == #selector(findPrevious(_:)) {
+            return Self.searchNavigationIsEnabled(
+                hasOverlay: searchOverlayHost != nil,
+                state: searchOverlayState
+            )
+        }
+        if menuItem.action == #selector(toggleStatusBar(_:)) {
+            menuItem.title = Self.statusBarMenuTitle(isVisible: Preferences.showStatusBar)
+        }
         return true
+    }
+
+    nonisolated static func statusBarMenuTitle(isVisible: Bool) -> String {
+        isVisible ? "Hide Status Bar" : "Show Status Bar"
+    }
+
+    @objc func toggleStatusBar(_ sender: Any?) {
+        let isVisible = Preferences.toggleStatusBarVisibility()
+        Diary.shared.log("\(isVisible ? "showed" : "hid") status bar", category: "ui")
     }
 
     @objc func toggleTheme(_ sender: Any?) {
@@ -1646,7 +2271,24 @@ final class WorkspaceView: NSView {
     /// Slides the sidebars to their new geometry instead of snapping. The
     /// `isHidden` flags are deferred until the slide finishes so panels
     /// don't pop out at the start of a hide.
+    nonisolated static func shouldAnimateSidebarChange(reduceMotion: Bool) -> Bool {
+        !reduceMotion
+    }
+
     private func animateSidebarChange() {
+        guard Self.shouldAnimateSidebarChange(
+            reduceMotion: NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
+        ) else {
+            isAnimatingLayout = false
+            dashboardHost.isHidden = leftSidebar != .agents
+            sshPanelHost.isHidden = leftSidebar != .ssh
+            claudePanelHost.isHidden = leftSidebar != .claude
+            notesHost.isHidden = !isNotesVisible
+            needsLayout = true
+            layoutSubtreeIfNeeded()
+            return
+        }
+
         // Make sure all panels are visible during the animation; the
         // completion handler restores the correct hidden state.
         dashboardHost.isHidden = false
@@ -1676,7 +2318,23 @@ final class WorkspaceView: NSView {
 
     @objc func exportNote(_ sender: Any?) {
         guard let session = activeTab?.focusedPane else { return }
-        let note = loadNote(session.id) ?? Note(sessionID: session.id)
+        let note: Note
+        if let recovery = notesPanelRecoveries[session.id] {
+            note = Note(
+                id: recovery.noteID ?? UUID(),
+                sessionID: session.id,
+                body: recovery.state.draft,
+                createdAt: recovery.createdAt ?? Date(),
+                updatedAt: Date()
+            )
+        } else {
+            switch loadNoteResult(session.id) {
+            case .success(let loadedNote):
+                note = loadedNote ?? Note(sessionID: session.id)
+            case .failure:
+                return
+            }
+        }
         let panel = NSSavePanel()
         panel.nameFieldStringValue = "herminal-note.md"
         panel.canCreateDirectories = true
@@ -1702,16 +2360,47 @@ final class WorkspaceView: NSView {
             return
         }
         // Keep the existing note's identity; replace its body.
-        var note = loadNote(session.id) ?? imported
-        note.body = imported.body
-        note.updatedAt = Date()
-        persistNote(note)
+        let note: Note
+        switch loadNoteResult(session.id) {
+        case .success(let existingNote):
+            note = existingNote ?? imported
+        case .failure:
+            return
+        }
+        let mergedNote = Note(
+            id: note.id,
+            sessionID: note.sessionID,
+            body: imported.body,
+            createdAt: note.createdAt,
+            updatedAt: Date()
+        )
+        if persistNote(mergedNote) {
+            var savedState = NotesPanelView.AutosaveState(draft: imported.body)
+            savedState.saveDidSucceed()
+            notesPanelRecoveries[session.id] = NotesPanelRecovery.retainingAtRisk(
+                savedState,
+                storageIsDurable: notesStorageIsDurable,
+                noteID: mergedNote.id,
+                createdAt: mergedNote.createdAt
+            )
+        } else {
+            var failedState = NotesPanelView.AutosaveState(draft: imported.body)
+            failedState.saveDidFail()
+            notesPanelRecoveries[session.id] = NotesPanelRecovery.retainingAtRisk(
+                failedState,
+                storageIsDurable: notesStorageIsDurable,
+                noteID: mergedNote.id,
+                createdAt: mergedNote.createdAt
+            )
+            announceNoteSaveFailure()
+        }
         if isNotesVisible { updateNotesPanel() }
     }
 
     // MARK: - Refresh
 
-    private func refresh() {
+    private func refresh(_ focusPolicy: RefreshFocusPolicy = .activePane) {
+        pruneNotesPanelRecoveries()
         surfaceContainer.subviews.forEach { $0.removeFromSuperview() }
         if let tab = activeTab {
             for pane in tab.panes {
@@ -1719,13 +2408,16 @@ final class WorkspaceView: NSView {
             }
         }
         layoutPanes()
-        focusActivePane()
-        tabHost.rootView = makeTabBar()
+        if focusPolicy.focusesActivePane {
+            focusActivePane()
+        }
+        tabHost.rootView = makeTabBar(initialFocusTarget: focusPolicy.tabBarTarget)
         updateNotesPanel()
         needsLayout = true
     }
 
     private func focusActivePane() {
+        tabBarFocusRetention.clear()
         window?.makeFirstResponder(activeTab?.focusedPane.surfaceView)
     }
 
@@ -1787,14 +2479,27 @@ final class WorkspaceView: NSView {
         """
     }
 
-    private func makeTabBar() -> TabBarView {
-        TabBarView(
+    private func makeTabBar(
+        initialFocusTarget: TabBarView.FocusTarget? = nil
+    ) -> TabBarView {
+        let generation = tabBarFocusRetention.beginRebuild(
+            requestedTarget: initialFocusTarget
+        )
+        return TabBarView(
             tabs: tabs.map { TabBarView.Tab(id: $0.id, title: $0.title) },
             activeID: activeTab?.id,
             leadingInset: trafficLightInset,
+            initialFocusTarget: tabBarFocusRetention.target,
+            onFocusChange: { [weak self] target, isFocused in
+                self?.tabBarFocusRetention.focusDidChange(
+                    target,
+                    isFocused: isFocused,
+                    generation: generation
+                )
+            },
             onSelect: { [weak self] id in self?.selectTab(id: id) },
             onClose: { [weak self] id in self?.closeTab(id: id) },
-            onNew: { [weak self] in self?.addTab() }
+            onNew: { [weak self] in self?.addTabFromTabBar() }
         )
     }
 }

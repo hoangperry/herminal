@@ -67,6 +67,7 @@ enum CommandPalette {
     }
 
     private static func makePanel() -> NSPanel {
+        let actions = CommandPaletteCatalog.actions(from: NSApp.mainMenu)
         let panel = CommandPalettePanel(
             contentRect: NSRect(x: 0, y: 0, width: 560, height: 360),
             styleMask: [.borderless, .nonactivatingPanel, .fullSizeContentView],
@@ -81,7 +82,12 @@ enum CommandPalette {
         panel.isOpaque = false
         panel.hasShadow = true
 
-        let host = NSHostingView(rootView: CommandPaletteView(onDismiss: { CommandPalette.close() }))
+        let host = NSHostingView(
+            rootView: CommandPaletteView(
+                actions: actions,
+                onDismiss: { CommandPalette.close() }
+            )
+        )
         host.frame = panel.contentLayoutRect
         host.autoresizingMask = [.width, .height]
         panel.contentView = host
@@ -100,21 +106,45 @@ final class CommandPalettePanel: NSPanel {
 /// The SwiftUI body. Owns the filter text, selection cursor, and
 /// keyboard handling (↑↓ to move, Enter to fire, Esc to dismiss).
 struct CommandPaletteView: View {
+    struct SearchAccessibilityPresentation: Equatable {
+        let label: String
+        let hint: String
+    }
+
+    struct RowAccessibilityPresentation: Equatable {
+        let label: String
+        let value: String?
+        let hint: String
+        let isSelected: Bool
+    }
+
+    struct RowChromePresentation: Equatable {
+        let isEmphasized: Bool
+        let showsFocusStroke: Bool
+    }
+
+    enum EscapeDismissalScope: Equatable {
+        case searchField
+        case palette
+    }
+
+    static let escapeDismissalScope: EscapeDismissalScope = .palette
+    static let searchAccessibilityPresentation = SearchAccessibilityPresentation(
+        label: "Command search",
+        hint: "Use the Up and Down Arrow keys to choose a command, then press Return to run it"
+    )
+
+    let actions: [CommandPaletteAction]
     let onDismiss: () -> Void
 
     @State private var query: String = ""
     @State private var selectedIndex: Int = 0
     @FocusState private var searchFocused: Bool
-
-    private let actions = CommandPaletteAction.all
+    @FocusState private var focusedResultID: String?
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private var filtered: [CommandPaletteAction] {
-        if query.isEmpty { return actions }
-        let q = query.lowercased()
-        return actions.filter { action in
-            action.title.lowercased().contains(q)
-                || action.subtitle?.lowercased().contains(q) == true
-        }
+        Self.filteredActions(actions, query: query)
     }
 
     var body: some View {
@@ -136,10 +166,19 @@ struct CommandPaletteView: View {
         )
         .clipShape(RoundedRectangle(cornerRadius: 12))
         .onAppear {
+            focusedResultID = nil
             searchFocused = true
             selectedIndex = 0
         }
         .onChange(of: query) { _, _ in selectedIndex = 0 }
+        .onChange(of: focusedResultID) { _, resultID in
+            guard let resultID,
+                  let index = filtered.firstIndex(where: { $0.id == resultID }) else {
+                return
+            }
+            selectedIndex = index
+        }
+        .onExitCommand(perform: onDismiss)
     }
 
     private var searchBar: some View {
@@ -147,22 +186,32 @@ struct CommandPaletteView: View {
             Image(systemName: "magnifyingglass")
                 .font(.system(size: 14, weight: .medium))
                 .foregroundColor(HerminalDesign.Palette.textSecondary)
+                .accessibilityHidden(true)
             TextField("Type a command…", text: $query)
                 .font(.system(size: 15))
                 .foregroundColor(HerminalDesign.Palette.textPrimary)
                 .textFieldStyle(.plain)
                 .focused($searchFocused)
+                .accessibilityLabel(Self.searchAccessibilityPresentation.label)
+                .accessibilityHint(Self.searchAccessibilityPresentation.hint)
                 .onSubmit { fireSelected() }
                 .onKeyPress(.upArrow) {
-                    selectedIndex = max(0, selectedIndex - 1)
+                    moveSelection(by: -1)
                     return .handled
                 }
                 .onKeyPress(.downArrow) {
-                    selectedIndex = min(filtered.count - 1, selectedIndex + 1)
+                    moveSelection(by: 1)
                     return .handled
                 }
-                .onKeyPress(.escape) {
-                    onDismiss()
+                .onKeyPress(.tab, phases: .down) { keyPress in
+                    guard !keyPress.modifiers.contains(.shift),
+                          let target = Self.resultFocusTarget(
+                              actions: filtered,
+                              selectedIndex: selectedIndex
+                          ) else {
+                        return .ignored
+                    }
+                    focusedResultID = target
                     return .handled
                 }
         }
@@ -179,16 +228,31 @@ struct CommandPaletteView: View {
                 ScrollView {
                     LazyVStack(spacing: 2) {
                         ForEach(Array(filtered.enumerated()), id: \.element.id) { index, action in
-                            row(action: action, isSelected: index == selectedIndex)
+                            CommandPaletteResultButton(
+                                action: action,
+                                accessibility: Self.rowAccessibilityPresentation(
+                                    for: action,
+                                    rowIndex: index,
+                                    total: filtered.count,
+                                    isSelected: index == selectedIndex
+                                ),
+                                isSelected: index == selectedIndex,
+                                isFocused: focusedResultID == action.id,
+                                onRun: { fire(action: action) }
+                            )
+                                .focused($focusedResultID, equals: action.id)
                                 .id(action.id)
-                                .onTapGesture { fire(action: action) }
                         }
                     }
                     .padding(8)
                 }
                 .onChange(of: selectedIndex) { _, newIndex in
                     guard filtered.indices.contains(newIndex) else { return }
-                    withAnimation(.easeOut(duration: 0.12)) {
+                    if Self.shouldAnimateSelectionScroll(reduceMotion: reduceMotion) {
+                        withAnimation(.easeOut(duration: 0.12)) {
+                            proxy.scrollTo(filtered[newIndex].id, anchor: .center)
+                        }
+                    } else {
                         proxy.scrollTo(filtered[newIndex].id, anchor: .center)
                     }
                 }
@@ -204,6 +268,7 @@ struct CommandPaletteView: View {
             Image(systemName: "magnifyingglass")
                 .font(.system(size: 22))
                 .foregroundColor(HerminalDesign.Palette.textTertiary)
+                .accessibilityHidden(true)
             Text("No matching commands")
                 .font(.system(size: 13))
                 .foregroundColor(HerminalDesign.Palette.textSecondary)
@@ -212,51 +277,134 @@ struct CommandPaletteView: View {
         .padding(.vertical, 32)
     }
 
-    private func row(action: CommandPaletteAction, isSelected: Bool) -> some View {
-        HStack(spacing: 10) {
-            Image(systemName: action.icon)
-                .font(.system(size: 13))
-                .foregroundColor(isSelected
-                                 ? HerminalDesign.Palette.accent
-                                 : HerminalDesign.Palette.textSecondary)
-                .frame(width: 18, alignment: .center)
-            VStack(alignment: .leading, spacing: 1) {
-                Text(action.title)
-                    .font(.system(size: 13, weight: .medium))
-                    .foregroundColor(HerminalDesign.Palette.textPrimary)
-                if let subtitle = action.subtitle {
-                    Text(subtitle)
-                        .font(.system(size: 11))
-                        .foregroundColor(HerminalDesign.Palette.textTertiary)
-                }
-            }
-            Spacer(minLength: 0)
-            if let shortcut = action.shortcutDisplay {
-                Text(shortcut)
-                    .font(.system(size: 11, weight: .medium, design: .monospaced))
-                    .foregroundColor(HerminalDesign.Palette.textTertiary)
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 2)
-                    .background(
-                        RoundedRectangle(cornerRadius: 4)
-                            .fill(HerminalDesign.Palette.surfaceOverlay)
-                    )
-            }
+    static func normalizedSelectionIndex(_ selectedIndex: Int, total: Int) -> Int {
+        guard total > 0 else { return 0 }
+        return min(max(selectedIndex, 0), total - 1)
+    }
+
+    static func resultPositionText(rowIndex: Int, total: Int) -> String? {
+        guard total > 0, (0..<total).contains(rowIndex) else { return nil }
+        return "\(rowIndex + 1) of \(total)"
+    }
+
+    static func resultFocusTarget(
+        actions: [CommandPaletteAction],
+        selectedIndex: Int
+    ) -> String? {
+        guard !actions.isEmpty else { return nil }
+        let safeIndex = normalizedSelectionIndex(selectedIndex, total: actions.count)
+        return actions[safeIndex].id
+    }
+
+    static func filteredActions(
+        _ actions: [CommandPaletteAction],
+        query: String
+    ) -> [CommandPaletteAction] {
+        let needle = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !needle.isEmpty else { return actions }
+
+        return actions.filter { action in
+            action.title.localizedCaseInsensitiveContains(needle)
+                || action.subtitle?.localizedCaseInsensitiveContains(needle) == true
+                || action.menuPath?.localizedCaseInsensitiveContains(needle) == true
+                || action.menuTitle?.localizedCaseInsensitiveContains(needle) == true
+                || action.shortcutDisplay?.localizedCaseInsensitiveContains(needle) == true
         }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 8)
-        .background(
-            RoundedRectangle(cornerRadius: 6)
-                .fill(isSelected
-                      ? HerminalDesign.Palette.accent.opacity(0.16)
-                      : Color.clear)
+    }
+
+    static func rowAccessibilityPresentation(
+        for action: CommandPaletteAction,
+        rowIndex: Int,
+        total: Int,
+        isSelected: Bool
+    ) -> RowAccessibilityPresentation {
+        var valueParts: [String] = []
+        if let subtitle = action.subtitle, !subtitle.isEmpty {
+            valueParts.append(subtitle)
+        }
+        if let shortcut = action.shortcutDisplay, !shortcut.isEmpty {
+            valueParts.append("Shortcut \(shortcut)")
+        }
+        if let position = resultPositionText(rowIndex: rowIndex, total: total) {
+            valueParts.append(position)
+        }
+        return .init(
+            label: action.title,
+            value: valueParts.isEmpty ? nil : valueParts.joined(separator: ". "),
+            hint: "Press Return or Space to run this command",
+            isSelected: isSelected
         )
-        .contentShape(Rectangle())
+    }
+
+    static func selectedResultAnnouncement(
+        actions: [CommandPaletteAction],
+        selectedIndex: Int
+    ) -> String? {
+        guard !actions.isEmpty else { return nil }
+        let safeIndex = normalizedSelectionIndex(selectedIndex, total: actions.count)
+        let presentation = rowAccessibilityPresentation(
+            for: actions[safeIndex],
+            rowIndex: safeIndex,
+            total: actions.count,
+            isSelected: true
+        )
+        return [presentation.label, presentation.value, "Selected"]
+            .compactMap { $0 }
+            .joined(separator: ". ")
+    }
+
+    static func selectionIndex(
+        afterMoving selectedIndex: Int,
+        by offset: Int,
+        total: Int
+    ) -> Int? {
+        guard total > 0 else { return nil }
+        let currentIndex = normalizedSelectionIndex(selectedIndex, total: total)
+        let nextIndex = normalizedSelectionIndex(currentIndex + offset, total: total)
+        return nextIndex == currentIndex ? nil : nextIndex
+    }
+
+    static func rowChromePresentation(
+        isSelected: Bool,
+        isHovered: Bool,
+        isFocused: Bool
+    ) -> RowChromePresentation {
+        .init(
+            isEmphasized: isSelected || isHovered || isFocused,
+            showsFocusStroke: isFocused
+        )
+    }
+
+    static func shouldAnimateSelectionScroll(reduceMotion: Bool) -> Bool {
+        !reduceMotion
+    }
+
+    private func moveSelection(by offset: Int) {
+        guard let nextIndex = Self.selectionIndex(
+            afterMoving: selectedIndex,
+            by: offset,
+            total: filtered.count
+        ) else { return }
+        selectedIndex = nextIndex
+        guard let announcement = Self.selectedResultAnnouncement(
+            actions: filtered,
+            selectedIndex: selectedIndex
+        ) else { return }
+        NSAccessibility.post(
+            element: NSApplication.shared,
+            notification: .announcementRequested,
+            userInfo: [
+                .announcement: announcement,
+                .priority: NSAccessibilityPriorityLevel.medium.rawValue,
+            ]
+        )
     }
 
     private func fireSelected() {
-        guard filtered.indices.contains(selectedIndex) else { return }
-        fire(action: filtered[selectedIndex])
+        let safeIndex = Self.normalizedSelectionIndex(selectedIndex, total: filtered.count)
+        guard filtered.indices.contains(safeIndex) else { return }
+        selectedIndex = safeIndex
+        fire(action: filtered[safeIndex])
     }
 
     private func fire(action: CommandPaletteAction) {
@@ -268,155 +416,4 @@ struct CommandPaletteView: View {
             NSApp.sendAction(action.selector, to: nil, from: nil)
         }
     }
-}
-
-/// Catalogue of palette entries. New menu items added to AppMenu
-/// should also gain an entry here so the palette stays
-/// discoverable. Selectors mirror the menu's `nil`-target routing —
-/// the action travels the responder chain to whoever handles it
-/// (WorkspaceView for tab/split actions, AppDelegate for Settings).
-struct CommandPaletteAction: Identifiable, Equatable {
-    let id: String
-    let title: String
-    let subtitle: String?
-    let icon: String
-    let shortcutDisplay: String?
-    let selector: Selector
-
-    static let all: [CommandPaletteAction] = [
-        .init(id: "new-tab", title: "New Tab", subtitle: "Open a new terminal tab",
-              icon: "plus.square", shortcutDisplay: "⌘T",
-              selector: #selector(WorkspaceView.newTab(_:))),
-        .init(id: "close-tab", title: "Close Tab", subtitle: "Close the active pane",
-              icon: "xmark.square", shortcutDisplay: "⌘W",
-              selector: #selector(WorkspaceView.closeTab(_:))),
-        .init(id: "next-tab", title: "Next Tab", subtitle: nil,
-              icon: "arrow.right", shortcutDisplay: "⌘⇧]",
-              selector: #selector(WorkspaceView.nextTab(_:))),
-        .init(id: "prev-tab", title: "Previous Tab", subtitle: nil,
-              icon: "arrow.left", shortcutDisplay: "⌘⇧[",
-              selector: #selector(WorkspaceView.previousTab(_:))),
-        .init(id: "split-right", title: "Split Pane Right",
-              subtitle: "Vertical divider — side by side",
-              icon: "rectangle.split.2x1", shortcutDisplay: "⌘D",
-              selector: #selector(WorkspaceView.splitPaneVertical(_:))),
-        .init(id: "split-down", title: "Split Pane Down",
-              subtitle: "Horizontal divider — stacked",
-              icon: "rectangle.split.1x2", shortcutDisplay: "⌘⇧D",
-              selector: #selector(WorkspaceView.splitPaneHorizontal(_:))),
-        .init(id: "focus-left", title: "Focus Pane Left",
-              subtitle: "Move focus to the pane on the left",
-              icon: "arrow.left.to.line", shortcutDisplay: "⌥⌘←",
-              selector: #selector(WorkspaceView.focusPaneLeft(_:))),
-        .init(id: "focus-right", title: "Focus Pane Right",
-              subtitle: "Move focus to the pane on the right",
-              icon: "arrow.right.to.line", shortcutDisplay: "⌥⌘→",
-              selector: #selector(WorkspaceView.focusPaneRight(_:))),
-        .init(id: "focus-up", title: "Focus Pane Up",
-              subtitle: "Move focus to the pane above",
-              icon: "arrow.up.to.line", shortcutDisplay: "⌥⌘↑",
-              selector: #selector(WorkspaceView.focusPaneUp(_:))),
-        .init(id: "focus-down", title: "Focus Pane Down",
-              subtitle: "Move focus to the pane below",
-              icon: "arrow.down.to.line", shortcutDisplay: "⌥⌘↓",
-              selector: #selector(WorkspaceView.focusPaneDown(_:))),
-        .init(id: "new-agent-pane", title: "New Agent Pane",
-              subtitle: "Split and launch Claude Code here",
-              icon: "sparkles", shortcutDisplay: "⌘⌥A",
-              selector: #selector(WorkspaceView.newAgentPane(_:))),
-        .init(id: "new-agent-tab", title: "New Agent Tab",
-              subtitle: "Open Claude Code in a new tab",
-              icon: "sparkle", shortcutDisplay: "⌘⌥T",
-              selector: #selector(WorkspaceView.newAgentTab(_:))),
-        .init(id: "new-agent-worktree", title: "New Agent Worktree…",
-              subtitle: "Isolated git checkout + agent (FlightDeck wt)",
-              icon: "square.stack.3d.up", shortcutDisplay: "⌘⌥W",
-              selector: #selector(WorkspaceView.newAgentWorktree(_:))),
-        .init(id: "open-lazygit", title: "Open Lazygit",
-              subtitle: "Git TUI in a new tab at this directory",
-              icon: "arrow.triangle.branch", shortcutDisplay: "⌘⌥G",
-              selector: #selector(WorkspaceView.openLazygit(_:))),
-        .init(id: "tmux-new", title: "New tmux Session…",
-              subtitle: "Create a named session (repo name prefilled)",
-              icon: "square.split.2x1", shortcutDisplay: nil,
-              selector: #selector(WorkspaceView.newTmuxSession(_:))),
-        .init(id: "tmux-attach", title: "Attach tmux Session…",
-              subtitle: "Pick a live tmux session",
-              icon: "link", shortcutDisplay: nil,
-              selector: #selector(WorkspaceView.attachTmuxSession(_:))),
-        .init(id: "tmux-attach-or-create", title: "Attach or Create tmux Session",
-              subtitle: "Rejoin this repo's session, or start one",
-              icon: "square.split.2x1.fill", shortcutDisplay: nil,
-              selector: #selector(WorkspaceView.attachOrCreateTmuxSession(_:))),
-        .init(id: "toggle-agents", title: "Toggle Agent Dashboard",
-              subtitle: "claude / codex / aider runtimes + worktrees",
-              icon: "cpu", shortcutDisplay: "⌘⇧A",
-              selector: #selector(WorkspaceView.toggleAgentDashboard(_:))),
-        .init(id: "toggle-ssh", title: "Toggle SSH Hosts",
-              subtitle: "From ~/.ssh/config",
-              icon: "network", shortcutDisplay: "⌘⇧S",
-              selector: #selector(WorkspaceView.toggleSSHHosts(_:))),
-        .init(id: "toggle-claude", title: "Toggle Claude Sessions",
-              subtitle: "Resume past Claude Code conversations",
-              icon: "sparkles", shortcutDisplay: "⌘⇧C",
-              selector: #selector(WorkspaceView.toggleClaudeSessions(_:))),
-        .init(id: "toggle-notes", title: "Toggle Notes Panel",
-              subtitle: "Per-session SQLite-backed notes",
-              icon: "note.text", shortcutDisplay: "⌘⇧N",
-              selector: #selector(WorkspaceView.toggleNotes(_:))),
-        .init(id: "toggle-theme", title: "Toggle Light / Dark Theme",
-              subtitle: nil, icon: "circle.lefthalf.filled",
-              shortcutDisplay: "⌘⇧L",
-              selector: #selector(WorkspaceView.toggleTheme(_:))),
-        .init(id: "font-bigger", title: "Bigger Text",
-              subtitle: "Increase font size in every pane",
-              icon: "textformat.size.larger", shortcutDisplay: "⌘+",
-              selector: #selector(WorkspaceView.increaseFontSize(_:))),
-        .init(id: "font-smaller", title: "Smaller Text",
-              subtitle: "Decrease font size in every pane",
-              icon: "textformat.size.smaller", shortcutDisplay: "⌘-",
-              selector: #selector(WorkspaceView.decreaseFontSize(_:))),
-        .init(id: "font-reset", title: "Actual Size",
-              subtitle: "Reset font size to the configured default",
-              icon: "textformat.size", shortcutDisplay: "⌘0",
-              selector: #selector(WorkspaceView.resetFontSize(_:))),
-        .init(id: "zoom-pane", title: "Zoom Pane",
-              subtitle: "Maximize the focused pane (toggle)",
-              icon: "arrow.up.left.and.arrow.down.right", shortcutDisplay: "⌘⇧↩",
-              selector: #selector(WorkspaceView.toggleZoomPane(_:))),
-        .init(id: "find", title: "Find in Terminal…",
-              subtitle: "Search the scrollback buffer",
-              icon: "magnifyingglass", shortcutDisplay: "⌘F",
-              selector: #selector(WorkspaceView.findInScrollback(_:))),
-        .init(id: "import-ssh", title: "Import ~/.ssh/config",
-              subtitle: "One-shot upsert into SSH host list",
-              icon: "square.and.arrow.down",
-              shortcutDisplay: nil,
-              selector: #selector(WorkspaceView.importSSHConfig(_:))),
-        .init(id: "export-note", title: "Export Note…",
-              subtitle: "Save active session's note as Markdown",
-              icon: "doc.text",
-              shortcutDisplay: nil,
-              selector: #selector(WorkspaceView.exportNote(_:))),
-        .init(id: "import-note", title: "Import Note…",
-              subtitle: "Load Markdown into active session",
-              icon: "doc.badge.plus",
-              shortcutDisplay: nil,
-              selector: #selector(WorkspaceView.importNote(_:))),
-        .init(id: "save-workspace", title: "Save Workspace As…",
-              subtitle: "Name the current tab + split layout to reopen later",
-              icon: "square.stack.3d.up",
-              shortcutDisplay: "⌃⌘S",
-              selector: #selector(AppDelegate.saveWorkspaceAs(_:))),
-        .init(id: "settings", title: "Settings…",
-              subtitle: "Theme · terminal · shell · onboarding",
-              icon: "gearshape",
-              shortcutDisplay: "⌘,",
-              selector: #selector(AppDelegate.openPreferences(_:))),
-        .init(id: "hotkey-window", title: "Show Hotkey Window",
-              subtitle: "Activate herminal from any app",
-              icon: "command",
-              shortcutDisplay: "⌥Space",
-              selector: #selector(AppDelegate.toggleHotkeyWindow(_:))),
-    ]
 }

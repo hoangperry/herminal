@@ -25,6 +25,17 @@
 
 import Foundation
 
+enum ManualUpdateCheckOutcome: Equatable {
+    case opened
+    case failed
+}
+
+struct ManualUpdateFailureAlert: Equatable {
+    let messageText: String
+    let informativeText: String
+    let buttonTitle: String
+}
+
 /// Stub auto-updater. Production implementation will own a Sparkle
 /// `SPUStandardUpdaterController` and route its delegate callbacks to
 /// the Diary so we can correlate update events with crash reports.
@@ -51,6 +62,38 @@ public enum Updater {
     public static let appcastURL = URL(
         string: "https://github.com/hoangperry/herminal/releases/latest/download/appcast.xml"
     )!
+
+    /// Public release page used by the user-initiated update action while
+    /// automatic Sparkle checks remain intentionally unavailable.
+    static let latestReleaseURL = URL(
+        string: "https://github.com/hoangperry/herminal/releases/latest"
+    )!
+
+    static var manualUpdateFailureAlert: ManualUpdateFailureAlert {
+        ManualUpdateFailureAlert(
+            messageText: "Couldn’t Open the Release Page",
+            informativeText: "Visit \(latestReleaseLocationDescription) in your browser to check for a newer version.",
+            buttonTitle: "OK"
+        )
+    }
+
+    /// Human-facing location string for alerts/docs. Keeps UI copy aligned
+    /// with the actual destination without repeating a second hardcoded URL.
+    static var latestReleaseLocationDescription: String {
+        guard let host = latestReleaseURL.host else {
+            return latestReleaseURL.absoluteString
+        }
+        return host + latestReleaseURL.path
+    }
+
+    /// Opens the official release page exactly once. The injected opener
+    /// keeps the result deterministic in tests and lets AppDelegate own the
+    /// AppKit-specific user feedback when macOS cannot launch a browser.
+    static func openLatestRelease(
+        using opener: (URL) -> Bool
+    ) -> ManualUpdateCheckOutcome {
+        opener(latestReleaseURL) ? .opened : .failed
+    }
 
     /// Production hook — call from `applicationDidFinishLaunching` to
     /// kick off Sparkle's scheduled check. Currently a no-op so the

@@ -157,6 +157,15 @@ enum HerminalDesign {
             case .light: return Color(red: 0.22, green: 0.50, blue: 0.85)
             }
         }
+        /// An agent waiting on the user. Amber is intentionally distinct
+        /// from the blue running state so the dashboard's primary signal
+        /// remains visible in either theme and under red-green CVD.
+        static var statusNeedsInput: Color {
+            switch HerminalDesign.currentTheme {
+            case .dark: return Color(red: 0.98, green: 0.74, blue: 0.31)
+            case .light: return Color(red: 0.68, green: 0.43, blue: 0.04)
+            }
+        }
         static var statusIdle: Color {
             switch HerminalDesign.currentTheme {
             case .dark: return Color(red: 0.55, green: 0.57, blue: 0.62)
@@ -241,6 +250,10 @@ enum HerminalDesign {
     // the workspace's 4-point grid (1.5 ticks).
     enum Geometry {
         static let surfaceInset: CGFloat = 6
+        /// Full-size target for rows and prominent actions.
+        static let minimumInteractiveControlSize: CGFloat = 44
+        /// Dense macOS toolbar target; intentionally fits the 36 pt panel header.
+        static let compactInteractiveControlSize: CGFloat = 28
         // Tab bar inactive opacity — used by TabBarView so non-focused
         // tabs read as background. (v0.3 polish.)
         static let tabInactiveOpacity: CGFloat = 0.62

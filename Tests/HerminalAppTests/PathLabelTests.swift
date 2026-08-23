@@ -9,6 +9,17 @@ import Testing
 struct PathLabelTests {
     private let home = "/Users/meow"
 
+    @Test("validated accepts only plain local absolute paths")
+    func validatedAbsolutePathsOnly() {
+        #expect(
+            WorkingDirectoryPath.validated("/Users/meow/pet/herminal")
+                == "/Users/meow/pet/herminal"
+        )
+        #expect(WorkingDirectoryPath.validated("file:///tmp/herminal") == nil)
+        #expect(WorkingDirectoryPath.validated("/tmp/herminal\nopen -a Calculator") == nil)
+        #expect(WorkingDirectoryPath.validated("relative/path") == nil)
+    }
+
     @Test("abbreviateHome replaces the home prefix with ~")
     func abbreviatesHomePrefix() {
         #expect(PathLabel.abbreviateHome("/Users/meow/pet/herminal", home: home) == "~/pet/herminal")

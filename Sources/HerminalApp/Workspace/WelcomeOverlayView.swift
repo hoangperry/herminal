@@ -14,31 +14,55 @@
 import SwiftUI
 
 struct WelcomeOverlayView: View {
+    enum DismissalSource: Equatable {
+        case primaryAction
+        case escape
+        case backdrop
+    }
+
+    enum FocusTarget: Hashable {
+        case primaryAction
+    }
+
+    struct AccessibilityPresentation: Equatable {
+        let heading: String
+        let isModal: Bool
+    }
+
+    static let initialFocusTarget: FocusTarget = .primaryAction
+    static let accessibilityPresentation = AccessibilityPresentation(
+        heading: "Welcome to herminal",
+        isModal: true
+    )
+
     let onDismiss: () -> Void
+    @FocusState private var focusedTarget: FocusTarget?
 
     var body: some View {
         ZStack {
             // Backdrop — dim so the card pops, but not so dark that the
-            // terminal prompt behind it disappears. Click anywhere on the
-            // backdrop also dismisses.
+            // terminal prompt behind it disappears. It intentionally has
+            // no dismiss gesture: an accidental click must not permanently
+            // consume one-shot onboarding.
             HerminalDesign.Palette.surfaceBase
                 .opacity(0.78)
                 .ignoresSafeArea()
-                .contentShape(Rectangle())
-                .onTapGesture(perform: onDismiss)
 
             card
                 .frame(maxWidth: 460)
                 .padding(.horizontal, 24)
         }
+        .onExitCommand { requestDismissal(from: .escape) }
+        .onAppear { focusedTarget = Self.initialFocusTarget }
     }
 
     private var card: some View {
         VStack(alignment: .leading, spacing: 16) {
             VStack(alignment: .leading, spacing: 6) {
-                Text("Welcome to herminal")
+                Text(Self.accessibilityPresentation.heading)
                     .font(HerminalDesign.Typography.largeTitle)
                     .foregroundColor(HerminalDesign.Palette.textPrimary)
+                    .accessibilityAddTraits(.isHeader)
                 Text("Press ⌘⇧P any time to search every command. A few to start:")
                     .font(HerminalDesign.Typography.body)
                     .foregroundColor(HerminalDesign.Palette.textSecondary)
@@ -60,7 +84,7 @@ struct WelcomeOverlayView: View {
 
             HStack {
                 Spacer()
-                Button(action: onDismiss) {
+                Button(action: { requestDismissal(from: .primaryAction) }) {
                     Text("Got it")
                         .font(HerminalDesign.Typography.bodyEmphasis)
                         .padding(.horizontal, 16)
@@ -69,6 +93,8 @@ struct WelcomeOverlayView: View {
                 .keyboardShortcut(.defaultAction)
                 .buttonStyle(.borderedProminent)
                 .tint(HerminalDesign.Palette.accent)
+                .focused($focusedTarget, equals: .primaryAction)
+                .accessibilityHint("Dismiss the welcome guide and continue to the terminal")
             }
         }
         .padding(24)
@@ -79,6 +105,8 @@ struct WelcomeOverlayView: View {
         )
         .clipShape(RoundedRectangle(cornerRadius: 12))
         .shadow(color: Color.black.opacity(0.35), radius: 24, y: 8)
+        .accessibilityElement(children: .contain)
+        .accessibilityAddTraits(.isModal)
     }
 
     private func shortcut(_ keys: String, _ label: String) -> some View {
@@ -96,5 +124,22 @@ struct WelcomeOverlayView: View {
                 .foregroundColor(HerminalDesign.Palette.textSecondary)
             Spacer(minLength: 0)
         }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(Self.shortcutAccessibilityLabel(keys: keys, action: label))
+    }
+
+    static func shouldDismiss(from source: DismissalSource) -> Bool {
+        source != .backdrop
+    }
+
+    static func shortcutAccessibilityLabel(keys: String, action: String) -> String {
+        "\(action). Shortcut \(keys)"
+    }
+
+    /// Internal so the AppKit integration test can drive the same Escape /
+    /// primary-action path as SwiftUI without synthesizing a fragile key event.
+    func requestDismissal(from source: DismissalSource) {
+        guard Self.shouldDismiss(from: source) else { return }
+        onDismiss()
     }
 }

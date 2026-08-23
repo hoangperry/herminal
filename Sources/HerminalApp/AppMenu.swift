@@ -8,15 +8,27 @@ enum AppMenu {
     /// `openWorkspaceSubmenu` is owned by AppDelegate (which is its
     /// delegate) so it can repopulate the saved-workspace list each time
     /// the menu opens. (v0.4.2)
+    @MainActor
     static func build(openWorkspaceSubmenu: NSMenu) -> NSMenu {
         let mainMenu = NSMenu()
 
         // App menu
         let appItem = NSMenuItem()
         mainMenu.addItem(appItem)
-        let appMenu = NSMenu()
+        let appMenu = NSMenu(title: "herminal")
         appItem.submenu = appMenu
-        appMenu.addItem(withTitle: "About herminal", action: nil, keyEquivalent: "")
+        let about = NSMenuItem(
+            title: "About herminal",
+            action: #selector(NSApplication.orderFrontStandardAboutPanel(_:)),
+            keyEquivalent: ""
+        )
+        about.target = NSApplication.shared
+        appMenu.addItem(about)
+        appMenu.addItem(NSMenuItem(
+            title: "Check for Updates…",
+            action: #selector(AppDelegate.checkForUpdates(_:)),
+            keyEquivalent: ""
+        ))
         appMenu.addItem(.separator())
         // ⌘, is the macOS-wide Settings/Preferences convention. Target
         // is the AppDelegate; responder chain reaches it via NSApp.
@@ -25,6 +37,33 @@ enum AppMenu {
             action: #selector(AppDelegate.openPreferences(_:)),
             keyEquivalent: ","
         ))
+        appMenu.addItem(.separator())
+        let services = NSMenuItem(title: "Services", action: nil, keyEquivalent: "")
+        services.submenu = NSMenu(title: "Services")
+        appMenu.addItem(services)
+        appMenu.addItem(.separator())
+        let hide = NSMenuItem(
+            title: "Hide herminal",
+            action: #selector(NSApplication.hide(_:)),
+            keyEquivalent: "h"
+        )
+        hide.target = NSApplication.shared
+        appMenu.addItem(hide)
+        let hideOthers = NSMenuItem(
+            title: "Hide Others",
+            action: #selector(NSApplication.hideOtherApplications(_:)),
+            keyEquivalent: "h"
+        )
+        hideOthers.keyEquivalentModifierMask = [.command, .option]
+        hideOthers.target = NSApplication.shared
+        appMenu.addItem(hideOthers)
+        let showAll = NSMenuItem(
+            title: "Show All",
+            action: #selector(NSApplication.unhideAllApplications(_:)),
+            keyEquivalent: ""
+        )
+        showAll.target = NSApplication.shared
+        appMenu.addItem(showAll)
         appMenu.addItem(.separator())
         appMenu.addItem(
             withTitle: "Quit herminal",
@@ -151,12 +190,29 @@ enum AppMenu {
         )
         zoomPane.keyEquivalentModifierMask = [.command, .shift]
         viewMenu.addItem(zoomPane)
+        viewMenu.addItem(.separator())
+        viewMenu.addItem(NSMenuItem(
+            title: WorkspaceView.statusBarMenuTitle(isVisible: Preferences.showStatusBar),
+            action: #selector(WorkspaceView.toggleStatusBar(_:)),
+            keyEquivalent: ""
+        ))
 
         // Window menu — tab navigation
         let windowItem = NSMenuItem()
         mainMenu.addItem(windowItem)
         let windowMenu = NSMenu(title: "Window")
         windowItem.submenu = windowMenu
+        windowMenu.addItem(NSMenuItem(
+            title: "Minimize",
+            action: #selector(NSWindow.performMiniaturize(_:)),
+            keyEquivalent: "m"
+        ))
+        windowMenu.addItem(NSMenuItem(
+            title: "Zoom",
+            action: #selector(NSWindow.performZoom(_:)),
+            keyEquivalent: ""
+        ))
+        windowMenu.addItem(.separator())
         let nextTab = NSMenuItem(
             title: "Next Tab",
             action: #selector(WorkspaceView.nextTab(_:)),
@@ -342,7 +398,56 @@ enum AppMenu {
         let openWorkspace = NSMenuItem(title: "Open Workspace", action: nil, keyEquivalent: "")
         openWorkspace.submenu = openWorkspaceSubmenu
         windowMenu.addItem(openWorkspace)
+        windowMenu.addItem(.separator())
+
+        let bringAllToFront = NSMenuItem(
+            title: "Bring All to Front",
+            action: #selector(NSApplication.arrangeInFront(_:)),
+            keyEquivalent: ""
+        )
+        bringAllToFront.target = NSApplication.shared
+        windowMenu.addItem(bringAllToFront)
+
+        // Help menu — keep diagnostic sharing explicit and local. This
+        // action copies Diary's redacted export; herminal never uploads it.
+        let helpItem = NSMenuItem()
+        mainMenu.addItem(helpItem)
+        let helpMenu = NSMenu(title: "Help")
+        helpItem.submenu = helpMenu
+        let keyboardShortcuts = NSMenuItem(
+            title: "Keyboard Shortcuts…",
+            action: #selector(AppDelegate.showKeyboardShortcuts(_:)),
+            keyEquivalent: "/"
+        )
+        helpMenu.addItem(keyboardShortcuts)
+        helpMenu.addItem(.separator())
+        let copyDiary = NSMenuItem(
+            title: "Copy Redacted Diagnostics for Bug Report",
+            action: #selector(AppDelegate.copyRedactedDiary(_:)),
+            keyEquivalent: ""
+        )
+        copyDiary.toolTip = "Copies the latest 200 privacy-redacted diagnostic entries for a bug report."
+        helpMenu.addItem(copyDiary)
 
         return mainMenu
+    }
+
+    @MainActor
+    static func helpMenu(in mainMenu: NSMenu) -> NSMenu? {
+        mainMenu.items.compactMap(\.submenu).first { $0.title == "Help" }
+    }
+
+    @MainActor
+    static func windowMenu(in mainMenu: NSMenu) -> NSMenu? {
+        mainMenu.items.compactMap(\.submenu).first { $0.title == "Window" }
+    }
+
+    @MainActor
+    static func servicesMenu(in mainMenu: NSMenu) -> NSMenu? {
+        mainMenu.items
+            .compactMap(\.submenu)
+            .flatMap(\.items)
+            .first { $0.title == "Services" }?
+            .submenu
     }
 }

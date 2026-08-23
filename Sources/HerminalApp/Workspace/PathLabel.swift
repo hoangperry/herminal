@@ -5,6 +5,26 @@
 
 import Foundation
 
+/// Accepts only local absolute paths safe to retain as terminal cwd state.
+/// OSC 7 and restored workspace data cross process/file boundaries, so URL
+/// strings and control-character payloads must fail closed before any
+/// clipboard, Finder, Git, or filesystem action sees them.
+enum WorkingDirectoryPath {
+    private static let forbiddenScalars = CharacterSet.controlCharacters
+        .union(.newlines)
+
+    static func validated(_ path: String?) -> String? {
+        guard let path,
+              !path.isEmpty,
+              (path as NSString).isAbsolutePath,
+              !path.hasPrefix("file://"),
+              !path.unicodeScalars.contains(where: { forbiddenScalars.contains($0) }) else {
+            return nil
+        }
+        return path
+    }
+}
+
 enum PathLabel {
     /// Replaces the home-directory prefix with `~`; leaves other paths
     /// untouched. `/Users/me/proj` → `~/proj`, `/Users/me` → `~`,

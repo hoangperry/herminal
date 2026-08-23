@@ -25,6 +25,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
     /// the windowDidMove/Resize callbacks don't write back the default
     /// frame on first launch. (M12-P5)
     private var windowStateReady = false
+    private var closeRiskGate = CloseRiskGate()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         // Register UserDefaults defaults FIRST so any other init code that
@@ -52,13 +53,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
         self.ghostty = ghostty
 
         workspaceSubmenu.delegate = self
-        NSApp.mainMenu = AppMenu.build(openWorkspaceSubmenu: workspaceSubmenu)
+        let mainMenu = AppMenu.build(openWorkspaceSubmenu: workspaceSubmenu)
+        NSApp.mainMenu = mainMenu
+        NSApp.windowsMenu = AppMenu.windowMenu(in: mainMenu)
+        NSApp.helpMenu = AppMenu.helpMenu(in: mainMenu)
+        NSApp.servicesMenu = AppMenu.servicesMenu(in: mainMenu)
 
         let savedState = WindowState.load()
+        let notesStorage = AppDelegate.makeNotesStore()
+        let sshHostsStorage = AppDelegate.makeSSHHostsStore()
         let workspace = WorkspaceView(
             app: ghostty.app,
-            notesStore: AppDelegate.makeNotesStore(),
-            sshHostsStore: AppDelegate.makeSSHHostsStore()
+            notesStore: notesStorage.store,
+            notesStorageIsDurable: notesStorage.isDurable,
+            sshHostsStore: sshHostsStorage.store,
+            sshHostsStorageIsDurable: sshHostsStorage.isDurable
         )
         // GUI-harness isolation: the test harnesses drive the workspace
         // from a clean default start and assert against it, so they must
@@ -501,26 +510,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
 
     /// Opens the notes database in Application Support, falling back to an
     /// in-memory store if the on-disk location is unavailable.
-    private static func makeNotesStore() -> NotesStore {
+    private static func makeNotesStore() -> (store: NotesStore, isDurable: Bool) {
         do {
             let dbPath = try appSupportFile("notes.db")
-            return try NotesStore(.uri(dbPath))
+            return (try NotesStore(.uri(dbPath)), true)
         } catch {
             NSLog("herminal: notes DB unavailable — using in-memory store")
             // In-memory SQLite effectively never fails to open.
-            return try! NotesStore(.inMemory)
+            return (try! NotesStore(.inMemory), false)
         }
     }
 
     /// Opens the SSH hosts database in Application Support, falling back to
     /// an in-memory store if the on-disk location is unavailable.
-    private static func makeSSHHostsStore() -> SSHHostsStore {
+    private static func makeSSHHostsStore() -> (store: SSHHostsStore, isDurable: Bool) {
         do {
             let dbPath = try appSupportFile("ssh-hosts.db")
-            return try SSHHostsStore(.uri(dbPath))
+            return (store: try SSHHostsStore(.uri(dbPath)), isDurable: true)
         } catch {
             NSLog("herminal: ssh hosts DB unavailable — using in-memory store")
-            return try! SSHHostsStore(.inMemory)
+            return (store: try! SSHHostsStore(.inMemory), isDurable: false)
         }
     }
 
@@ -541,6 +550,57 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
     /// PreferencesWindow into view; opens it lazily on first use.
     @objc func openPreferences(_ sender: Any?) {
         PreferencesWindow.show()
+    }
+
+    /// Opens the searchable shortcut reference generated from the installed
+    /// main menu, keeping help copy aligned with the bindings users can run.
+    @objc func showKeyboardShortcuts(_ sender: Any?) {
+        KeyboardShortcutsWindow.show(menu: NSApp.mainMenu)
+    }
+
+    /// Opens the official GitHub release page on explicit user request.
+    /// This remains manual and makes no background network request while
+    /// the signed Sparkle pipeline is still intentionally deferred.
+    @objc func checkForUpdates(_ sender: Any?) {
+        let outcome = Updater.openLatestRelease { destination in
+            NSWorkspace.shared.open(destination)
+        }
+        guard outcome == .failed else {
+            Diary.shared.log("opened latest release page", category: "updater")
+            return
+        }
+
+        Diary.shared.log("could not open latest release page", category: "updater")
+        NSSound.beep()
+        let presentation = Updater.manualUpdateFailureAlert
+        let alert = NSAlert()
+        alert.alertStyle = .warning
+        alert.messageText = presentation.messageText
+        alert.informativeText = presentation.informativeText
+        alert.addButton(withTitle: presentation.buttonTitle)
+        alert.runModal()
+    }
+
+    /// Copies only Diary's redacted export. The raw on-disk diary never
+    /// reaches the pasteboard through this user-facing support action.
+    @objc func copyRedactedDiary(_ sender: Any?) {
+        let payload = Diary.shared.exportRedacted(maxLines: 200)
+        let outcome = DiagnosticDiaryClipboard.write(payload)
+        let feedback = DiagnosticDiaryClipboard.feedback(for: outcome)
+        if feedback.shouldBeep {
+            NSSound.beep()
+        }
+        if outcome == .copied {
+            Diary.shared.log("copied redacted diagnostics", category: "support")
+        }
+        NSAccessibility.post(
+            element: NSApplication.shared,
+            notification: .announcementRequested,
+            userInfo: [
+                .announcement: feedback.announcement,
+                .priority: NSAccessibilityPriorityLevel.medium.rawValue
+            ]
+        )
     }
 
     // MARK: - Polish wave slice 2 — palette + hotkey (v0.3.1)
@@ -576,7 +636,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
         let field = NSTextField(frame: NSRect(x: 0, y: 0, width: 240, height: 24))
         field.placeholderString = "e.g. kamimind"
         alert.accessoryView = field
-        alert.window.initialFirstResponder = field
+        ModalControlAccessibility.prepare(
+            field,
+            label: ModalControlAccessibility.Labels.workspaceName,
+            initialResponderIn: alert
+        )
         guard alert.runModal() == .alertFirstButtonReturn else { return }
         guard WorkspacesStore.save(name: field.stringValue, snapshot: workspace.snapshotWorkspace()) else {
             return
@@ -641,6 +705,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
 
     // MARK: - NSWindowDelegate (M12-P5)
 
+    func windowShouldClose(_ sender: NSWindow) -> Bool {
+        guard sender === window else { return true }
+        let isLastVisibleWindow = NSApplication.shared.windows.allSatisfy { candidate in
+            candidate === sender || !candidate.isVisible
+        }
+        let action = CloseRiskAction.windowClose(isLastVisibleWindow: isLastVisibleWindow)
+        let decision = workspace?.confirmCloseForWindow(action: action)
+            ?? CloseRiskWindowDecision(approved: true, approvedFingerprint: nil)
+        closeRiskGate.recordWindowClose(
+            approvedFingerprint: decision.approvedFingerprint
+        )
+        return decision.approved
+    }
+
     func windowDidResize(_ notification: Notification) {
         persistWindowFrame()
     }
@@ -683,6 +761,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
         true
+    }
+
+    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        let currentFingerprint = workspace?.closeRiskFingerprint()
+            ?? CloseRiskFingerprint(
+                sessions: [],
+                includeNotes: Preferences.confirmCloseWithNote
+            )
+        if closeRiskGate.consumeWindowCloseApproval(
+            matchingCurrentFingerprint: currentFingerprint
+        ) {
+            return .terminateNow
+        }
+        let decision = workspace?.confirmCloseForWindow(action: .quitApplication)
+            ?? CloseRiskWindowDecision(approved: true, approvedFingerprint: nil)
+        return decision.approved ? .terminateNow : .terminateCancel
     }
 
     func applicationWillTerminate(_ notification: Notification) {

@@ -215,7 +215,11 @@ extension WorkspaceView {
         field.placeholderString = "session-name"
         field.frame = NSRect(x: 0, y: 0, width: 280, height: 22)
         alert.accessoryView = field
-        alert.window.initialFirstResponder = field
+        ModalControlAccessibility.prepare(
+            field,
+            label: ModalControlAccessibility.Labels.tmuxSessionName,
+            initialResponderIn: alert
+        )
         field.selectText(nil)
         guard alert.runModal() == .alertFirstButtonReturn else { return nil }
         return field.stringValue
@@ -233,6 +237,11 @@ extension WorkspaceView {
             popup.lastItem?.representedObject = session.name
         }
         alert.accessoryView = popup
+        ModalControlAccessibility.prepare(
+            popup,
+            label: ModalControlAccessibility.Labels.tmuxSessionPicker,
+            initialResponderIn: alert
+        )
         guard alert.runModal() == .alertFirstButtonReturn else { return nil }
         return popup.selectedItem?.representedObject as? String
     }
