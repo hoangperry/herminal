@@ -30,6 +30,9 @@ let package = Package(
             name: "HerminalCore",
             dependencies: ["GhosttyKit"],
             path: "Sources/HerminalCore",
+            resources: [
+                .process("Resources")
+            ],
             linkerSettings: [
                 // Frameworks + C++ runtime pulled in by the static libghostty-fat.a
                 // (it bundles glslang / spirv-cross, which are C++).
@@ -59,9 +62,21 @@ let package = Package(
             dependencies: [],
             path: "Sources/HerminalAgent"
         ),
+        .target(
+            name: "HerminalCrashHandler",
+            dependencies: [],
+            path: "Sources/HerminalCrashHandler",
+            publicHeadersPath: "include"
+        ),
         .executableTarget(
             name: "HerminalApp",
-            dependencies: ["HerminalCore", "HerminalDB", "HerminalAgent", "GhosttyKit"],
+            dependencies: [
+                "HerminalCore",
+                "HerminalDB",
+                "HerminalAgent",
+                "HerminalCrashHandler",
+                "GhosttyKit"
+            ],
             path: "Sources/HerminalApp"
         ),
         .testTarget(

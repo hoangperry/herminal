@@ -105,11 +105,106 @@ struct AgentDetectorTests {
                 "argv[0] should look like a path, got \(argv.first ?? "nil")")
     }
 
+    @Test("ProcessArgvReader decodes argc from an intentionally unaligned offset")
+    func argvReaderHandlesUnalignedArgumentCount() {
+        let expected: Int32 = 3
+        var bytes: [UInt8] = [0xFF]
+        withUnsafeBytes(of: expected) { bytes.append(contentsOf: $0) }
+
+        #expect(ProcessArgvReader.argumentCount(in: bytes, at: 1) == expected)
+    }
+
+    @Test("ProcessArgvReader rejects out-of-bounds argc reads")
+    func argvReaderRejectsOutOfBoundsArgumentCount() {
+        let alignedBytes = [UInt8](repeating: 0, count: MemoryLayout<Int32>.size)
+        let shortBytes = Array(alignedBytes.dropLast())
+
+        #expect(ProcessArgvReader.argumentCount(in: [], at: 0) == nil)
+        #expect(ProcessArgvReader.argumentCount(in: shortBytes, at: 0) == nil)
+        #expect(ProcessArgvReader.argumentCount(in: alignedBytes, at: -1) == nil)
+        #expect(ProcessArgvReader.argumentCount(in: alignedBytes, at: 1) == nil)
+    }
+
     @Test("ProcessArgvReader returns empty for a non-existent PID")
     func argvReaderHandlesMissingPID() {
         // pid 999999 is well outside the live range on a normal system —
         // the reader must degrade gracefully, not crash.
         let argv = ProcessArgvReader.argv(forPID: 999_999)
         #expect(argv.isEmpty)
+    }
+
+    @Test("a bell promotes only the agent in the pane that rang")
+    func bellPromotionIsPaneScoped() {
+        let agents = [
+            DetectedAgent(
+                id: 1,
+                kind: .claudeCode,
+                processName: "claude",
+                status: .running,
+                tabHint: 0
+            ),
+            DetectedAgent(
+                id: 2,
+                kind: .codex,
+                processName: "codex",
+                status: .idle,
+                tabHint: 1
+            ),
+        ]
+
+        let promoted = AgentPaneMapper.promoteOnBell(
+            agents,
+            bellAddresses: [200],
+            addressesByTab: [0: [100], 1: [200]]
+        )
+
+        #expect(promoted[0].status == .running)
+        #expect(promoted[1].status == .needsInput)
+    }
+
+    @Test("an unmapped agent falls back to any recent bell")
+    func unmappedAgentBellPromotionFailsOpen() {
+        let agent = DetectedAgent(
+            id: 3,
+            kind: .aider,
+            processName: "aider",
+            status: .idle,
+            tabHint: nil
+        )
+
+        let promoted = AgentPaneMapper.promoteOnBell(
+            [agent],
+            bellAddresses: [200],
+            addressesByTab: [1: [200]]
+        )
+
+        #expect(promoted[0].status == .needsInput)
+    }
+
+    @Test("finished and unknown agents ignore bells")
+    func ineligibleAgentStatusesIgnoreBells() {
+        let statuses: [AgentStatus] = [
+            .unknown,
+            .needsInput,
+            .exitedSuccess,
+            .exitedError,
+        ]
+        let agents = statuses.enumerated().map { index, status in
+            DetectedAgent(
+                id: pid_t(index + 10),
+                kind: .claudeCode,
+                processName: "claude",
+                status: status,
+                tabHint: 0
+            )
+        }
+
+        let promoted = AgentPaneMapper.promoteOnBell(
+            agents,
+            bellAddresses: [100],
+            addressesByTab: [0: [100]]
+        )
+
+        #expect(promoted.map(\.status) == statuses)
     }
 }

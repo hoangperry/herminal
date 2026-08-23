@@ -31,6 +31,35 @@ struct AgentStatusTrackerTests {
         #expect(resurrected.first?.status == .unknown)
     }
 
+    @Test("Mach tick conversion stays finite without integer overflow")
+    func machTickConversionAvoidsOverflow() {
+        let ordinary = AgentStatusTracker.seconds(
+            forUserMachTicks: 3_000_000_000,
+            systemMachTicks: 0,
+            numer: 125,
+            denom: 3
+        )
+        let maximum = AgentStatusTracker.seconds(
+            forUserMachTicks: .max,
+            systemMachTicks: .max,
+            numer: 125,
+            denom: 3
+        )
+        let expectedMaximum = (
+            TimeInterval(UInt64.max) + TimeInterval(UInt64.max)
+        ) * 125 / 3 / 1_000_000_000
+
+        #expect(ordinary == 125)
+        #expect(maximum.isFinite)
+        #expect(abs(maximum - expectedMaximum) < expectedMaximum * 1e-12)
+        #expect(AgentStatusTracker.seconds(
+            forUserMachTicks: 1,
+            systemMachTicks: 1,
+            numer: 1,
+            denom: 0
+        ) == 0)
+    }
+
     @Test("a CPU-busy process is reported .running on the second poll")
     func busyIsRunning() {
         // Use the test process itself — no spawn races, no

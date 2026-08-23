@@ -57,6 +57,31 @@ struct BellRegistryTests {
         #expect(!registry.hasRecentBell(forSurfaceAddress: 0x9999, within: 60))
     }
 
+    @Test(
+        "hasRecentBell uses an inclusive time-window boundary",
+        arguments: [
+            (9.999, true),
+            (10.0, true),
+            (10.001, false),
+        ]
+    )
+    func hasRecentBoundary(age: TimeInterval, expected: Bool) {
+        let registry = freshRegistry()
+        let now = Date(timeIntervalSince1970: 2_000)
+        registry.recordBell(
+            surfaceAddress: 0x1000,
+            at: now.addingTimeInterval(-age)
+        )
+
+        #expect(
+            registry.hasRecentBell(
+                forSurfaceAddress: 0x1000,
+                within: 10,
+                at: now
+            ) == expected
+        )
+    }
+
     @Test("reset clears the counter and per-surface state")
     func resetClearsAll() {
         let registry = freshRegistry()

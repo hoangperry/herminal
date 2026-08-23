@@ -145,9 +145,9 @@ public enum ProcessArgvReader {
         if sysctl(&mib, UInt32(mib.count), &buffer, &size, nil, 0) != 0 {
             return []
         }
-        guard size >= MemoryLayout<Int32>.size else { return [] }
-        let argc = buffer.withUnsafeBytes { $0.load(as: Int32.self) }
-        guard argc > 0 else { return [] }
+        guard size >= MemoryLayout<Int32>.size,
+              let argc = argumentCount(in: buffer), argc > 0
+        else { return [] }
         var pos = MemoryLayout<Int32>.size
 
         // Step over the exec_path string, then over the padding nulls
@@ -169,6 +169,18 @@ public enum ProcessArgvReader {
             pos += 1
         }
         return args
+    }
+
+    /// Decodes the native-endian `argc` field without assuming that a byte
+    /// buffer starts at an `Int32`-aligned address.
+    static func argumentCount(in buffer: [UInt8], at byteOffset: Int = 0) -> Int32? {
+        guard byteOffset >= 0,
+              byteOffset <= buffer.count,
+              buffer.count - byteOffset >= MemoryLayout<Int32>.size
+        else { return nil }
+        return buffer.withUnsafeBytes {
+            $0.loadUnaligned(fromByteOffset: byteOffset, as: Int32.self)
+        }
     }
 }
 
@@ -239,9 +251,27 @@ public final class AgentStatusTracker: @unchecked Sendable {
         // 1 mach unit = 125/3 ≈ 41.67 ns; treating the field as ns
         // under-reported CPU by a factor of ~42 and made every agent
         // look idle). Convert via the cached timebase ratio.
-        let machTotal = info.ri_user_time + info.ri_system_time
-        let ns = machTotal * UInt64(machTimebase.numer) / UInt64(machTimebase.denom)
-        return TimeInterval(ns) / 1_000_000_000
+        return seconds(
+            forUserMachTicks: info.ri_user_time,
+            systemMachTicks: info.ri_system_time,
+            numer: machTimebase.numer,
+            denom: machTimebase.denom
+        )
+    }
+
+    /// Converts and sums Mach absolute-time units through floating-point
+    /// arithmetic so neither the tick sum nor numerator multiplication can
+    /// overflow a `UInt64` first.
+    static func seconds(
+        forUserMachTicks userTicks: UInt64,
+        systemMachTicks: UInt64,
+        numer: UInt32,
+        denom: UInt32
+    ) -> TimeInterval {
+        guard denom > 0 else { return 0 }
+        let totalTicks = TimeInterval(userTicks) + TimeInterval(systemMachTicks)
+        return totalTicks * TimeInterval(numer)
+            / TimeInterval(denom) / 1_000_000_000
     }
 
     /// Mach timebase ratio for converting `mach_absolute_time` units to
@@ -437,26 +467,12 @@ public enum AgentPaneMapper {
         }
     }
 
-    /// Promotes agents to `.needsInput` when the tab they live in rang its
-    /// bell.
-    ///
-    /// Pure on purpose. The caller resolves which surfaces rang
-    /// (`bellAddresses`) and which surfaces belong to which tab
-    /// (`addressesByTab`) and passes both in, so the scoping rule can be
-    /// tested without standing up a window and a libghostty app.
-    ///
-    /// This shipped broken once: the bell set was collected per surface and
-    /// then collapsed into a single window-global "did anything ring", so
-    /// one bell promoted every running or idle agent in the window and the
-    /// dashboard flagged three agents when one wanted input.
-    ///
-    /// Only `.idle` and `.running` are eligible. A finished agent must not
-    /// be dragged back to a live-looking state by a neighbour's bell.
-    ///
-    /// An agent whose `tabHint` is nil could not be placed by `annotate`,
-    /// so it falls back to "any bell promotes it". That over-flags rather
-    /// than under-flags: a missed prompt costs the user a stalled agent, a
-    /// spurious one costs them a glance.
+    /// Promotes only the live agent whose mapped pane rang its bell. The
+    /// caller must key `addressesByTab` with the same flattened live-pane
+    /// indices carried by `DetectedAgent.tabHint`. The legacy parameter name
+    /// remains for source compatibility with the upstream regression suite.
+    /// Unmapped agents deliberately fall back to any bell so a stalled agent
+    /// is over-reported rather than silently missed.
     public static func promoteOnBell(
         _ agents: [DetectedAgent],
         bellAddresses: Set<Int>,
@@ -464,9 +480,11 @@ public enum AgentPaneMapper {
     ) -> [DetectedAgent] {
         guard !bellAddresses.isEmpty else { return agents }
         return agents.map { agent in
-            guard agent.status == .idle || agent.status == .running else { return agent }
-            if let tabHint = agent.tabHint {
-                guard let addresses = addressesByTab[tabHint],
+            guard agent.status == .idle || agent.status == .running else {
+                return agent
+            }
+            if let paneIndex = agent.tabHint {
+                guard let addresses = addressesByTab[paneIndex],
                       !addresses.isDisjoint(with: bellAddresses)
                 else { return agent }
             }
