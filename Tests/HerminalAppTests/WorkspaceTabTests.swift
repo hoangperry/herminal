@@ -253,6 +253,20 @@ struct WorkspaceTabTests {
         #expect(pane.launch == .agent(.claude))
     }
 
+    @Test("a launch descriptor is dropped when it does not match the live command")
+    func mismatchedLaunchMetadataIsDropped() throws {
+        let tab = WorkspaceTab(
+            app: dummyApp,
+            command: "custom-tool",
+            title: "Custom",
+            restorableLaunch: .agent(.claude)
+        )
+
+        #expect(tab.focusedPane.command == "custom-tool")
+        #expect(tab.focusedPane.restorableLaunch == nil)
+        #expect(try #require(tab.snapshot().panes.first).launch == nil)
+    }
+
     @Test("empty-string spawn commands are normalized to a plain shell")
     func emptySpawnCommandBecomesPlainShell() {
         let tab = WorkspaceTab(

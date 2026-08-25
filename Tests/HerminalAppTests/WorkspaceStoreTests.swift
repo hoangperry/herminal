@@ -230,4 +230,16 @@ struct WorkspaceStoreTests {
         #expect(sanitised.tabs[0].panes[0].command == nil)
         #expect(sanitised.tabs[0].panes[0].launch == nil)
     }
+
+    @Test("malformed launch JSON is localized to its pane and fails closed")
+    func malformedLaunchJSONFailsClosed() throws {
+        let data = Data(
+            #"{"cwd":null,"launch":{"kind":"ssh","user":42,"host":"example.com","port":22}}"#.utf8
+        )
+
+        let decoded = try JSONDecoder().decode(PaneSnapshot.self, from: data)
+
+        #expect(decoded.command == nil)
+        #expect(decoded.launch == nil)
+    }
 }
