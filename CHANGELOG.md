@@ -18,6 +18,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Session restore replay boundary.** Workspace snapshots now persist only
+  structured, allowlisted launch descriptors for SSH, Claude resume, tmux, and
+  cockpit agents. Legacy or hand-edited raw shell commands decode for backward
+  compatibility but are scrubbed before restore and never written back to disk.
 - **Follow System updates live.** Changing macOS between Light and Dark while
   Herminal is open now repaints the pinned window chrome immediately; explicit
   Dark and Light preferences remain unchanged.

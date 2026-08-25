@@ -92,10 +92,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
 
         // v0.4.1 — session restore. If the owner left the restore
         // preference on and a snapshot exists, rebuild the tab/pane/split
-        // layout (each pane a plain shell in its last cwd). Then enable
-        // persistence so subsequent structural changes are saved. When
-        // restore is off, clear any stale snapshot so it doesn't resurrect
-        // later if the owner flips the toggle back on.
+        // layout. Panes open as plain shells unless the owner also opted into
+        // replaying supported launch intents. Then enable persistence so
+        // subsequent structural changes are saved. When restore is off, clear
+        // any stale snapshot so it doesn't resurrect later if the owner flips
+        // the toggle back on.
         if !harnessIsolation, Preferences.restoreSessionOnLaunch, let snapshot = WorkspaceStore.load() {
             workspace.restoreWorkspace(snapshot)
         } else if !harnessIsolation, !Preferences.restoreSessionOnLaunch {
@@ -630,7 +631,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
         guard let workspace else { return }
         let alert = NSAlert()
         alert.messageText = "Save Workspace"
-        alert.informativeText = "Name this tab + split layout so you can reopen it later. Commands aren't saved — only the layout and each pane's directory."
+        alert.informativeText =
+            "Name this tab + split layout so you can reopen it later. "
+            + "Supported launch intents are saved without storing raw shell commands."
         alert.addButton(withTitle: "Save")
         alert.addButton(withTitle: "Cancel")
         let field = NSTextField(frame: NSRect(x: 0, y: 0, width: 240, height: 24))

@@ -749,12 +749,16 @@ final class WorkspaceView: NSView {
     /// Used by the SSH manager to spawn `ssh user@host` in a fresh pane,
     /// and the Claude session browser to spawn `claude --resume <id>` in
     /// the session's working directory.
-    func addTab(command: String, title: String, workingDirectory: String? = nil) {
+    func addTab(command: String,
+                title: String,
+                workingDirectory: String? = nil,
+                restorableLaunch: RestorableLaunch? = nil) {
         tabs.append(WorkspaceTab(
             app: app,
             command: command,
             title: title,
-            workingDirectory: workingDirectory
+            workingDirectory: workingDirectory,
+            restorableLaunch: restorableLaunch
         ))
         activeTabIndex = tabs.count - 1
         // Commands may contain session IDs, hostnames, or user-provided
@@ -955,8 +959,17 @@ final class WorkspaceView: NSView {
 
     /// Splits the active pane. If it is the only pane in the tab it also sets
     /// the tab's split axis.
-    func splitActivePane(vertical: Bool, command: String? = nil, title: String? = nil) {
-        activeTab?.split(app: app, vertical: vertical, command: command, title: title)
+    func splitActivePane(vertical: Bool,
+                         command: String? = nil,
+                         title: String? = nil,
+                         restorableLaunch: RestorableLaunch? = nil) {
+        activeTab?.split(
+            app: app,
+            vertical: vertical,
+            command: command,
+            title: title,
+            restorableLaunch: restorableLaunch
+        )
         Diary.shared.log(
             "splitActivePane vertical=\(vertical) customCommand=\(command != nil)",
             category: "panes"
@@ -1393,7 +1406,8 @@ final class WorkspaceView: NSView {
         addTab(
             command: "claude --resume \(session.sessionId)",
             title: session.projectName,
-            workingDirectory: session.cwd
+            workingDirectory: session.cwd,
+            restorableLaunch: .claudeResume(sessionID: session.sessionId)
         )
     }
 
@@ -1567,7 +1581,11 @@ final class WorkspaceView: NSView {
         let command = Self.sshCommand(for: host)
         Self.sshLog.info("opening ssh tab on port \(host.port)")
         Diary.shared.log(Self.sshConnectionDiaryMessage(for: host), category: "ssh")
-        addTab(command: command, title: host.nickname)
+        addTab(
+            command: command,
+            title: host.nickname,
+            restorableLaunch: .ssh(user: host.user, host: host.hostname, port: host.port)
+        )
         do {
             try sshHostsStore.touchLastConnected(id: host.id)
         } catch {
@@ -1578,16 +1596,16 @@ final class WorkspaceView: NSView {
     }
 
     /// Builds the shell command that libghostty will exec in the new pane.
-    /// User/host get single-quoted to defang any wild characters in saved
-    /// metadata (we're feeding this to /bin/sh -c via libghostty).
+    /// User/host get single-quoted to defang shell metacharacters. `-l`
+    /// consumes the user as data and `--` terminates option parsing before
+    /// the saved destination.
     /// Internal for direct testing — quoting logic is the kind of thing
     /// that's painful to get wrong and easy to regress.
     static func sshCommand(for host: SSHHost) -> String {
-        let target = "\(quoted(host.user))@\(quoted(host.hostname))"
         if host.port == 22 {
-            return "ssh \(target)"
+            return "ssh -l \(quoted(host.user)) -- \(quoted(host.hostname))"
         }
-        return "ssh -p \(host.port) \(target)"
+        return "ssh -p \(host.port) -l \(quoted(host.user)) -- \(quoted(host.hostname))"
     }
 
     static func sshConnectionDiaryMessage(for host: SSHHost) -> String {

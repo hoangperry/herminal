@@ -14,11 +14,15 @@ final class TerminalSession: Identifiable {
     nonisolated let id = UUID()
     let surfaceView: HerminalSurfaceView
     var title: String
-    /// The command this pane was spawned with (ssh / claude from the
-    /// managers), or nil for a plain shell pane. Persisted in the
-    /// snapshot so "re-run commands on restore" (v0.5.4, opt-in) can
-    /// replay it; a plain shell carries nil and is never replayed.
+    /// The command this pane is currently running (ssh / claude from the
+    /// managers), or nil for a plain shell pane. Workspace snapshots no
+    /// longer persist this opaque shell string directly.
     let command: String?
+    /// Structured metadata for launches herminal can safely reconstruct on
+    /// restore. A layout-only restore may keep this descriptor even while the
+    /// live pane is currently a plain shell, so a later save can still retain
+    /// the allowlisted launch intent.
+    let restorableLaunch: RestorableLaunch?
     /// Wall-clock creation time. Used by `AgentPaneMapper` to pair this
     /// session with the libghostty login process spawned alongside it
     /// (Nth-oldest login → Nth-oldest session).
@@ -33,13 +37,21 @@ final class TerminalSession: Identifiable {
     }
 
     init(app: ghostty_app_t, title: String = TerminalSession.defaultTitle,
-         command: String? = nil, workingDirectory: String? = nil) {
+         command: String? = nil,
+         workingDirectory: String? = nil,
+         restorableLaunch: RestorableLaunch? = nil) {
         let normalizedCommand = Self.normalizedSpawnCommand(command)
         self.surfaceView = HerminalSurfaceView(
             app: app, command: normalizedCommand, workingDirectory: workingDirectory
         )
         self.title = title
         self.command = normalizedCommand
+        let validatedLaunch = restorableLaunch?.validated
+        if let normalizedCommand, validatedLaunch?.spawnCommand != normalizedCommand {
+            self.restorableLaunch = nil
+        } else {
+            self.restorableLaunch = validatedLaunch
+        }
         self.createdAt = Date().timeIntervalSince1970
     }
 

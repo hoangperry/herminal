@@ -7,7 +7,7 @@ import Darwin
 import Foundation
 
 enum TmuxLaunch {
-    enum Action: Equatable, Sendable {
+    enum Action: String, Codable, Equatable, Sendable {
         case newSession
         case attach
         case attachOrCreate

@@ -10,12 +10,13 @@
 // Restore policy (deliberately conservative since v0.4.1):
 //  - We restore the LAYOUT (the split tree + per-pane working directory),
 //    spawning a PLAIN SHELL in each pane.
-//  - We do NOT re-run ssh / claude / arbitrary commands. Those are
-//    side-effectful (opening network connections, resuming an LLM
-//    session) and surprising to fire on every launch. The cwd of an
-//    ssh pane may also be a remote path — `load()` validates every cwd
-//    against the local filesystem and drops it (→ home) if it doesn't
-//    resolve, so a former ssh pane degrades to a clean local shell.
+//  - Optional replay is restricted to STRUCTURED, allowlisted launch
+//    descriptors (ssh / Claude resume / tmux / cockpit agent panes).
+//    Legacy raw shell strings from `workspace.json` are never replayed.
+//    The cwd of an ssh pane may also be a remote path — `load()`
+//    validates every cwd against the local filesystem and drops it
+//    (→ home) if it doesn't resolve, so a former ssh pane degrades to a
+//    clean local shell.
 //
 // Format note (v0.5): the layout is now a binary split TREE
 // (`LayoutSnapshot`). Pre-v0.5 files were flat (a single axis +
@@ -25,16 +26,43 @@
 
 import Foundation
 
-/// One pane within a restored tab. Only the working directory survives;
-/// the command is intentionally not replayed (see file header).
-struct PaneSnapshot: Codable, Sendable, Equatable {
+/// One pane within a restored tab. The working directory always survives;
+/// command replay requires a validated structured launch descriptor.
+struct PaneSnapshot: Sendable, Equatable {
     /// Last-known working directory (OSC 7). nil → spawn at the shell's
     /// default (home). Validated on load.
     var cwd: String?
-    /// The spawn command (ssh / claude), nil for a plain shell. Only
-    /// replayed on restore when the owner opts in; validated at replay
-    /// time. Optional + defaulted so pre-v0.5.4 files decode (→ nil).
+    /// Legacy raw spawn command from pre-hardening snapshots. Preserved
+    /// only for backwards-compatible decode and stripped during sanitise.
     var command: String? = nil
+    /// Structured allowlisted launch metadata for panes that herminal knows
+    /// how to reconstruct safely on restore.
+    var launch: RestorableLaunch? = nil
+}
+
+extension PaneSnapshot: Codable {
+    private enum CodingKeys: String, CodingKey {
+        case cwd
+        case command
+        case launch
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        cwd = try container.decodeIfPresent(String.self, forKey: .cwd)
+        command = try container.decodeIfPresent(String.self, forKey: .command)
+        // Localize a malformed descriptor to this pane. The trust boundary
+        // will treat nil as a plain shell instead of rejecting the layout.
+        launch = try? container.decode(RestorableLaunch.self, forKey: .launch)
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encodeIfPresent(cwd, forKey: .cwd)
+        // `command` is decode-only legacy state. Never put an opaque shell
+        // string back on disk, even if an internal caller constructs one.
+        try container.encodeIfPresent(launch?.validated, forKey: .launch)
+    }
 }
 
 /// Serialized split tree. Leaves reference panes by INDEX into
@@ -146,15 +174,18 @@ enum WorkspaceStore {
         let tabs: [TabSnapshot] = snapshot.tabs.map { tab in
             guard !tab.panes.isEmpty else { return tab }
             let panes = tab.panes.map { pane -> PaneSnapshot in
-                // Carry the spawn command through untouched — it's only
-                // ever replayed behind the opt-in toggle, and validated
-                // then (WorkspaceTab.safeRerunCommand).
+                let launch = pane.launch?.validated
                 guard let cwd = WorkingDirectoryPath.validated(pane.cwd) else {
-                    return PaneSnapshot(cwd: nil, command: pane.command)
+                    return PaneSnapshot(cwd: nil, command: nil, launch: launch)
                 }
                 var isDir: ObjCBool = false
                 let exists = fm.fileExists(atPath: cwd, isDirectory: &isDir)
-                return PaneSnapshot(cwd: (exists && isDir.boolValue) ? cwd : nil, command: pane.command)
+                let validatedCwd = (exists && isDir.boolValue) ? cwd : nil
+                return PaneSnapshot(
+                    cwd: validatedCwd,
+                    command: nil,
+                    launch: launch
+                )
             }
             // A layout tree only survives if its leaves are exactly the
             // panes 0..<count (each referenced once) — otherwise it can't

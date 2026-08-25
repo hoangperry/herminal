@@ -9,8 +9,9 @@
 // WorkspaceView.restoreWorkspace verbatim. Stored as a JSON array at
 // ~/Library/Application Support/herminal/workspaces.json.
 //
-// Same conservative restore policy as WorkspaceStore: layout + cwd come
-// back as plain shells; commands (ssh / claude) are not replayed.
+// Same conservative restore policy as WorkspaceStore: layout + cwd always
+// restore, while command replay is limited to structured allowlisted
+// launches and never raw shell strings.
 
 import Foundation
 

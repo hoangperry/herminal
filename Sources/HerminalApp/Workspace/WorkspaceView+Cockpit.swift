@@ -83,7 +83,8 @@ extension WorkspaceView {
         addTab(
             command: command ?? "",
             title: tree.label,
-            workingDirectory: tree.path
+            workingDirectory: tree.path,
+            restorableLaunch: .agent(kind)
         )
     }
 
@@ -118,7 +119,12 @@ extension WorkspaceView {
 
     private func spawnInSplit(kind: AgentLaunch.Kind) {
         let command = AgentLaunch.command(for: kind)
-        splitActivePane(vertical: true, command: command, title: kind.displayName)
+        splitActivePane(
+            vertical: true,
+            command: command,
+            title: kind.displayName,
+            restorableLaunch: .agent(kind)
+        )
         Diary.shared.log("cockpit spawn pane kind=\(kind.rawValue)", category: "worktree")
     }
 
@@ -127,7 +133,8 @@ extension WorkspaceView {
         addTab(
             command: command ?? "",
             title: kind.displayName,
-            workingDirectory: focusedWorkingDirectory()
+            workingDirectory: focusedWorkingDirectory(),
+            restorableLaunch: .agent(kind)
         )
         Diary.shared.log("cockpit spawn tab kind=\(kind.rawValue)", category: "worktree")
     }
@@ -160,7 +167,12 @@ extension WorkspaceView {
             switch outcome {
             case let .success(path):
                 let command = AgentLaunch.command(for: kind)
-                self.addTab(command: command ?? "", title: name, workingDirectory: path)
+                self.addTab(
+                    command: command ?? "",
+                    title: name,
+                    workingDirectory: path,
+                    restorableLaunch: .agent(kind)
+                )
                 Diary.shared.log("worktree created", category: "worktree")
                 self.revealAgentDashboard()
             case .notARepo:

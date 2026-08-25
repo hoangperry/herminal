@@ -191,7 +191,12 @@ extension WorkspaceView {
         do {
             let command = try TmuxLaunch.command(action: action, name: name)
             let directory = cwd ?? focusedWorkingDirectory()
-            addTab(command: command, title: "tmux · \(name)", workingDirectory: directory)
+            addTab(
+                command: command,
+                title: "tmux · \(name)",
+                workingDirectory: directory,
+                restorableLaunch: .tmux(action: action, name: name)
+            )
             refreshTmuxSessions(optimistic: name, force: true)
             let label: String
             switch action {

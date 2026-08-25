@@ -30,9 +30,14 @@ final class WorkspaceTab: Identifiable {
 
     init(app: ghostty_app_t, command: String? = nil,
          title: String = TerminalSession.defaultTitle,
-         workingDirectory: String? = nil) {
+         workingDirectory: String? = nil,
+         restorableLaunch: RestorableLaunch? = nil) {
         let session = TerminalSession(
-            app: app, title: title, command: command, workingDirectory: workingDirectory
+            app: app,
+            title: title,
+            command: command,
+            workingDirectory: workingDirectory,
+            restorableLaunch: restorableLaunch
         )
         self.sessions = [session]
         self.root = .leaf(session.id)
@@ -40,18 +45,22 @@ final class WorkspaceTab: Identifiable {
     }
 
     /// Rebuilds a tab from a restored `TabSnapshot` (session restore).
-    /// Every pane spawns a plain shell in its saved cwd — the snapshot
-    /// never carries a command, so ssh/claude panes come back as clean
-    /// local shells (see WorkspaceStore header). When the snapshot has a
-    /// `layout` tree we rebuild it; pre-v0.5 flat snapshots are folded
-    /// into a left-leaning chain along the saved axis.
+    /// Every pane always restores its saved cwd. Structured launch metadata
+    /// survives in memory either way; when `rerunCommands` is false we still
+    /// open a plain shell so a later save can retain the allowlisted launch
+    /// intent without replaying it on this launch. When the snapshot has a
+    /// `layout` tree we rebuild it; pre-v0.5 flat snapshots are folded into a
+    /// left-leaning chain along the saved axis.
     init(app: ghostty_app_t, restoring snapshot: TabSnapshot, rerunCommands: Bool = false) {
         let restored = snapshot.panes.map { pane in
-            // Conservative default: each pane comes back as a plain shell.
-            // Only when the owner opted into "re-run commands on restore"
-            // do we replay the saved ssh/claude command (validated first).
-            let command = rerunCommands ? Self.safeRerunCommand(pane.command) : nil
-            return TerminalSession(app: app, command: command, workingDirectory: pane.cwd)
+            let launch = pane.launch?.validated
+            let command = rerunCommands ? launch?.spawnCommand : nil
+            return TerminalSession(
+                app: app,
+                command: command,
+                workingDirectory: pane.cwd,
+                restorableLaunch: launch
+            )
         }
         let live = restored.isEmpty ? [TerminalSession(app: app)] : restored
         self.sessions = live
@@ -109,7 +118,9 @@ final class WorkspaceTab: Identifiable {
     /// `command` / `title` let the cockpit spawn an agent or lazygit in
     /// the new pane instead of a plain shell.
     func split(app: ghostty_app_t, vertical: Bool,
-               command: String? = nil, title: String? = nil) {
+               command: String? = nil,
+               title: String? = nil,
+               restorableLaunch: RestorableLaunch? = nil) {
         zoomedPaneID = nil  // structure changed — drop any zoom
         // The new pane opens in the same directory as the one being split
         // (OSC 7) — splitting while in ~/proj keeps you in ~/proj.
@@ -118,7 +129,8 @@ final class WorkspaceTab: Identifiable {
             app: app,
             title: title ?? TerminalSession.defaultTitle,
             command: command,
-            workingDirectory: inheritedCwd
+            workingDirectory: inheritedCwd,
+            restorableLaunch: restorableLaunch
         )
         sessions.append(new)
         let axis: SplitAxis = vertical ? .vertical : .horizontal
@@ -209,7 +221,8 @@ final class WorkspaceTab: Identifiable {
             panes: ordered.map {
                 PaneSnapshot(
                     cwd: $0.surfaceView.currentWorkingDirectory,
-                    command: $0.closeRiskCommand
+                    command: nil,
+                    launch: $0.restorableLaunch
                 )
             },
             focusedPaneIndex: ordered.firstIndex { $0.id == focusedPaneID } ?? 0,
@@ -217,17 +230,6 @@ final class WorkspaceTab: Identifiable {
             isVerticalSplit: nil,
             paneRatios: nil
         )
-    }
-
-    /// Vets a persisted spawn command before replaying it on restore.
-    /// Re-run is already opt-in and `workspace.json` is owner-owned, but a
-    /// hand-edited file shouldn't be able to smuggle a second command via
-    /// a newline (the spawn runs through the shell), so reject anything
-    /// carrying control characters. nil/empty → no command (plain shell).
-    static func safeRerunCommand(_ raw: String?) -> String? {
-        guard let raw, !raw.isEmpty else { return nil }
-        guard !raw.contains(where: { $0.isNewline || $0 == "\0" }) else { return nil }
-        return raw
     }
 
     // MARK: - Tree (de)serialization helpers

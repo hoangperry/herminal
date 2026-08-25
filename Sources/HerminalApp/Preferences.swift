@@ -355,9 +355,9 @@ public enum Preferences {
         UserDefaults.standard.bool(forKey: Key.restoreSessionOnLaunch)
     }
 
-    /// Opt-in: replay each pane's ssh/claude spawn command on restore
-    /// instead of opening a plain shell. Default false (see registered
-    /// defaults) — restoring stays side-effect-free unless asked.
+    /// Opt-in: replay each pane's supported Herminal launch intent on
+    /// restore instead of opening a plain shell. Default false (see
+    /// registered defaults) — restoring stays side-effect-free unless asked.
     public static var rerunCommandsOnRestore: Bool {
         UserDefaults.standard.bool(forKey: Key.rerunCommandsOnRestore)
     }

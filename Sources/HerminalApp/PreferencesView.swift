@@ -48,9 +48,13 @@ private struct GeneralTab: View {
                     .help(closeNoteWarningPresentation.help)
                 Toggle("Restore tabs & panes on launch", isOn: $restoreSessionOnLaunch)
                     .help("Reopen last session's tab/split layout, each pane in its last working directory.")
-                Toggle("Re-run ssh / claude commands on restore", isOn: $rerunCommandsOnRestore)
+                Toggle("Re-run supported launches on restore", isOn: $rerunCommandsOnRestore)
                     .disabled(!restoreSessionOnLaunch)
-                    .help("When restoring, replay each pane's ssh/claude command instead of opening a plain shell. Off by default — restoring stays side-effect-free (no auto network or LLM sessions) unless you turn this on.")
+                    .help(
+                        "When restoring, replay supported ssh, Claude, tmux, and cockpit agent "
+                        + "launches instead of opening a plain shell. Off by default — restoring "
+                        + "stays side-effect-free unless you turn this on."
+                    )
             }
             Section("Hotkey Window") {
                 hotkeyStatus

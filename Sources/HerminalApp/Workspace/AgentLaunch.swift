@@ -4,7 +4,7 @@
 // become a free-form shell string.
 
 enum AgentLaunch {
-    enum Kind: String, CaseIterable, Identifiable {
+    enum Kind: String, CaseIterable, Identifiable, Codable, Sendable {
         case claude
         case codex
         case aider
