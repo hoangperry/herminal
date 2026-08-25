@@ -239,10 +239,18 @@ struct WorkspaceTabTests {
 
     // MARK: - Re-run commands on restore (v0.5.4)
 
-    @Test("snapshot records each pane's spawn command")
-    func snapshotRecordsCommand() {
-        let tab = WorkspaceTab(app: dummyApp, command: "ssh ops@host")
-        #expect(tab.snapshot().panes.first?.command == "ssh ops@host")
+    @Test("snapshot stores structured launch metadata instead of raw commands")
+    func snapshotStoresLaunchMetadata() throws {
+        let tab = WorkspaceTab(
+            app: dummyApp,
+            command: "claude",
+            title: "Claude Code",
+            restorableLaunch: .agent(.claude)
+        )
+
+        let pane = try #require(tab.snapshot().panes.first)
+        #expect(pane.command == nil)
+        #expect(pane.launch == .agent(.claude))
     }
 
     @Test("empty-string spawn commands are normalized to a plain shell")
@@ -299,24 +307,80 @@ struct WorkspaceTabTests {
         #expect(restored.focusedPane.command == nil)
     }
 
-    @Test("restore replays the command only when re-run is enabled")
-    func restoreRerunsCommandWhenEnabled() {
+    @Test("restore does not replay legacy raw commands even when re-run is enabled")
+    func restoreIgnoresLegacyRawCommand() {
+        let cwd = FileManager.default.temporaryDirectory.path
         let snap = TabSnapshot(
-            panes: [PaneSnapshot(cwd: nil, command: "claude --resume abc")],
+            panes: [PaneSnapshot(cwd: cwd, command: "claude --resume abc")],
             focusedPaneIndex: 0, layout: nil, isVerticalSplit: true, paneRatios: [1.0])
-        let off = WorkspaceTab(app: dummyApp, restoring: snap)  // default: rerun off
-        #expect(off.focusedPane.command == nil)
-        let on = WorkspaceTab(app: dummyApp, restoring: snap, rerunCommands: true)
-        #expect(on.focusedPane.command == "claude --resume abc")
+        let restored = WorkspaceTab(app: dummyApp, restoring: snap, rerunCommands: true)
+        #expect(restored.focusedPane.command == nil)
+        #expect(restored.focusedPane.surfaceView.currentWorkingDirectory == cwd)
     }
 
-    @Test("safeRerunCommand rejects empties and control-char smuggling")
-    func safeRerunCommandValidation() {
-        #expect(WorkspaceTab.safeRerunCommand("ssh ops@host") == "ssh ops@host")
-        #expect(WorkspaceTab.safeRerunCommand(nil) == nil)
-        #expect(WorkspaceTab.safeRerunCommand("") == nil)
-        #expect(WorkspaceTab.safeRerunCommand("ssh x\nrm -rf ~") == nil)  // newline smuggle
-        #expect(WorkspaceTab.safeRerunCommand("a\u{0}b") == nil)          // NUL
+    @Test("restore replays allowlisted launches only when re-run is enabled")
+    func restoreRerunsStructuredLaunchWhenEnabled() {
+        let sessionID = UUID().uuidString
+        let cwd = FileManager.default.temporaryDirectory.path
+        let snap = TabSnapshot(
+            panes: [PaneSnapshot(
+                cwd: cwd,
+                launch: .claudeResume(sessionID: sessionID)
+            )],
+            focusedPaneIndex: 0,
+            layout: nil,
+            isVerticalSplit: true,
+            paneRatios: [1.0]
+        )
+
+        let off = WorkspaceTab(app: dummyApp, restoring: snap)
+        #expect(off.focusedPane.command == nil)
+        #expect(off.focusedPane.surfaceView.currentWorkingDirectory == cwd)
+
+        let on = WorkspaceTab(app: dummyApp, restoring: snap, rerunCommands: true)
+        #expect(on.focusedPane.command == "claude --resume \(sessionID)")
+        #expect(on.focusedPane.surfaceView.currentWorkingDirectory == cwd)
+    }
+
+    @Test("malformed launch descriptors fall back to a plain shell but keep cwd")
+    func malformedLaunchFallsBackToPlainShell() {
+        let cwd = FileManager.default.temporaryDirectory.path
+        let snap = TabSnapshot(
+            panes: [PaneSnapshot(
+                cwd: cwd,
+                launch: .claudeResume(sessionID: "not-a-uuid")
+            )],
+            focusedPaneIndex: 0,
+            layout: nil,
+            isVerticalSplit: true,
+            paneRatios: [1.0]
+        )
+
+        let restored = WorkspaceTab(app: dummyApp, restoring: snap, rerunCommands: true)
+        #expect(restored.focusedPane.command == nil)
+        #expect(restored.focusedPane.surfaceView.currentWorkingDirectory == cwd)
+    }
+
+    @Test("launch descriptors build commands only for valid allowlisted payloads")
+    func restorableLaunchValidation() {
+        let sessionID = UUID().uuidString
+
+        #expect(RestorableLaunch.agent(.claude).spawnCommand == "claude")
+        #expect(
+            RestorableLaunch.claudeResume(sessionID: sessionID).spawnCommand
+                == "claude --resume \(sessionID)"
+        )
+        #expect(
+            RestorableLaunch.ssh(user: "ops", host: "internal.example.com", port: 2222).spawnCommand
+                == "ssh -p 2222 'ops'@'internal.example.com'"
+        )
+        #expect(
+            RestorableLaunch.tmux(action: .attachOrCreate, name: "api").spawnCommand
+                == "tmux new-session -A -s 'api'"
+        )
+        #expect(RestorableLaunch.claudeResume(sessionID: "not-a-uuid").spawnCommand == nil)
+        #expect(RestorableLaunch.ssh(user: "", host: "internal.example.com", port: 22).spawnCommand == nil)
+        #expect(RestorableLaunch.tmux(action: .attach, name: "bad name").spawnCommand == nil)
     }
 
     // MARK: - Pane zoom (v1.0)

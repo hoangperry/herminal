@@ -14,9 +14,14 @@ struct WorkspaceStoreTests {
     private func tab(panes: Int, focus: Int = 0,
                      layout: LayoutSnapshot? = nil,
                      vertical: Bool? = nil, ratios: [Double]? = nil,
-                     cwd: String? = nil) -> TabSnapshot {
+                     cwd: String? = nil,
+                     command: String? = nil,
+                     launch: RestorableLaunch? = nil) -> TabSnapshot {
         TabSnapshot(
-            panes: Array(repeating: PaneSnapshot(cwd: cwd), count: panes),
+            panes: Array(
+                repeating: PaneSnapshot(cwd: cwd, command: command, launch: launch),
+                count: panes
+            ),
             focusedPaneIndex: focus,
             layout: layout,
             isVerticalSplit: vertical,
@@ -156,14 +161,34 @@ struct WorkspaceStoreTests {
         #expect(out.tabs[0].layout == nil)
     }
 
-    @Test("a pane's spawn command is carried through sanitise")
-    func commandSurvivesSanitise() throws {
+    @Test("legacy raw commands are stripped during sanitise")
+    func rawCommandIsStripped() throws {
         let snap = WorkspaceSnapshot(
             tabs: [TabSnapshot(panes: [PaneSnapshot(cwd: nil, command: "ssh ops@host")],
                                focusedPaneIndex: 0, layout: nil,
                                isVerticalSplit: true, paneRatios: nil)],
             activeTabIndex: 0)
         let out = try #require(WorkspaceStore.sanitise(snap))
-        #expect(out.tabs[0].panes[0].command == "ssh ops@host")
+        #expect(out.tabs[0].panes[0].command == nil)
+        #expect(out.tabs[0].panes[0].launch == nil)
+    }
+
+    @Test("validated structured launches survive sanitise")
+    func launchSurvivesSanitise() throws {
+        let launch = RestorableLaunch.ssh(user: "ops", host: "internal.example.com", port: 2222)
+        let snap = WorkspaceSnapshot(
+            tabs: [TabSnapshot(
+                panes: [PaneSnapshot(cwd: nil, command: "ssh ops@host", launch: launch)],
+                focusedPaneIndex: 0,
+                layout: nil,
+                isVerticalSplit: true,
+                paneRatios: nil
+            )],
+            activeTabIndex: 0
+        )
+
+        let out = try #require(WorkspaceStore.sanitise(snap))
+        #expect(out.tabs[0].panes[0].command == nil)
+        #expect(out.tabs[0].panes[0].launch == launch)
     }
 }
