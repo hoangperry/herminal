@@ -380,7 +380,37 @@ struct WorkspaceTabTests {
         )
         #expect(RestorableLaunch.claudeResume(sessionID: "not-a-uuid").spawnCommand == nil)
         #expect(RestorableLaunch.ssh(user: "", host: "internal.example.com", port: 22).spawnCommand == nil)
+        #expect(
+            RestorableLaunch.ssh(
+                user: "ops\nwhoami",
+                host: "internal.example.com",
+                port: 22
+            ).spawnCommand == nil
+        )
+        #expect(
+            RestorableLaunch.ssh(
+                user: String(repeating: "a", count: 256),
+                host: "internal.example.com",
+                port: 22
+            ).spawnCommand == nil
+        )
         #expect(RestorableLaunch.tmux(action: .attach, name: "bad name").spawnCommand == nil)
+    }
+
+    @Test("launch descriptors round-trip through Codable")
+    func restorableLaunchCodableRoundTrip() throws {
+        let launches: [RestorableLaunch] = [
+            .agent(.claude),
+            .ssh(user: "ops", host: "internal.example.com", port: 22),
+            .claudeResume(sessionID: UUID().uuidString),
+            .tmux(action: .attachOrCreate, name: "api"),
+        ]
+
+        for launch in launches {
+            let data = try JSONEncoder().encode(launch)
+            let decoded = try JSONDecoder().decode(RestorableLaunch.self, from: data)
+            #expect(decoded == launch)
+        }
     }
 
     // MARK: - Pane zoom (v1.0)

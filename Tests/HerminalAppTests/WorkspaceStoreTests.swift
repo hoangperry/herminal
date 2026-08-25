@@ -191,4 +191,43 @@ struct WorkspaceStoreTests {
         #expect(out.tabs[0].panes[0].command == nil)
         #expect(out.tabs[0].panes[0].launch == launch)
     }
+
+    @Test("encoding scrubs legacy commands and invalid launch descriptors")
+    func encodingScrubsUnsafeReplayMetadata() throws {
+        let pane = PaneSnapshot(
+            cwd: nil,
+            command: "touch /tmp/herminal-restore-pwned",
+            launch: .ssh(user: "", host: "internal.example.com", port: 22)
+        )
+
+        let data = try JSONEncoder().encode(pane)
+        let object = try #require(
+            JSONSerialization.jsonObject(with: data) as? [String: Any]
+        )
+
+        #expect(object["command"] == nil)
+        #expect(object["launch"] == nil)
+    }
+
+    @Test("legacy command JSON remains decode-only and is stripped at the trust boundary")
+    func legacyCommandJSONIsDecodeOnly() throws {
+        let data = Data(#"{"cwd":null,"command":"ssh ops@legacy-host"}"#.utf8)
+        let decoded = try JSONDecoder().decode(PaneSnapshot.self, from: data)
+        #expect(decoded.command == "ssh ops@legacy-host")
+
+        let snapshot = WorkspaceSnapshot(
+            tabs: [TabSnapshot(
+                panes: [decoded],
+                focusedPaneIndex: 0,
+                layout: nil,
+                isVerticalSplit: true,
+                paneRatios: nil
+            )],
+            activeTabIndex: 0
+        )
+        let sanitised = try #require(WorkspaceStore.sanitise(snapshot))
+
+        #expect(sanitised.tabs[0].panes[0].command == nil)
+        #expect(sanitised.tabs[0].panes[0].launch == nil)
+    }
 }
