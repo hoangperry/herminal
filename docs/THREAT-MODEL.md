@@ -67,7 +67,8 @@ Herminal does not protect users from commands they intentionally run, malicious 
 
 - SSH config import ignores `ProxyCommand`, `Match`, wildcard-only targets, and private key content.
 - UI command construction must reject control characters and shell metacharacter ambiguity or avoid shell parsing entirely.
-- Restored command replay is opt-in and persisted commands are validated before spawn.
+- Restored launch replay is opt-in and uses structured, allowlisted descriptors;
+  legacy raw command strings are decode-only and never executed or re-encoded.
 - Layout-only restore remains the default.
 
 **Required follow-up:** maintain regression tests for newline/control-character input and verify SSH spawn uses an argument-safe boundary.

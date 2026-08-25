@@ -230,10 +230,11 @@
         </div>
         <p class="note">
           Safe by default: restore replays the <em>layout + directory</em> only — no surprise
-          ssh connections or LLM resumes on launch. Opt into <em>re-run ssh / claude
-          commands</em> in Settings when you do want the whole session back. Read-only against
-          <code>~/.claude</code>, built on OSC 7 working-directory tracking — every pane knows
-          where it is, so the terminal can put it back.
+          ssh connections or LLM resumes on launch. Opt into <em>re-run supported launches</em>
+          in Settings when you do want the whole session back. Replay uses structured,
+          allowlisted SSH, Claude, tmux, and agent intents — never raw shell strings.
+          Read-only against <code>~/.claude</code>, built on OSC 7 working-directory tracking —
+          every pane knows where it is, so the terminal can put it back.
         </p>
       </div>
     </section>
@@ -403,7 +404,7 @@
           </div>
           <div class="card">
             <h3>Re-run on restore</h3>
-            <p>Opt in (off by default) and session restore replays each pane's <code>ssh</code> / <code>claude</code> command, not just the layout — the whole session back, on your terms.</p>
+            <p>Opt in (off by default) and session restore replays structured SSH, Claude, tmux, and agent launches, not raw shell strings — the whole session back, on your terms.</p>
           </div>
         </div>
         <p class="note">
