@@ -342,6 +342,28 @@ struct WorkspaceTabTests {
         #expect(on.focusedPane.surfaceView.currentWorkingDirectory == cwd)
     }
 
+    @Test("layout-only restore preserves launch metadata for later saves")
+    func layoutOnlyRestoreKeepsLaunchMetadata() throws {
+        let sessionID = UUID().uuidString
+        let cwd = FileManager.default.temporaryDirectory.path
+        let launch = RestorableLaunch.claudeResume(sessionID: sessionID)
+        let snap = TabSnapshot(
+            panes: [PaneSnapshot(cwd: cwd, launch: launch)],
+            focusedPaneIndex: 0,
+            layout: nil,
+            isVerticalSplit: true,
+            paneRatios: [1.0]
+        )
+
+        let restored = WorkspaceTab(app: dummyApp, restoring: snap, rerunCommands: false)
+        #expect(restored.focusedPane.command == nil)
+        #expect(restored.focusedPane.restorableLaunch == launch)
+
+        let persisted = try #require(restored.snapshot().panes.first)
+        #expect(persisted.command == nil)
+        #expect(persisted.launch == launch)
+    }
+
     @Test("malformed launch descriptors fall back to a plain shell but keep cwd")
     func malformedLaunchFallsBackToPlainShell() {
         let cwd = FileManager.default.temporaryDirectory.path
@@ -372,7 +394,7 @@ struct WorkspaceTabTests {
         )
         #expect(
             RestorableLaunch.ssh(user: "ops", host: "internal.example.com", port: 2222).spawnCommand
-                == "ssh -p 2222 'ops'@'internal.example.com'"
+                == "ssh -p 2222 -l 'ops' -- 'internal.example.com'"
         )
         #expect(
             RestorableLaunch.tmux(action: .attachOrCreate, name: "api").spawnCommand
@@ -382,8 +404,29 @@ struct WorkspaceTabTests {
         #expect(RestorableLaunch.ssh(user: "", host: "internal.example.com", port: 22).spawnCommand == nil)
         #expect(
             RestorableLaunch.ssh(
+                user: "-oProxyCommand=printf owned",
+                host: "internal.example.com",
+                port: 22
+            ).spawnCommand == nil
+        )
+        #expect(
+            RestorableLaunch.ssh(
                 user: "ops\nwhoami",
                 host: "internal.example.com",
+                port: 22
+            ).spawnCommand == nil
+        )
+        #expect(
+            RestorableLaunch.ssh(
+                user: "ops admin",
+                host: "internal.example.com",
+                port: 22
+            ).spawnCommand == nil
+        )
+        #expect(
+            RestorableLaunch.ssh(
+                user: "ops",
+                host: "-internal.example.com",
                 port: 22
             ).spawnCommand == nil
         )

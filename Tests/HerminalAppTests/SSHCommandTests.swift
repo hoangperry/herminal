@@ -10,14 +10,14 @@ struct SSHCommandTests {
     func defaultPortOmitted() {
         let host = SSHHost(nickname: "n", hostname: "example.com",
                            user: "deploy", port: 22)
-        #expect(WorkspaceView.sshCommand(for: host) == "ssh 'deploy'@'example.com'")
+        #expect(WorkspaceView.sshCommand(for: host) == "ssh -l 'deploy' -- 'example.com'")
     }
 
     @Test("non-default port adds the -p flag")
     func customPortFlag() {
         let host = SSHHost(nickname: "n", hostname: "host.lan",
                            user: "ops", port: 2222)
-        #expect(WorkspaceView.sshCommand(for: host) == "ssh -p 2222 'ops'@'host.lan'")
+        #expect(WorkspaceView.sshCommand(for: host) == "ssh -p 2222 -l 'ops' -- 'host.lan'")
     }
 
     @Test("single quotes inside user/host get escaped")
@@ -26,7 +26,7 @@ struct SSHCommandTests {
         // not break out of the shell quote.
         let host = SSHHost(nickname: "n", hostname: "h'ost",
                            user: "us'er", port: 22)
-        #expect(WorkspaceView.sshCommand(for: host) == "ssh 'us'\\''er'@'h'\\''ost'")
+        #expect(WorkspaceView.sshCommand(for: host) == "ssh -l 'us'\\''er' -- 'h'\\''ost'")
     }
 
     @Test("SSH diary messages keep only structural connection metadata")
@@ -48,7 +48,7 @@ struct SSHCommandTests {
 
     @Test("custom tab diary messages omit command payloads and cwd paths")
     func customTabDiaryMessageStaysStructural() {
-        let command = "ssh 'deploy'@'internal.example.com'"
+        let command = "ssh -l 'deploy' -- 'internal.example.com'"
         let cwd = "/Users/alice/private/project"
 
         let message = WorkspaceView.customTabDiaryMessage(
