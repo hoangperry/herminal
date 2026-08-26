@@ -604,6 +604,29 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
         )
     }
 
+    /// Opens the official bug-report template on explicit user request.
+    /// Diagnostics remain local and are copied only through the separate,
+    /// privacy-redacted Help action above.
+    @objc func reportProblem(_ sender: Any?) {
+        let outcome = SupportIssueReporter.openBugReport { destination in
+            NSWorkspace.shared.open(destination)
+        }
+        guard outcome == .failed else {
+            Diary.shared.log("opened bug report form", category: "support")
+            return
+        }
+
+        Diary.shared.log("could not open bug report form", category: "support")
+        NSSound.beep()
+        let presentation = SupportIssueReporter.openFailureAlert
+        let alert = NSAlert()
+        alert.alertStyle = .warning
+        alert.messageText = presentation.messageText
+        alert.informativeText = presentation.informativeText
+        alert.addButton(withTitle: presentation.buttonTitle)
+        alert.runModal()
+    }
+
     // MARK: - Polish wave slice 2 — palette + hotkey (v0.3.1)
 
     /// ⌘⇧P — toggle the floating command palette. Indexed actions

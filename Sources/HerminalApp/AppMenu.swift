@@ -429,6 +429,16 @@ enum AppMenu {
         copyDiary.toolTip = "Copies the latest 200 privacy-redacted diagnostic entries for a bug report."
         helpMenu.addItem(copyDiary)
 
+        let reportProblem = NSMenuItem(
+            title: "Report a Problem…",
+            action: #selector(AppDelegate.reportProblem(_:)),
+            keyEquivalent: ""
+        )
+        reportProblem.toolTip =
+            "Opens the official GitHub bug report form. "
+            + "Copy redacted diagnostics first; herminal never uploads them."
+        helpMenu.addItem(reportProblem)
+
         return mainMenu
     }
 

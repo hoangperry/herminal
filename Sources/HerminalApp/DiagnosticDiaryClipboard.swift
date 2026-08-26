@@ -1,5 +1,37 @@
 import AppKit
 
+enum SupportIssueOpenOutcome: Equatable {
+    case opened
+    case failed
+}
+
+struct SupportIssueOpenFailureAlert: Equatable {
+    let messageText: String
+    let informativeText: String
+    let buttonTitle: String
+}
+
+enum SupportIssueReporter {
+    static let bugReportURL = URL(
+        string: "https://github.com/hoangperry/herminal/issues/new?template=bug_report.md"
+    )!
+
+    static let openFailureAlert = SupportIssueOpenFailureAlert(
+        messageText: "Couldn’t Open the Bug Report",
+        informativeText:
+            "Visit github.com/hoangperry/herminal/issues/new in your browser. "
+            + "Before filing, choose Help > Copy Redacted Diagnostics for Bug Report. "
+            + "Review the copied text before pasting it.",
+        buttonTitle: "Close"
+    )
+
+    static func openBugReport(
+        using opener: (URL) -> Bool
+    ) -> SupportIssueOpenOutcome {
+        opener(bugReportURL) ? .opened : .failed
+    }
+}
+
 @MainActor
 enum DiagnosticDiaryClipboard {
     enum Outcome: Equatable {

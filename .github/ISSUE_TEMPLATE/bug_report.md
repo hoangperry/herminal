@@ -28,13 +28,15 @@ What should have happened instead.
 - Shell ($SHELL):
 - IME source (if relevant — Telex, VNI, ABC, US):
 
-## Crash diary excerpt
+## Redacted diagnostics (optional)
 
-Paste the last ~30 lines of `~/Library/Application Support/herminal/diary.log`
-around the time of the bug. Look for any `=== CRASHED signal=N ===` line.
+In herminal, choose **Help > Copy Redacted Diagnostics for Bug Report**,
+then paste only the lines relevant to this bug. Herminal does not upload this
+data. Review the copied text and remove anything you do not want to share.
+Do not paste the raw `diary.log` file.
 
 ```
-# diary tail goes here
+# redacted diagnostics go here
 ```
 
 ## Dogfood journal day (if applicable)

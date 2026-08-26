@@ -353,6 +353,14 @@ enum CommandPaletteCatalog {
             selector: #selector(AppDelegate.copyRedactedDiary(_:))
         ),
         .init(
+            id: "report-problem",
+            title: "Report a Problem",
+            subtitle: "Open the official GitHub bug report form; diagnostics stay local until you copy them",
+            icon: "exclamationmark.bubble",
+            shortcutDisplay: nil,
+            selector: #selector(AppDelegate.reportProblem(_:))
+        ),
+        .init(
             id: "import-ssh",
             title: "Import ~/.ssh/config",
             subtitle: "One-shot upsert into SSH host list",
