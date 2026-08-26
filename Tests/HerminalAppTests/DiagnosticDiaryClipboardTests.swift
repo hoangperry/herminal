@@ -42,6 +42,79 @@ struct DiagnosticDiaryClipboardTests {
         #expect(item.menuPath == "Help")
     }
 
+    @Test("Help and command palette expose the official bug report flow")
+    func supportEntryPoints() throws {
+        let menu = AppMenu.build(
+            openWorkspaceSubmenu: NSMenu(title: "Open Workspace")
+        )
+        let helpMenu = try #require(AppMenu.helpMenu(in: menu))
+        let helpItem = try #require(helpMenu.items.first {
+            $0.title == "Report a Problem…"
+        })
+        let copyIndex = try #require(helpMenu.items.firstIndex {
+            $0.title == "Copy Redacted Diagnostics for Bug Report"
+        })
+        let reportIndex = try #require(helpMenu.items.firstIndex {
+            $0.title == "Report a Problem…"
+        })
+
+        #expect(helpItem.action == #selector(AppDelegate.reportProblem(_:)))
+        #expect(helpItem.isEnabled)
+        #expect(copyIndex < reportIndex)
+        #expect(
+            helpItem.toolTip
+                == "Opens the official GitHub bug report form. Copy redacted diagnostics first; herminal never uploads them."
+        )
+
+        let paletteItem = try #require(
+            CommandPaletteCatalog.actions(from: menu).first {
+                $0.id == "report-problem"
+            }
+        )
+        #expect(paletteItem.title == "Report a Problem")
+        #expect(
+            paletteItem.subtitle
+                == "Open the official GitHub bug report form; diagnostics stay local until you copy them"
+        )
+        #expect(paletteItem.selector == #selector(AppDelegate.reportProblem(_:)))
+        #expect(paletteItem.menuPath == "Help")
+        #expect(
+            CommandPaletteView.filteredActions(
+                CommandPaletteCatalog.actions(from: menu),
+                query: "bug report"
+            ).contains { $0.id == "report-problem" }
+        )
+    }
+
+    @Test("bug reporting opens the official template exactly once")
+    func bugReportDestination() {
+        var destinations: [URL] = []
+
+        let outcome = SupportIssueReporter.openBugReport { destination in
+            destinations.append(destination)
+            return true
+        }
+
+        #expect(outcome == .opened)
+        #expect(destinations == [SupportIssueReporter.bugReportURL])
+        #expect(
+            SupportIssueReporter.bugReportURL.absoluteString
+                == "https://github.com/hoangperry/herminal/issues/new?template=bug_report.md"
+        )
+    }
+
+    @Test("bug report browser failures explain the manual recovery path")
+    func bugReportFailurePresentation() {
+        let outcome = SupportIssueReporter.openBugReport { _ in false }
+        let presentation = SupportIssueReporter.openFailureAlert
+
+        #expect(outcome == .failed)
+        #expect(presentation.messageText == "Couldn’t Open the Bug Report")
+        #expect(presentation.informativeText.contains("github.com/hoangperry/herminal/issues/new"))
+        #expect(presentation.informativeText.contains("Copy Redacted Diagnostics"))
+        #expect(presentation.buttonTitle == "Close")
+    }
+
     @Test("non-empty redacted diagnostics replace the clipboard")
     func nonEmptyPayloadCopies() {
         let pasteboard = NSPasteboard.withUniqueName()
