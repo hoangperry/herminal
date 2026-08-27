@@ -94,6 +94,51 @@ struct DiagnosticDiaryClipboardTests {
         )
     }
 
+    @Test("Help and command palette expose privacy-safe beta feedback")
+    func betaFeedbackEntryPoints() throws {
+        let menu = AppMenu.build(
+            openWorkspaceSubmenu: NSMenu(title: "Open Workspace")
+        )
+        let helpMenu = try #require(AppMenu.helpMenu(in: menu))
+        let helpItem = try #require(helpMenu.items.first {
+            $0.title == "Share Beta Feedback…"
+        })
+        let reportIndex = try #require(helpMenu.items.firstIndex {
+            $0.title == "Report a Problem…"
+        })
+        let betaIndex = try #require(helpMenu.items.firstIndex {
+            $0.title == "Share Beta Feedback…"
+        })
+
+        #expect(helpItem.action == #selector(AppDelegate.shareBetaFeedback(_:)))
+        #expect(helpItem.isEnabled)
+        #expect(reportIndex < betaIndex)
+        #expect(
+            helpItem.toolTip
+                == "Opens the official privacy-safe beta workflow form. Review every field before submitting; herminal never uploads diagnostics."
+        )
+        #expect(helpItem.accessibilityHelp() == helpItem.toolTip)
+
+        let paletteItem = try #require(
+            CommandPaletteCatalog.actions(from: menu).first {
+                $0.id == "share-beta-feedback"
+            }
+        )
+        #expect(paletteItem.title == "Share Beta Feedback")
+        #expect(
+            paletteItem.subtitle
+                == "Share a privacy-safe real-workflow report; herminal never uploads diagnostics"
+        )
+        #expect(paletteItem.selector == #selector(AppDelegate.shareBetaFeedback(_:)))
+        #expect(paletteItem.menuPath == "Help")
+        #expect(
+            CommandPaletteView.filteredActions(
+                CommandPaletteCatalog.actions(from: menu),
+                query: "beta workflow"
+            ).contains { $0.id == "share-beta-feedback" }
+        )
+    }
+
     @Test("bug reporting opens the official template exactly once")
     func bugReportDestination() {
         var destinations: [URL] = []
@@ -135,6 +180,44 @@ struct DiagnosticDiaryClipboardTests {
         #expect(
             pasteboard.string(forType: .string)
                 == SupportIssueReporter.bugReportURL.absoluteString
+        )
+    }
+
+    @Test("beta feedback opens the official privacy-safe form exactly once")
+    func betaFeedbackDestination() {
+        var destinations: [URL] = []
+
+        let outcome = SupportIssueReporter.openBetaFeedback { destination in
+            destinations.append(destination)
+            return true
+        }
+
+        #expect(outcome == .opened)
+        #expect(destinations == [SupportIssueReporter.betaFeedbackURL])
+        #expect(
+            SupportIssueReporter.betaFeedbackURL.absoluteString
+                == "https://github.com/hoangperry/herminal/issues/new?template=beta_report.yml"
+        )
+    }
+
+    @Test("beta feedback browser failures keep a copyable privacy-safe recovery")
+    func betaFeedbackFailureRecovery() {
+        let pasteboard = NSPasteboard.withUniqueName()
+        let outcome = SupportIssueReporter.openBetaFeedback { _ in false }
+        let presentation = SupportIssueReporter.betaFeedbackOpenFailureAlert
+
+        #expect(outcome == .failed)
+        #expect(presentation.messageText == "Couldn’t Open Beta Feedback")
+        #expect(presentation.informativeText.contains("beta_report.yml"))
+        #expect(presentation.informativeText.contains("private terminal data"))
+        #expect(presentation.copyButtonTitle == "Copy Beta Feedback URL")
+        #expect(presentation.cancelButtonTitle == "Close")
+
+        let copyOutcome = SupportIssueReporter.copyBetaFeedbackURL(to: pasteboard)
+        #expect(copyOutcome == .copied)
+        #expect(
+            pasteboard.string(forType: .string)
+                == SupportIssueReporter.betaFeedbackURL.absoluteString
         )
     }
 
