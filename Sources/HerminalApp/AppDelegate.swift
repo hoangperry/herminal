@@ -623,8 +623,28 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
         alert.alertStyle = .warning
         alert.messageText = presentation.messageText
         alert.informativeText = presentation.informativeText
-        alert.addButton(withTitle: presentation.buttonTitle)
-        alert.runModal()
+        alert.addButton(withTitle: presentation.copyButtonTitle)
+        alert.addButton(withTitle: presentation.cancelButtonTitle)
+        guard alert.runModal() == .alertFirstButtonReturn else { return }
+
+        let copyOutcome = SupportIssueReporter.copyBugReportURL()
+        let announcement: String
+        switch copyOutcome {
+        case .copied:
+            Diary.shared.log("copied bug report URL", category: "support")
+            announcement = "Bug report URL copied."
+        case .empty, .failed:
+            NSSound.beep()
+            announcement = "Could not copy the bug report URL."
+        }
+        NSAccessibility.post(
+            element: NSApplication.shared,
+            notification: .announcementRequested,
+            userInfo: [
+                .announcement: announcement,
+                .priority: NSAccessibilityPriorityLevel.medium.rawValue
+            ]
+        )
     }
 
     // MARK: - Polish wave slice 2 — palette + hotkey (v0.3.1)

@@ -8,7 +8,8 @@ enum SupportIssueOpenOutcome: Equatable {
 struct SupportIssueOpenFailureAlert: Equatable {
     let messageText: String
     let informativeText: String
-    let buttonTitle: String
+    let copyButtonTitle: String
+    let cancelButtonTitle: String
 }
 
 enum SupportIssueReporter {
@@ -22,13 +23,24 @@ enum SupportIssueReporter {
             "Visit github.com/hoangperry/herminal/issues/new in your browser. "
             + "Before filing, choose Help > Copy Redacted Diagnostics for Bug Report. "
             + "Review the copied text before pasting it.",
-        buttonTitle: "Close"
+        copyButtonTitle: "Copy Bug Report URL",
+        cancelButtonTitle: "Close"
     )
 
     static func openBugReport(
         using opener: (URL) -> Bool
     ) -> SupportIssueOpenOutcome {
         opener(bugReportURL) ? .opened : .failed
+    }
+
+    @MainActor
+    static func copyBugReportURL(
+        to pasteboard: NSPasteboard = .general
+    ) -> DiagnosticDiaryClipboard.Outcome {
+        DiagnosticDiaryClipboard.write(
+            bugReportURL.absoluteString,
+            to: pasteboard
+        )
     }
 }
 
