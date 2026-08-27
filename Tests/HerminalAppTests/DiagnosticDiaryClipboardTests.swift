@@ -21,6 +21,10 @@ struct DiagnosticDiaryClipboardTests {
         #expect(AppMenu.helpMenu(in: menu) === helpMenu)
         #expect(item.action == NSSelectorFromString("copyRedactedDiary:"))
         #expect(item.toolTip == "Copies the latest 200 privacy-redacted diagnostic entries for a bug report.")
+        #expect(
+            item.accessibilityHelp()
+                == "Copies the latest 200 privacy-redacted diagnostic entries for a bug report."
+        )
     }
 
     @Test("Command palette exposes the privacy-safe diary copy action")
@@ -63,6 +67,10 @@ struct DiagnosticDiaryClipboardTests {
         #expect(copyIndex < reportIndex)
         #expect(
             helpItem.toolTip
+                == "Opens the official GitHub bug report form. Copy redacted diagnostics first; herminal never uploads them."
+        )
+        #expect(
+            helpItem.accessibilityHelp()
                 == "Opens the official GitHub bug report form. Copy redacted diagnostics first; herminal never uploads them."
         )
 
@@ -112,7 +120,22 @@ struct DiagnosticDiaryClipboardTests {
         #expect(presentation.messageText == "Couldn’t Open the Bug Report")
         #expect(presentation.informativeText.contains("github.com/hoangperry/herminal/issues/new"))
         #expect(presentation.informativeText.contains("Copy Redacted Diagnostics"))
-        #expect(presentation.buttonTitle == "Close")
+        #expect(presentation.copyButtonTitle == "Copy Bug Report URL")
+        #expect(presentation.cancelButtonTitle == "Close")
+    }
+
+    @Test("bug report failure recovery copies the official URL")
+    func bugReportFailureCopiesURL() {
+        let pasteboard = NSPasteboard.withUniqueName()
+        pasteboard.setString("keep me if recovery fails", forType: .string)
+
+        let outcome = SupportIssueReporter.copyBugReportURL(to: pasteboard)
+
+        #expect(outcome == .copied)
+        #expect(
+            pasteboard.string(forType: .string)
+                == SupportIssueReporter.bugReportURL.absoluteString
+        )
     }
 
     @Test("non-empty redacted diagnostics replace the clipboard")
