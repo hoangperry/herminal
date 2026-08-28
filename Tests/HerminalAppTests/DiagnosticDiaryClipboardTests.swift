@@ -101,21 +101,27 @@ struct DiagnosticDiaryClipboardTests {
         )
         let helpMenu = try #require(AppMenu.helpMenu(in: menu))
         let helpItem = try #require(helpMenu.items.first {
-            $0.title == "Share Beta Feedback…"
+            $0.title == "Open Beta Feedback Form…"
+        })
+        let separatorIndex = try #require(helpMenu.items.firstIndex { $0.isSeparatorItem })
+        let copyDiagnosticsIndex = try #require(helpMenu.items.firstIndex {
+            $0.title == "Copy Redacted Diagnostics for Bug Report"
         })
         let reportIndex = try #require(helpMenu.items.firstIndex {
             $0.title == "Report a Problem…"
         })
         let betaIndex = try #require(helpMenu.items.firstIndex {
-            $0.title == "Share Beta Feedback…"
+            $0.title == "Open Beta Feedback Form…"
         })
 
         #expect(helpItem.action == #selector(AppDelegate.shareBetaFeedback(_:)))
         #expect(helpItem.isEnabled)
-        #expect(reportIndex < betaIndex)
+        #expect(betaIndex < separatorIndex)
+        #expect(separatorIndex < copyDiagnosticsIndex)
+        #expect(copyDiagnosticsIndex < reportIndex)
         #expect(
             helpItem.toolTip
-                == "Opens the official privacy-safe beta workflow form. Review every field before submitting; herminal never uploads diagnostics."
+                == "Opens the GitHub beta feedback form in your browser. Review every field before submitting; herminal never uploads diagnostics."
         )
         #expect(helpItem.accessibilityHelp() == helpItem.toolTip)
 
@@ -124,10 +130,10 @@ struct DiagnosticDiaryClipboardTests {
                 $0.id == "share-beta-feedback"
             }
         )
-        #expect(paletteItem.title == "Share Beta Feedback")
+        #expect(paletteItem.title == "Open Beta Feedback Form")
         #expect(
             paletteItem.subtitle
-                == "Share a privacy-safe real-workflow report; herminal never uploads diagnostics"
+                == "Open the GitHub beta workflow form in your browser; herminal never uploads diagnostics"
         )
         #expect(paletteItem.selector == #selector(AppDelegate.shareBetaFeedback(_:)))
         #expect(paletteItem.menuPath == "Help")
@@ -208,8 +214,10 @@ struct DiagnosticDiaryClipboardTests {
 
         #expect(outcome == .failed)
         #expect(presentation.messageText == "Couldn’t Open Beta Feedback")
-        #expect(presentation.informativeText.contains("beta_report.yml"))
-        #expect(presentation.informativeText.contains("private terminal data"))
+        #expect(
+            presentation.informativeText
+                == "Choose Copy Beta Feedback URL, then paste it into any browser. Review every field before submitting; do not include private terminal data or credentials."
+        )
         #expect(presentation.copyButtonTitle == "Copy Beta Feedback URL")
         #expect(presentation.cancelButtonTitle == "Close")
 
