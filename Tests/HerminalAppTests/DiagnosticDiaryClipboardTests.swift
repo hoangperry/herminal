@@ -143,6 +143,12 @@ struct DiagnosticDiaryClipboardTests {
                 query: "beta workflow"
             ).contains { $0.id == "share-beta-feedback" }
         )
+        #expect(
+            CommandPaletteView.filteredActions(
+                CommandPaletteCatalog.actions(from: menu),
+                query: "share beta"
+            ).contains { $0.id == "share-beta-feedback" }
+        )
     }
 
     @Test("bug reporting opens the official template exactly once")
@@ -215,9 +221,11 @@ struct DiagnosticDiaryClipboardTests {
         #expect(outcome == .failed)
         #expect(presentation.messageText == "Couldn’t Open Beta Feedback")
         #expect(
-            presentation.informativeText
-                == "Choose Copy Beta Feedback URL, then paste it into any browser. Review every field before submitting; do not include private terminal data or credentials."
+            presentation.informativeText.contains(
+                SupportIssueReporter.betaFeedbackURL.absoluteString
+            )
         )
+        #expect(presentation.informativeText.contains("do not include private terminal data"))
         #expect(presentation.copyButtonTitle == "Copy Beta Feedback URL")
         #expect(presentation.cancelButtonTitle == "Close")
 

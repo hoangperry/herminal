@@ -361,6 +361,14 @@ enum CommandPaletteCatalog {
             selector: #selector(AppDelegate.reportProblem(_:))
         ),
         .init(
+            id: "share-beta-feedback",
+            title: "Open Beta Feedback Form",
+            subtitle: "Open the GitHub beta workflow form in your browser; herminal never uploads diagnostics",
+            icon: "person.crop.circle.badge.checkmark",
+            shortcutDisplay: nil,
+            selector: #selector(AppDelegate.shareBetaFeedback(_:))
+        ),
+        .init(
             id: "import-ssh",
             title: "Import ~/.ssh/config",
             subtitle: "One-shot upsert into SSH host list",

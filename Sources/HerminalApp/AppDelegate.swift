@@ -611,31 +611,60 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
         let outcome = SupportIssueReporter.openBugReport { destination in
             NSWorkspace.shared.open(destination)
         }
+        handleSupportIssueOpenResult(
+            outcome,
+            topic: "bug report",
+            failureAlert: SupportIssueReporter.openFailureAlert,
+            copyURL: { SupportIssueReporter.copyBugReportURL() }
+        )
+    }
+
+    /// Opens the official privacy-safe beta workflow form. Herminal sends
+    /// nothing automatically; the tester reviews and submits the form in
+    /// their browser.
+    @objc func shareBetaFeedback(_ sender: Any?) {
+        let outcome = SupportIssueReporter.openBetaFeedback { destination in
+            NSWorkspace.shared.open(destination)
+        }
+        handleSupportIssueOpenResult(
+            outcome,
+            topic: "beta feedback",
+            failureAlert: SupportIssueReporter.betaFeedbackOpenFailureAlert,
+            copyURL: { SupportIssueReporter.copyBetaFeedbackURL() }
+        )
+    }
+
+    private func handleSupportIssueOpenResult(
+        _ outcome: SupportIssueOpenOutcome,
+        topic: String,
+        failureAlert: SupportIssueOpenFailureAlert,
+        copyURL: () -> DiagnosticDiaryClipboard.Outcome
+    ) {
         guard outcome == .failed else {
-            Diary.shared.log("opened bug report form", category: "support")
+            Diary.shared.log("opened \(topic) form", category: "support")
             return
         }
 
-        Diary.shared.log("could not open bug report form", category: "support")
+        Diary.shared.log("could not open \(topic) form", category: "support")
         NSSound.beep()
-        let presentation = SupportIssueReporter.openFailureAlert
         let alert = NSAlert()
         alert.alertStyle = .warning
-        alert.messageText = presentation.messageText
-        alert.informativeText = presentation.informativeText
-        alert.addButton(withTitle: presentation.copyButtonTitle)
-        alert.addButton(withTitle: presentation.cancelButtonTitle)
+        alert.messageText = failureAlert.messageText
+        alert.informativeText = failureAlert.informativeText
+        alert.addButton(withTitle: failureAlert.copyButtonTitle)
+        alert.addButton(withTitle: failureAlert.cancelButtonTitle)
         guard alert.runModal() == .alertFirstButtonReturn else { return }
 
-        let copyOutcome = SupportIssueReporter.copyBugReportURL()
+        let copyOutcome = copyURL()
+        let announcementTopic = topic.prefix(1).uppercased() + topic.dropFirst()
         let announcement: String
         switch copyOutcome {
         case .copied:
-            Diary.shared.log("copied bug report URL", category: "support")
-            announcement = "Bug report URL copied."
+            Diary.shared.log("copied \(topic) URL", category: "support")
+            announcement = "\(announcementTopic) URL copied."
         case .empty, .failed:
             NSSound.beep()
-            announcement = "Could not copy the bug report URL."
+            announcement = "Could not copy the \(topic) URL."
         }
         NSAccessibility.post(
             element: NSApplication.shared,

@@ -16,6 +16,9 @@ enum SupportIssueReporter {
     static let bugReportURL = URL(
         string: "https://github.com/hoangperry/herminal/issues/new?template=bug_report.md"
     )!
+    static let betaFeedbackURL = URL(
+        string: "https://github.com/hoangperry/herminal/issues/new?template=beta_report.yml"
+    )!
 
     static let openFailureAlert = SupportIssueOpenFailureAlert(
         messageText: "Couldn’t Open the Bug Report",
@@ -27,20 +30,56 @@ enum SupportIssueReporter {
         cancelButtonTitle: "Close"
     )
 
+    static let betaFeedbackOpenFailureAlert = SupportIssueOpenFailureAlert(
+        messageText: "Couldn’t Open Beta Feedback",
+        informativeText:
+            "Choose Copy Beta Feedback URL, or open this address manually in any browser:\n"
+            + betaFeedbackURL.absoluteString
+            + "\n"
+            + "Review every field before submitting; do not include private terminal data or credentials.",
+        copyButtonTitle: "Copy Beta Feedback URL",
+        cancelButtonTitle: "Close"
+    )
+
     static func openBugReport(
         using opener: (URL) -> Bool
     ) -> SupportIssueOpenOutcome {
-        opener(bugReportURL) ? .opened : .failed
+        open(bugReportURL, using: opener)
+    }
+
+    static func openBetaFeedback(
+        using opener: (URL) -> Bool
+    ) -> SupportIssueOpenOutcome {
+        open(betaFeedbackURL, using: opener)
     }
 
     @MainActor
     static func copyBugReportURL(
         to pasteboard: NSPasteboard = .general
     ) -> DiagnosticDiaryClipboard.Outcome {
-        DiagnosticDiaryClipboard.write(
-            bugReportURL.absoluteString,
-            to: pasteboard
-        )
+        copy(bugReportURL, to: pasteboard)
+    }
+
+    @MainActor
+    static func copyBetaFeedbackURL(
+        to pasteboard: NSPasteboard = .general
+    ) -> DiagnosticDiaryClipboard.Outcome {
+        copy(betaFeedbackURL, to: pasteboard)
+    }
+
+    private static func open(
+        _ destination: URL,
+        using opener: (URL) -> Bool
+    ) -> SupportIssueOpenOutcome {
+        opener(destination) ? .opened : .failed
+    }
+
+    @MainActor
+    private static func copy(
+        _ destination: URL,
+        to pasteboard: NSPasteboard
+    ) -> DiagnosticDiaryClipboard.Outcome {
+        DiagnosticDiaryClipboard.write(destination.absoluteString, to: pasteboard)
     }
 }
 

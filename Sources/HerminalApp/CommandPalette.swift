@@ -302,13 +302,23 @@ struct CommandPaletteView: View {
     ) -> [CommandPaletteAction] {
         let needle = query.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !needle.isEmpty else { return actions }
+        let tokens = needle.split(whereSeparator: { $0.isWhitespace })
 
         return actions.filter { action in
-            action.title.localizedCaseInsensitiveContains(needle)
-                || action.subtitle?.localizedCaseInsensitiveContains(needle) == true
-                || action.menuPath?.localizedCaseInsensitiveContains(needle) == true
-                || action.menuTitle?.localizedCaseInsensitiveContains(needle) == true
-                || action.shortcutDisplay?.localizedCaseInsensitiveContains(needle) == true
+            let searchableText = [
+                action.id,
+                action.title,
+                action.subtitle,
+                action.menuPath,
+                action.menuTitle,
+                action.shortcutDisplay,
+            ]
+                .compactMap { $0 }
+                .joined(separator: " ")
+
+            return tokens.allSatisfy { token in
+                searchableText.localizedCaseInsensitiveContains(String(token))
+            }
         }
     }
 

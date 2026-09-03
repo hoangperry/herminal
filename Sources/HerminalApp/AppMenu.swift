@@ -420,6 +420,18 @@ enum AppMenu {
             keyEquivalent: "/"
         )
         helpMenu.addItem(keyboardShortcuts)
+
+        let shareBetaFeedback = NSMenuItem(
+            title: "Open Beta Feedback Form…",
+            action: #selector(AppDelegate.shareBetaFeedback(_:)),
+            keyEquivalent: ""
+        )
+        shareBetaFeedback.toolTip =
+            "Opens the GitHub beta feedback form in your browser. "
+            + "Review every field before submitting; herminal never uploads diagnostics."
+        shareBetaFeedback.setAccessibilityHelp(shareBetaFeedback.toolTip)
+        helpMenu.addItem(shareBetaFeedback)
+
         helpMenu.addItem(.separator())
         let copyDiary = NSMenuItem(
             title: "Copy Redacted Diagnostics for Bug Report",
