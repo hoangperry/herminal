@@ -17,8 +17,8 @@ Engineering gates are green and signed, notarized `v1.0.0` artifacts are public.
 - Install through the supplied signed DMG or Homebrew cask.
 - Use Herminal on a real workflow for at least three days where possible.
 - Exercise normal shell work, preferred Vietnamese input source, and one supported agent CLI.
-- Submit the privacy-safe beta issue form.
-- Do not share terminal history, prompts, repository/client names, tokens, SSH details, or note contents.
+- In herminal, choose **Help > Open Beta Feedback Form…** and submit the privacy-safe beta issue form.
+- Do not share terminal history, prompts, process arguments, tokens, SSH configuration, hostnames, repository names, or note contents; use placeholders in reproductions.
 
 Stars, testimonials, and public identity are never required. Quotes or adopter attribution require separate explicit consent.
 
