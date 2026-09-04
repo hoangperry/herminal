@@ -45,6 +45,9 @@ source of truth for what's in vs out of scope.
 
 ## 15-minute contribution path
 
+From the running app, choose **Help > Contribute to herminal…** (or search for
+it in the command palette) to open this guide without hunting through the repo.
+
 Documentation, agent fixtures, and pure-model tests do not require launching the
 app. Fork/clone the repository, make one focused change, run the narrowest
 available check (for Markdown, `git diff --check`; for workflows, `actionlint`),

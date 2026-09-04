@@ -206,7 +206,8 @@ them won't merge.
 - In herminal, choose **Help > Suggest a Feature…** (or search for it in the
   command palette) → opens the official feature request template and answers a
   "deferred until beta asks" item
-- Submit a PR → check `CONTRIBUTING.md` for scope rules first
+- Submit a PR → choose **Help > Contribute to herminal…** (or use the command
+  palette) to read `CONTRIBUTING.md` and its scope rules first
 - Send the owner an email → `hoangperry@proton.me` for things
   that don't fit GitHub
 
