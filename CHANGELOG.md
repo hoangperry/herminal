@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **In-app community feedback.** The Help menu and command palette now open
+  the official bug report, beta workflow, and feature request templates in the
+  browser. Herminal sends nothing automatically, and every failed browser open
+  keeps a copyable destination URL with clear manual recovery guidance.
 - **tmux session folder.** Dashboard rows show the session working-directory
   leaf when it differs from the session name.
 - **tmux session manager.** Dashboard rows list the first few window titles

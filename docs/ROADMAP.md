@@ -203,8 +203,9 @@ them won't merge.
 
 - File a bug → `docs/QA/dogfood/` informs Theme D + frees up
   P0 budget
-- File a feature request → answers a "deferred until beta asks"
-  item
+- In herminal, choose **Help > Suggest a Feature…** (or search for it in the
+  command palette) → opens the official feature request template and answers a
+  "deferred until beta asks" item
 - Submit a PR → check `CONTRIBUTING.md` for scope rules first
 - Send the owner an email → `hoangperry@proton.me` for things
   that don't fit GitHub
