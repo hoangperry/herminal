@@ -29,6 +29,9 @@ enum SupportIssueReporter {
     static let securityReportURL = URL(
         string: "https://github.com/hoangperry/herminal/security/advisories/new"
     )!
+    static let troubleshootingGuideURL = URL(
+        string: "https://github.com/hoangperry/herminal/blob/main/docs/TROUBLESHOOTING.md"
+    )!
 
     static let openFailureAlert = SupportIssueOpenFailureAlert(
         messageText: "Couldn’t Open the Bug Report",
@@ -82,6 +85,15 @@ enum SupportIssueReporter {
         cancelButtonTitle: "Close"
     )
 
+    static let troubleshootingGuideOpenFailureAlert = SupportIssueOpenFailureAlert(
+        messageText: "Couldn’t Open the Troubleshooting Guide",
+        informativeText:
+            "Choose Copy Troubleshooting URL, then paste it into any browser.",
+        manualRecoveryURL: troubleshootingGuideURL,
+        copyButtonTitle: "Copy Troubleshooting URL",
+        cancelButtonTitle: "Close"
+    )
+
     static func openBugReport(
         using opener: (URL) -> Bool
     ) -> SupportIssueOpenOutcome {
@@ -110,6 +122,12 @@ enum SupportIssueReporter {
         using opener: (URL) -> Bool
     ) -> SupportIssueOpenOutcome {
         open(securityReportURL, using: opener)
+    }
+
+    static func openTroubleshootingGuide(
+        using opener: (URL) -> Bool
+    ) -> SupportIssueOpenOutcome {
+        open(troubleshootingGuideURL, using: opener)
     }
 
     @MainActor
@@ -145,6 +163,13 @@ enum SupportIssueReporter {
         to pasteboard: NSPasteboard = .general
     ) -> DiagnosticDiaryClipboard.Outcome {
         copy(securityReportURL, to: pasteboard)
+    }
+
+    @MainActor
+    static func copyTroubleshootingGuideURL(
+        to pasteboard: NSPasteboard = .general
+    ) -> DiagnosticDiaryClipboard.Outcome {
+        copy(troubleshootingGuideURL, to: pasteboard)
     }
 
     private static func open(

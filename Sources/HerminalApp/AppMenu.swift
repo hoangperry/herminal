@@ -421,6 +421,16 @@ enum AppMenu {
         )
         helpMenu.addItem(keyboardShortcuts)
 
+        let troubleshootingGuide = NSMenuItem(
+            title: "Troubleshooting Guide…",
+            action: #selector(AppDelegate.openTroubleshootingGuide(_:)),
+            keyEquivalent: ""
+        )
+        troubleshootingGuide.toolTip =
+            "Opens self-service fixes for crashes, input methods, agents, SSH, and startup problems."
+        troubleshootingGuide.setAccessibilityHelp(troubleshootingGuide.toolTip)
+        helpMenu.addItem(troubleshootingGuide)
+
         let shareBetaFeedback = NSMenuItem(
             title: "Open Beta Feedback Form…",
             action: #selector(AppDelegate.shareBetaFeedback(_:)),

@@ -101,6 +101,21 @@ extension AppDelegate {
         )
     }
 
+    /// Opens the maintained troubleshooting guide so users can recover from
+    /// common failures before collecting diagnostics or filing an issue.
+    @objc func openTroubleshootingGuide(_ sender: Any?) {
+        let outcome = SupportIssueReporter.openTroubleshootingGuide { destination in
+            NSWorkspace.shared.open(destination)
+        }
+        handleSupportLinkOpenResult(
+            outcome,
+            topic: "troubleshooting guide",
+            logTarget: "troubleshooting guide",
+            failureAlert: SupportIssueReporter.troubleshootingGuideOpenFailureAlert,
+            copyURL: { SupportIssueReporter.copyTroubleshootingGuideURL() }
+        )
+    }
+
     private func handleSupportLinkOpenResult(
         _ outcome: SupportIssueOpenOutcome,
         topic: String,

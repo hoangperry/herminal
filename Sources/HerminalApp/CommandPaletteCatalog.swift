@@ -337,6 +337,14 @@ enum CommandPaletteCatalog {
             selector: #selector(AppDelegate.showKeyboardShortcuts(_:))
         ),
         .init(
+            id: "troubleshooting-guide",
+            title: "Troubleshooting Guide",
+            subtitle: "Find self-service fixes for crashes, IME, agents, SSH, and startup problems",
+            icon: "wrench.and.screwdriver",
+            shortcutDisplay: nil,
+            selector: #selector(AppDelegate.openTroubleshootingGuide(_:))
+        ),
+        .init(
             id: "check-for-updates",
             title: "Check for Updates…",
             subtitle: "Open the latest release page on official GitHub",
