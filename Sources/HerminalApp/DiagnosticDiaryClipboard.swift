@@ -5,10 +5,16 @@ enum SupportIssueOpenOutcome: Equatable {
     case failed
 }
 
+struct SupportIssueRecoveryContact: Equatable {
+    let value: String
+    let accessibilityLabel: String
+}
+
 struct SupportIssueOpenFailureAlert: Equatable {
     let messageText: String
     let informativeText: String
     let manualRecoveryURL: URL?
+    let secondaryRecoveryContact: SupportIssueRecoveryContact?
     let copyButtonTitle: String
     let cancelButtonTitle: String
 }
@@ -29,6 +35,7 @@ enum SupportIssueReporter {
     static let securityReportURL = URL(
         string: "https://github.com/hoangperry/herminal/security/advisories/new"
     )!
+    static let securityReportEmail = "hoangperry@proton.me"
     static let troubleshootingGuideURL = URL(
         string: "https://github.com/hoangperry/herminal/blob/main/docs/TROUBLESHOOTING.md"
     )!
@@ -40,6 +47,7 @@ enum SupportIssueReporter {
             + "Before filing, choose Help > Copy Redacted Diagnostics for Bug Report. "
             + "Review the copied text before pasting it.",
         manualRecoveryURL: bugReportURL,
+        secondaryRecoveryContact: nil,
         copyButtonTitle: "Copy Bug Report URL",
         cancelButtonTitle: "Close"
     )
@@ -50,6 +58,7 @@ enum SupportIssueReporter {
             "Choose Copy Beta Feedback URL, then paste it into any browser. "
             + "Review every field before submitting; do not include private terminal data or credentials.",
         manualRecoveryURL: betaFeedbackURL,
+        secondaryRecoveryContact: nil,
         copyButtonTitle: "Copy Beta Feedback URL",
         cancelButtonTitle: "Close"
     )
@@ -60,6 +69,7 @@ enum SupportIssueReporter {
             "Choose Copy Feature Request URL, then paste it into any browser. "
             + "Describe the problem without including private terminal data or credentials.",
         manualRecoveryURL: featureRequestURL,
+        secondaryRecoveryContact: nil,
         copyButtonTitle: "Copy Feature Request URL",
         cancelButtonTitle: "Close"
     )
@@ -69,6 +79,7 @@ enum SupportIssueReporter {
         informativeText:
             "Choose Copy Contributor Guide URL, then paste it into any browser.",
         manualRecoveryURL: contributorGuideURL,
+        secondaryRecoveryContact: nil,
         copyButtonTitle: "Copy Contributor Guide URL",
         cancelButtonTitle: "Close"
     )
@@ -77,8 +88,13 @@ enum SupportIssueReporter {
         messageText: "Couldn’t Open Private Security Reporting",
         informativeText:
             "Do not file a public issue for anything you believe is a security vulnerability. "
-            + "Choose Copy Private Report URL, then paste it into any browser.",
+            + "Choose Copy Private Report URL, then paste it into any browser. "
+            + "If GitHub is unavailable, use the security email shown below.",
         manualRecoveryURL: securityReportURL,
+        secondaryRecoveryContact: SupportIssueRecoveryContact(
+            value: securityReportEmail,
+            accessibilityLabel: "Private security report email"
+        ),
         copyButtonTitle: "Copy Private Report URL",
         cancelButtonTitle: "Close"
     )
@@ -88,6 +104,7 @@ enum SupportIssueReporter {
         informativeText:
             "Choose Copy Troubleshooting URL, then paste it into any browser.",
         manualRecoveryURL: troubleshootingGuideURL,
+        secondaryRecoveryContact: nil,
         copyButtonTitle: "Copy Troubleshooting URL",
         cancelButtonTitle: "Close"
     )

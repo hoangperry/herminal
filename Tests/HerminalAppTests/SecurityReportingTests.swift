@@ -80,12 +80,17 @@ struct SecurityReportingTests {
         let outcome = SupportIssueReporter.openSecurityReport { _ in false }
         let presentation = SupportIssueReporter.securityReportOpenFailureAlert
         let manualRecoveryURL = try #require(presentation.manualRecoveryURL)
+        let secondaryContact = try #require(presentation.secondaryRecoveryContact)
 
         #expect(outcome == .failed)
         #expect(presentation.messageText == "Couldn’t Open Private Security Reporting")
         #expect(presentation.informativeText.contains("Do not file a public issue"))
+        #expect(presentation.informativeText.contains("If GitHub is unavailable"))
         #expect(!presentation.informativeText.contains(manualRecoveryURL.absoluteString))
+        #expect(!presentation.informativeText.contains(secondaryContact.value))
         #expect(presentation.manualRecoveryURL == SupportIssueReporter.securityReportURL)
+        #expect(secondaryContact.value == SupportIssueReporter.securityReportEmail)
+        #expect(secondaryContact.accessibilityLabel == "Private security report email")
         #expect(presentation.copyButtonTitle == "Copy Private Report URL")
         #expect(presentation.cancelButtonTitle == "Close")
 
@@ -97,6 +102,21 @@ struct SecurityReportingTests {
         #expect(manualURLField.isSelectable)
         #expect(!manualURLField.isEditable)
         #expect(manualURLField.accessibilityLabel() == "Private security report URL")
+
+        let emailField = AppDelegate.makeSupportIssueRecoveryContactField(
+            for: secondaryContact
+        )
+        #expect(emailField.stringValue == SupportIssueReporter.securityReportEmail)
+        #expect(emailField.isSelectable)
+        #expect(!emailField.isEditable)
+        #expect(emailField.accessibilityLabel() == "Private security report email")
+        #expect(emailField.accessibilityHelp()?.contains("copy this contact") == true)
+
+        let accessoryView = AppDelegate.makeSupportIssueRecoveryAccessoryView(
+            for: presentation,
+            primaryAccessibilityLabel: "Private security report URL"
+        )
+        #expect(accessoryView.arrangedSubviews.count == 2)
 
         let copyOutcome = SupportIssueReporter.copySecurityReportURL(to: pasteboard)
         #expect(copyOutcome == .copied)

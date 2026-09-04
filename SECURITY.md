@@ -50,7 +50,8 @@ This creates a private advisory visible only to the reporter and maintainers.
 From the running app, choose **Help > Report a Security Issue…** (or search for
 it in the command palette) to open that private path. Herminal sends nothing
 automatically; review and submit the report in your browser.
-If GitHub is unavailable, email **hoangperry@proton.me**.
+If GitHub is unavailable, email **hoangperry@proton.me**. The app's failed-open
+alert also shows this address as a selectable, read-only fallback.
 
 Include:
 

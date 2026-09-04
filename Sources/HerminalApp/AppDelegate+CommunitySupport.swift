@@ -137,10 +137,12 @@ extension AppDelegate {
         alert.informativeText = failureAlert.informativeText
         alert.addButton(withTitle: failureAlert.copyButtonTitle)
         alert.addButton(withTitle: failureAlert.cancelButtonTitle)
-        if let manualRecoveryURL = failureAlert.manualRecoveryURL {
-            alert.accessoryView = Self.makeSupportIssueRecoveryURLField(
-                for: manualRecoveryURL,
-                accessibilityLabel: "\(announcementTopic) URL"
+        if failureAlert.manualRecoveryURL != nil
+            || failureAlert.secondaryRecoveryContact != nil
+        {
+            alert.accessoryView = Self.makeSupportIssueRecoveryAccessoryView(
+                for: failureAlert,
+                primaryAccessibilityLabel: "\(announcementTopic) URL"
             )
         }
         guard alert.runModal() == .alertFirstButtonReturn else { return }
@@ -169,16 +171,60 @@ extension AppDelegate {
         for url: URL,
         accessibilityLabel: String
     ) -> NSTextField {
-        let field = NSTextField(string: url.absoluteString)
+        makeSupportIssueRecoveryField(
+            value: url.absoluteString,
+            accessibilityLabel: accessibilityLabel,
+            accessibilityHelp: "Select and copy this address if the Copy URL button does not work."
+        )
+    }
+
+    static func makeSupportIssueRecoveryContactField(
+        for contact: SupportIssueRecoveryContact
+    ) -> NSTextField {
+        makeSupportIssueRecoveryField(
+            value: contact.value,
+            accessibilityLabel: contact.accessibilityLabel,
+            accessibilityHelp: "Select and copy this contact if GitHub is unavailable."
+        )
+    }
+
+    static func makeSupportIssueRecoveryAccessoryView(
+        for failureAlert: SupportIssueOpenFailureAlert,
+        primaryAccessibilityLabel: String
+    ) -> NSStackView {
+        var fields: [NSView] = []
+        if let manualRecoveryURL = failureAlert.manualRecoveryURL {
+            fields.append(
+                makeSupportIssueRecoveryURLField(
+                    for: manualRecoveryURL,
+                    accessibilityLabel: primaryAccessibilityLabel
+                )
+            )
+        }
+        if let secondaryContact = failureAlert.secondaryRecoveryContact {
+            fields.append(makeSupportIssueRecoveryContactField(for: secondaryContact))
+        }
+
+        let stack = NSStackView(views: fields)
+        stack.orientation = .vertical
+        stack.alignment = .leading
+        stack.spacing = 6
+        return stack
+    }
+
+    private static func makeSupportIssueRecoveryField(
+        value: String,
+        accessibilityLabel: String,
+        accessibilityHelp: String
+    ) -> NSTextField {
+        let field = NSTextField(string: value)
         field.frame = NSRect(x: 0, y: 0, width: 420, height: 22)
         field.isEditable = false
         field.isSelectable = true
         field.lineBreakMode = .byTruncatingMiddle
-        field.toolTip = url.absoluteString
+        field.toolTip = value
         field.setAccessibilityLabel(accessibilityLabel)
-        field.setAccessibilityHelp(
-            "Select and copy this address if the Copy URL button does not work."
-        )
+        field.setAccessibilityHelp(accessibilityHelp)
         return field
     }
 }

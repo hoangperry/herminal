@@ -14,7 +14,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   request template, and contributor guide in the browser. Herminal sends
   nothing automatically, and every failed browser open keeps a copyable
   destination URL with clear manual recovery guidance. Security reports use
-  GitHub's private vulnerability flow, with an explicit warning not to put
+  GitHub's private vulnerability flow, expose the verified project security
+  email when GitHub is unavailable, and explicitly warn against putting
   vulnerability details in a public issue.
 - **tmux session folder.** Dashboard rows show the session working-directory
   leaf when it differs from the session name.
