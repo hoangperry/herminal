@@ -246,7 +246,8 @@ Read [CONTRIBUTING.md](CONTRIBUTING.md) first — the project is
 opinionated about what's in scope. Bug reports go through the
 [bug template](.github/ISSUE_TEMPLATE/bug_report.md) which prompts for
 the diary excerpt; security issues go to
-[SECURITY.md](SECURITY.md).
+[SECURITY.md](SECURITY.md). From the app, **Help > Report a Security Issue…**
+opens the private reporting path without sending anything automatically.
 
 ## Documentation
 

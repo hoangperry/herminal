@@ -361,6 +361,14 @@ enum CommandPaletteCatalog {
             selector: #selector(AppDelegate.reportProblem(_:))
         ),
         .init(
+            id: "report-security-issue",
+            title: "Report a Security Issue",
+            subtitle: "Open GitHub private vulnerability reporting; never file security details as a public issue",
+            icon: "lock.shield",
+            shortcutDisplay: nil,
+            selector: #selector(AppDelegate.reportSecurityIssue(_:))
+        ),
+        .init(
             id: "share-beta-feedback",
             title: "Open Beta Feedback Form",
             subtitle: "Open the GitHub beta workflow form in your browser; herminal never uploads diagnostics",

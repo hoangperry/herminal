@@ -39,6 +39,21 @@ extension AppDelegate {
         )
     }
 
+    /// Opens GitHub's private vulnerability-reporting flow. Security details
+    /// must never be routed through the public bug-report action.
+    @objc func reportSecurityIssue(_ sender: Any?) {
+        let outcome = SupportIssueReporter.openSecurityReport { destination in
+            NSWorkspace.shared.open(destination)
+        }
+        handleSupportLinkOpenResult(
+            outcome,
+            topic: "private security report",
+            logTarget: "private security report",
+            failureAlert: SupportIssueReporter.securityReportOpenFailureAlert,
+            copyURL: { SupportIssueReporter.copySecurityReportURL() }
+        )
+    }
+
     /// Opens the official privacy-safe beta workflow form. Herminal sends
     /// nothing automatically; the tester reviews and submits the form in
     /// their browser.

@@ -49,6 +49,9 @@ vulnerability.
 Preferred: use GitHub's enabled
 [private vulnerability reporting](https://github.com/hoangperry/herminal/security/advisories/new).
 This creates a private advisory visible only to the reporter and maintainers.
+From the running app, choose **Help > Report a Security Issue…** (or search for
+it in the command palette) to open that private path. Herminal sends nothing
+automatically; review and submit the report in your browser.
 If GitHub is unavailable, email **hoangperry@proton.me**.
 
 Include:
