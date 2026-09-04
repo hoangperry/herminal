@@ -260,14 +260,17 @@ struct DiagnosticDiaryClipboardTests {
     }
 
     @Test("bug report browser failures explain the manual recovery path")
-    func bugReportFailurePresentation() {
+    func bugReportFailurePresentation() throws {
         let outcome = SupportIssueReporter.openBugReport { _ in false }
         let presentation = SupportIssueReporter.openFailureAlert
+        let manualRecoveryURL = try #require(presentation.manualRecoveryURL)
 
         #expect(outcome == .failed)
         #expect(presentation.messageText == "Couldn’t Open the Bug Report")
-        #expect(presentation.informativeText.contains("github.com/hoangperry/herminal/issues/new"))
+        #expect(!presentation.informativeText.contains(manualRecoveryURL.absoluteString))
+        #expect(presentation.informativeText.contains("paste it into any browser"))
         #expect(presentation.informativeText.contains("Copy Redacted Diagnostics"))
+        #expect(manualRecoveryURL == SupportIssueReporter.bugReportURL)
         #expect(presentation.copyButtonTitle == "Copy Bug Report URL")
         #expect(presentation.cancelButtonTitle == "Close")
     }
@@ -338,19 +341,18 @@ struct DiagnosticDiaryClipboardTests {
     }
 
     @Test("beta feedback browser failures keep a copyable privacy-safe recovery")
-    func betaFeedbackFailureRecovery() {
+    func betaFeedbackFailureRecovery() throws {
         let pasteboard = NSPasteboard.withUniqueName()
         let outcome = SupportIssueReporter.openBetaFeedback { _ in false }
         let presentation = SupportIssueReporter.betaFeedbackOpenFailureAlert
+        let manualRecoveryURL = try #require(presentation.manualRecoveryURL)
 
         #expect(outcome == .failed)
         #expect(presentation.messageText == "Couldn’t Open Beta Feedback")
-        #expect(
-            presentation.informativeText.contains(
-                SupportIssueReporter.betaFeedbackURL.absoluteString
-            )
-        )
+        #expect(!presentation.informativeText.contains(manualRecoveryURL.absoluteString))
+        #expect(presentation.informativeText.contains("paste it into any browser"))
         #expect(presentation.informativeText.contains("do not include private terminal data"))
+        #expect(manualRecoveryURL == SupportIssueReporter.betaFeedbackURL)
         #expect(presentation.copyButtonTitle == "Copy Beta Feedback URL")
         #expect(presentation.cancelButtonTitle == "Close")
 

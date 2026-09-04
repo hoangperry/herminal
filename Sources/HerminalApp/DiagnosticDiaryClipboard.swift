@@ -36,10 +36,10 @@ enum SupportIssueReporter {
     static let openFailureAlert = SupportIssueOpenFailureAlert(
         messageText: "Couldn’t Open the Bug Report",
         informativeText:
-            "Visit github.com/hoangperry/herminal/issues/new in your browser. "
+            "Choose Copy Bug Report URL, then paste it into any browser. "
             + "Before filing, choose Help > Copy Redacted Diagnostics for Bug Report. "
             + "Review the copied text before pasting it.",
-        manualRecoveryURL: nil,
+        manualRecoveryURL: bugReportURL,
         copyButtonTitle: "Copy Bug Report URL",
         cancelButtonTitle: "Close"
     )
@@ -47,11 +47,9 @@ enum SupportIssueReporter {
     static let betaFeedbackOpenFailureAlert = SupportIssueOpenFailureAlert(
         messageText: "Couldn’t Open Beta Feedback",
         informativeText:
-            "Choose Copy Beta Feedback URL, or open this address manually in any browser:\n"
-            + betaFeedbackURL.absoluteString
-            + "\n"
+            "Choose Copy Beta Feedback URL, then paste it into any browser. "
             + "Review every field before submitting; do not include private terminal data or credentials.",
-        manualRecoveryURL: nil,
+        manualRecoveryURL: betaFeedbackURL,
         copyButtonTitle: "Copy Beta Feedback URL",
         cancelButtonTitle: "Close"
     )
