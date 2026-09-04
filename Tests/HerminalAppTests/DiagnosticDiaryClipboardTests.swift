@@ -151,6 +151,53 @@ struct DiagnosticDiaryClipboardTests {
         )
     }
 
+    @Test("Help and command palette expose privacy-safe feature requests")
+    func featureRequestEntryPoints() throws {
+        let menu = AppMenu.build(
+            openWorkspaceSubmenu: NSMenu(title: "Open Workspace")
+        )
+        let helpMenu = try #require(AppMenu.helpMenu(in: menu))
+        let helpItem = try #require(helpMenu.items.first {
+            $0.title == "Suggest a Feature…"
+        })
+        let betaIndex = try #require(helpMenu.items.firstIndex {
+            $0.title == "Open Beta Feedback Form…"
+        })
+        let featureIndex = try #require(helpMenu.items.firstIndex {
+            $0.title == "Suggest a Feature…"
+        })
+        let separatorIndex = try #require(helpMenu.items.firstIndex { $0.isSeparatorItem })
+
+        #expect(helpItem.action == #selector(AppDelegate.suggestFeature(_:)))
+        #expect(helpItem.isEnabled)
+        #expect(betaIndex < featureIndex)
+        #expect(featureIndex < separatorIndex)
+        #expect(
+            helpItem.toolTip
+                == "Opens the official GitHub feature request form in your browser. Describe the problem without including private terminal data or credentials."
+        )
+        #expect(helpItem.accessibilityHelp() == helpItem.toolTip)
+
+        let paletteItem = try #require(
+            CommandPaletteCatalog.actions(from: menu).first {
+                $0.id == "suggest-feature"
+            }
+        )
+        #expect(paletteItem.title == "Suggest a Feature")
+        #expect(
+            paletteItem.subtitle
+                == "Open the official GitHub feature request form in your browser; herminal uploads nothing"
+        )
+        #expect(paletteItem.selector == #selector(AppDelegate.suggestFeature(_:)))
+        #expect(paletteItem.menuPath == "Help")
+        #expect(
+            CommandPaletteView.filteredActions(
+                CommandPaletteCatalog.actions(from: menu),
+                query: "feature request"
+            ).contains { $0.id == "suggest-feature" }
+        )
+    }
+
     @Test("bug reporting opens the official template exactly once")
     func bugReportDestination() {
         var destinations: [URL] = []
@@ -212,6 +259,23 @@ struct DiagnosticDiaryClipboardTests {
         )
     }
 
+    @Test("feature requests open the official template exactly once")
+    func featureRequestDestination() {
+        var destinations: [URL] = []
+
+        let outcome = SupportIssueReporter.openFeatureRequest { destination in
+            destinations.append(destination)
+            return true
+        }
+
+        #expect(outcome == .opened)
+        #expect(destinations == [SupportIssueReporter.featureRequestURL])
+        #expect(
+            SupportIssueReporter.featureRequestURL.absoluteString
+                == "https://github.com/hoangperry/herminal/issues/new?template=feature_request.md"
+        )
+    }
+
     @Test("beta feedback browser failures keep a copyable privacy-safe recovery")
     func betaFeedbackFailureRecovery() {
         let pasteboard = NSPasteboard.withUniqueName()
@@ -234,6 +298,43 @@ struct DiagnosticDiaryClipboardTests {
         #expect(
             pasteboard.string(forType: .string)
                 == SupportIssueReporter.betaFeedbackURL.absoluteString
+        )
+    }
+
+    @Test("feature request failures keep a copyable privacy-safe recovery")
+    func featureRequestFailureRecovery() {
+        let pasteboard = NSPasteboard.withUniqueName()
+        let outcome = SupportIssueReporter.openFeatureRequest { _ in false }
+        let presentation = SupportIssueReporter.featureRequestOpenFailureAlert
+
+        #expect(outcome == .failed)
+        #expect(presentation.messageText == "Couldn’t Open the Feature Request")
+        #expect(
+            !presentation.informativeText.contains(
+                SupportIssueReporter.featureRequestURL.absoluteString
+            )
+        )
+        #expect(presentation.informativeText.contains("paste it into any browser"))
+        #expect(presentation.informativeText.contains("private terminal data or credentials"))
+        #expect(presentation.manualRecoveryURL == SupportIssueReporter.featureRequestURL)
+        #expect(presentation.copyButtonTitle == "Copy Feature Request URL")
+        #expect(presentation.cancelButtonTitle == "Close")
+
+        let manualURLField = AppDelegate.makeSupportIssueRecoveryURLField(
+            for: SupportIssueReporter.featureRequestURL,
+            accessibilityLabel: "Feature request URL"
+        )
+        #expect(manualURLField.stringValue == SupportIssueReporter.featureRequestURL.absoluteString)
+        #expect(manualURLField.isSelectable)
+        #expect(!manualURLField.isEditable)
+        #expect(manualURLField.accessibilityLabel() == "Feature request URL")
+        #expect(manualURLField.accessibilityHelp()?.contains("Copy URL button") == true)
+
+        let copyOutcome = SupportIssueReporter.copyFeatureRequestURL(to: pasteboard)
+        #expect(copyOutcome == .copied)
+        #expect(
+            pasteboard.string(forType: .string)
+                == SupportIssueReporter.featureRequestURL.absoluteString
         )
     }
 

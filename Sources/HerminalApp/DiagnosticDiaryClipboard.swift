@@ -8,6 +8,7 @@ enum SupportIssueOpenOutcome: Equatable {
 struct SupportIssueOpenFailureAlert: Equatable {
     let messageText: String
     let informativeText: String
+    let manualRecoveryURL: URL?
     let copyButtonTitle: String
     let cancelButtonTitle: String
 }
@@ -19,6 +20,9 @@ enum SupportIssueReporter {
     static let betaFeedbackURL = URL(
         string: "https://github.com/hoangperry/herminal/issues/new?template=beta_report.yml"
     )!
+    static let featureRequestURL = URL(
+        string: "https://github.com/hoangperry/herminal/issues/new?template=feature_request.md"
+    )!
 
     static let openFailureAlert = SupportIssueOpenFailureAlert(
         messageText: "Couldn’t Open the Bug Report",
@@ -26,6 +30,7 @@ enum SupportIssueReporter {
             "Visit github.com/hoangperry/herminal/issues/new in your browser. "
             + "Before filing, choose Help > Copy Redacted Diagnostics for Bug Report. "
             + "Review the copied text before pasting it.",
+        manualRecoveryURL: nil,
         copyButtonTitle: "Copy Bug Report URL",
         cancelButtonTitle: "Close"
     )
@@ -37,7 +42,18 @@ enum SupportIssueReporter {
             + betaFeedbackURL.absoluteString
             + "\n"
             + "Review every field before submitting; do not include private terminal data or credentials.",
+        manualRecoveryURL: nil,
         copyButtonTitle: "Copy Beta Feedback URL",
+        cancelButtonTitle: "Close"
+    )
+
+    static let featureRequestOpenFailureAlert = SupportIssueOpenFailureAlert(
+        messageText: "Couldn’t Open the Feature Request",
+        informativeText:
+            "Choose Copy Feature Request URL, then paste it into any browser. "
+            + "Describe the problem without including private terminal data or credentials.",
+        manualRecoveryURL: featureRequestURL,
+        copyButtonTitle: "Copy Feature Request URL",
         cancelButtonTitle: "Close"
     )
 
@@ -53,6 +69,12 @@ enum SupportIssueReporter {
         open(betaFeedbackURL, using: opener)
     }
 
+    static func openFeatureRequest(
+        using opener: (URL) -> Bool
+    ) -> SupportIssueOpenOutcome {
+        open(featureRequestURL, using: opener)
+    }
+
     @MainActor
     static func copyBugReportURL(
         to pasteboard: NSPasteboard = .general
@@ -65,6 +87,13 @@ enum SupportIssueReporter {
         to pasteboard: NSPasteboard = .general
     ) -> DiagnosticDiaryClipboard.Outcome {
         copy(betaFeedbackURL, to: pasteboard)
+    }
+
+    @MainActor
+    static func copyFeatureRequestURL(
+        to pasteboard: NSPasteboard = .general
+    ) -> DiagnosticDiaryClipboard.Outcome {
+        copy(featureRequestURL, to: pasteboard)
     }
 
     private static func open(

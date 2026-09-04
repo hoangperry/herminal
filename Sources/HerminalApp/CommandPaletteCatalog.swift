@@ -369,6 +369,14 @@ enum CommandPaletteCatalog {
             selector: #selector(AppDelegate.shareBetaFeedback(_:))
         ),
         .init(
+            id: "suggest-feature",
+            title: "Suggest a Feature",
+            subtitle: "Open the official GitHub feature request form in your browser; herminal uploads nothing",
+            icon: "lightbulb",
+            shortcutDisplay: nil,
+            selector: #selector(AppDelegate.suggestFeature(_:))
+        ),
+        .init(
             id: "import-ssh",
             title: "Import ~/.ssh/config",
             subtitle: "One-shot upsert into SSH host list",

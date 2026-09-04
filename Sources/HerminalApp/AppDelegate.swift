@@ -634,6 +634,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
         )
     }
 
+    /// Opens the official GitHub feature request template. Herminal sends
+    /// nothing automatically; the contributor reviews and submits the form
+    /// in their browser.
+    @objc func suggestFeature(_ sender: Any?) {
+        let outcome = SupportIssueReporter.openFeatureRequest { destination in
+            NSWorkspace.shared.open(destination)
+        }
+        handleSupportIssueOpenResult(
+            outcome,
+            topic: "feature request",
+            failureAlert: SupportIssueReporter.featureRequestOpenFailureAlert,
+            copyURL: { SupportIssueReporter.copyFeatureRequestURL() }
+        )
+    }
+
     private func handleSupportIssueOpenResult(
         _ outcome: SupportIssueOpenOutcome,
         topic: String,
@@ -653,6 +668,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
         alert.informativeText = failureAlert.informativeText
         alert.addButton(withTitle: failureAlert.copyButtonTitle)
         alert.addButton(withTitle: failureAlert.cancelButtonTitle)
+        if let manualRecoveryURL = failureAlert.manualRecoveryURL {
+            alert.accessoryView = Self.makeSupportIssueRecoveryURLField(
+                for: manualRecoveryURL,
+                accessibilityLabel: "Feature request URL"
+            )
+        }
         guard alert.runModal() == .alertFirstButtonReturn else { return }
 
         let copyOutcome = copyURL()
@@ -674,6 +695,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
                 .priority: NSAccessibilityPriorityLevel.medium.rawValue
             ]
         )
+    }
+
+    static func makeSupportIssueRecoveryURLField(
+        for url: URL,
+        accessibilityLabel: String
+    ) -> NSTextField {
+        let field = NSTextField(string: url.absoluteString)
+        field.frame = NSRect(x: 0, y: 0, width: 420, height: 22)
+        field.isEditable = false
+        field.isSelectable = true
+        field.lineBreakMode = .byTruncatingMiddle
+        field.toolTip = url.absoluteString
+        field.setAccessibilityLabel(accessibilityLabel)
+        field.setAccessibilityHelp(
+            "Select and copy this address if the Copy URL button does not work."
+        )
+        return field
     }
 
     // MARK: - Polish wave slice 2 — palette + hotkey (v0.3.1)

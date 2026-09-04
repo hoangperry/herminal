@@ -432,6 +432,17 @@ enum AppMenu {
         shareBetaFeedback.setAccessibilityHelp(shareBetaFeedback.toolTip)
         helpMenu.addItem(shareBetaFeedback)
 
+        let suggestFeature = NSMenuItem(
+            title: "Suggest a Feature…",
+            action: #selector(AppDelegate.suggestFeature(_:)),
+            keyEquivalent: ""
+        )
+        suggestFeature.toolTip =
+            "Opens the official GitHub feature request form in your browser. "
+            + "Describe the problem without including private terminal data or credentials."
+        suggestFeature.setAccessibilityHelp(suggestFeature.toolTip)
+        helpMenu.addItem(suggestFeature)
+
         helpMenu.addItem(.separator())
         let copyDiary = NSMenuItem(
             title: "Copy Redacted Diagnostics for Bug Report",
