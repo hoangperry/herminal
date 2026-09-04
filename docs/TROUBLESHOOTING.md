@@ -8,6 +8,9 @@ If you can't find your symptom here, see `docs/FAQ.md` and then
 file a bug using the GitHub template (it auto-prompts for the
 diagnostic output below).
 
+From the running app, choose **Help > Troubleshooting Guide…** (or search for
+it in the command palette) to return here without hunting through the repo.
+
 ---
 
 ## "herminal crashes on launch"
