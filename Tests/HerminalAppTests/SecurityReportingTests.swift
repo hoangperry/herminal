@@ -24,7 +24,7 @@ struct SecurityReportingTests {
 
         #expect(helpItem.action == #selector(AppDelegate.reportSecurityIssue(_:)))
         #expect(helpItem.isEnabled)
-        #expect(problemIndex < securityIndex)
+        #expect(securityIndex < problemIndex)
         #expect(
             helpItem.toolTip
                 == "Opens GitHub private vulnerability reporting. Never put security details in a public issue."
@@ -32,9 +32,16 @@ struct SecurityReportingTests {
         #expect(helpItem.accessibilityHelp() == helpItem.toolTip)
 
         let actions = CommandPaletteCatalog.actions(from: menu)
+        let paletteSecurityIndex = try #require(actions.firstIndex {
+            $0.id == "report-security-issue"
+        })
+        let paletteProblemIndex = try #require(actions.firstIndex {
+            $0.id == "report-problem"
+        })
         let paletteItem = try #require(actions.first {
             $0.id == "report-security-issue"
         })
+        #expect(paletteSecurityIndex < paletteProblemIndex)
         #expect(paletteItem.title == "Report a Security Issue")
         #expect(
             paletteItem.subtitle

@@ -345,6 +345,14 @@ enum CommandPaletteCatalog {
             selector: #selector(AppDelegate.checkForUpdates(_:))
         ),
         .init(
+            id: "report-security-issue",
+            title: "Report a Security Issue",
+            subtitle: "Open GitHub private vulnerability reporting; never file security details as a public issue",
+            icon: "lock.shield",
+            shortcutDisplay: nil,
+            selector: #selector(AppDelegate.reportSecurityIssue(_:))
+        ),
+        .init(
             id: "copy-redacted-diagnostics",
             title: "Copy Redacted Diagnostics for Bug Report",
             subtitle: "Copy the latest 200 privacy-redacted diagnostic entries for a bug report",
@@ -359,14 +367,6 @@ enum CommandPaletteCatalog {
             icon: "exclamationmark.bubble",
             shortcutDisplay: nil,
             selector: #selector(AppDelegate.reportProblem(_:))
-        ),
-        .init(
-            id: "report-security-issue",
-            title: "Report a Security Issue",
-            subtitle: "Open GitHub private vulnerability reporting; never file security details as a public issue",
-            icon: "lock.shield",
-            shortcutDisplay: nil,
-            selector: #selector(AppDelegate.reportSecurityIssue(_:))
         ),
         .init(
             id: "share-beta-feedback",

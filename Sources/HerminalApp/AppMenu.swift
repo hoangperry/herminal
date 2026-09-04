@@ -454,6 +454,17 @@ enum AppMenu {
         contributorGuide.setAccessibilityHelp(contributorGuide.toolTip)
         helpMenu.addItem(contributorGuide)
 
+        let reportSecurityIssue = NSMenuItem(
+            title: "Report a Security Issue…",
+            action: #selector(AppDelegate.reportSecurityIssue(_:)),
+            keyEquivalent: ""
+        )
+        reportSecurityIssue.toolTip =
+            "Opens GitHub private vulnerability reporting. "
+            + "Never put security details in a public issue."
+        reportSecurityIssue.setAccessibilityHelp(reportSecurityIssue.toolTip)
+        helpMenu.addItem(reportSecurityIssue)
+
         helpMenu.addItem(.separator())
         let copyDiary = NSMenuItem(
             title: "Copy Redacted Diagnostics for Bug Report",
@@ -474,17 +485,6 @@ enum AppMenu {
             + "Copy redacted diagnostics first; herminal never uploads them."
         reportProblem.setAccessibilityHelp(reportProblem.toolTip)
         helpMenu.addItem(reportProblem)
-
-        let reportSecurityIssue = NSMenuItem(
-            title: "Report a Security Issue…",
-            action: #selector(AppDelegate.reportSecurityIssue(_:)),
-            keyEquivalent: ""
-        )
-        reportSecurityIssue.toolTip =
-            "Opens GitHub private vulnerability reporting. "
-            + "Never put security details in a public issue."
-        reportSecurityIssue.setAccessibilityHelp(reportSecurityIssue.toolTip)
-        helpMenu.addItem(reportSecurityIssue)
 
         return mainMenu
     }
