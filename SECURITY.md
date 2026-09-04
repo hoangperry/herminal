@@ -2,10 +2,8 @@
 
 ## Supported versions
 
-Until public v1 is released, only the latest public release and `main` receive
-security fixes. There is no LTS; users should update to the newest public
-release containing the fix. Supported-version details will be updated when v1
-is published.
+The latest public release and `main` receive security fixes. There is no LTS;
+users should update to the newest public release containing the fix.
 
 ## What's in scope
 
