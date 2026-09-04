@@ -443,6 +443,17 @@ enum AppMenu {
         suggestFeature.setAccessibilityHelp(suggestFeature.toolTip)
         helpMenu.addItem(suggestFeature)
 
+        let contributorGuide = NSMenuItem(
+            title: "Contribute to herminal…",
+            action: #selector(AppDelegate.openContributorGuide(_:)),
+            keyEquivalent: ""
+        )
+        contributorGuide.toolTip =
+            "Opens the official contributor guide in your browser. "
+            + "Review scope and testing requirements before opening a pull request."
+        contributorGuide.setAccessibilityHelp(contributorGuide.toolTip)
+        helpMenu.addItem(contributorGuide)
+
         helpMenu.addItem(.separator())
         let copyDiary = NSMenuItem(
             title: "Copy Redacted Diagnostics for Bug Report",

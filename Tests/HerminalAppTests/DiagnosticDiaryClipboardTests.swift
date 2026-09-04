@@ -198,6 +198,50 @@ struct DiagnosticDiaryClipboardTests {
         )
     }
 
+    @Test("Help and command palette expose the official contributor guide")
+    func contributorGuideEntryPoints() throws {
+        let menu = AppMenu.build(
+            openWorkspaceSubmenu: NSMenu(title: "Open Workspace")
+        )
+        let helpMenu = try #require(AppMenu.helpMenu(in: menu))
+        let helpItem = try #require(helpMenu.items.first {
+            $0.title == "Contribute to herminal…"
+        })
+        let featureIndex = try #require(helpMenu.items.firstIndex {
+            $0.title == "Suggest a Feature…"
+        })
+        let contributorIndex = try #require(helpMenu.items.firstIndex {
+            $0.title == "Contribute to herminal…"
+        })
+        let separatorIndex = try #require(helpMenu.items.firstIndex { $0.isSeparatorItem })
+
+        #expect(helpItem.action == #selector(AppDelegate.openContributorGuide(_:)))
+        #expect(helpItem.isEnabled)
+        #expect(featureIndex < contributorIndex)
+        #expect(contributorIndex < separatorIndex)
+        #expect(
+            helpItem.toolTip
+                == "Opens the official contributor guide in your browser. Review scope and testing requirements before opening a pull request."
+        )
+        #expect(helpItem.accessibilityHelp() == helpItem.toolTip)
+
+        let actions = CommandPaletteCatalog.actions(from: menu)
+        let paletteItem = try #require(actions.first { $0.id == "contribute" })
+        #expect(paletteItem.title == "Contribute to herminal")
+        #expect(
+            paletteItem.subtitle
+                == "Read the contributor guide (CONTRIBUTING.md): scope, setup, tests, and pull request requirements"
+        )
+        #expect(paletteItem.selector == #selector(AppDelegate.openContributorGuide(_:)))
+        #expect(paletteItem.menuPath == "Help")
+        for query in ["contributor guide", "contributing", "pull request"] {
+            #expect(
+                CommandPaletteView.filteredActions(actions, query: query)
+                    .contains { $0.id == "contribute" }
+            )
+        }
+    }
+
     @Test("bug reporting opens the official template exactly once")
     func bugReportDestination() {
         var destinations: [URL] = []
@@ -276,6 +320,23 @@ struct DiagnosticDiaryClipboardTests {
         )
     }
 
+    @Test("contributor guide opens the official main-branch document exactly once")
+    func contributorGuideDestination() {
+        var destinations: [URL] = []
+
+        let outcome = SupportIssueReporter.openContributorGuide { destination in
+            destinations.append(destination)
+            return true
+        }
+
+        #expect(outcome == .opened)
+        #expect(destinations == [SupportIssueReporter.contributorGuideURL])
+        #expect(
+            SupportIssueReporter.contributorGuideURL.absoluteString
+                == "https://github.com/hoangperry/herminal/blob/main/CONTRIBUTING.md"
+        )
+    }
+
     @Test("beta feedback browser failures keep a copyable privacy-safe recovery")
     func betaFeedbackFailureRecovery() {
         let pasteboard = NSPasteboard.withUniqueName()
@@ -336,6 +397,35 @@ struct DiagnosticDiaryClipboardTests {
             pasteboard.string(forType: .string)
                 == SupportIssueReporter.featureRequestURL.absoluteString
         )
+    }
+
+    @Test("contributor guide failures keep an accessible manual recovery")
+    func contributorGuideFailureRecovery() throws {
+        let pasteboard = NSPasteboard.withUniqueName()
+        let outcome = SupportIssueReporter.openContributorGuide { _ in false }
+        let presentation = SupportIssueReporter.contributorGuideOpenFailureAlert
+        let manualRecoveryURL = try #require(presentation.manualRecoveryURL)
+
+        #expect(outcome == .failed)
+        #expect(presentation.messageText == "Couldn’t Open the Contributor Guide")
+        #expect(!presentation.informativeText.contains(manualRecoveryURL.absoluteString))
+        #expect(presentation.informativeText.contains("paste it into any browser"))
+        #expect(presentation.manualRecoveryURL == SupportIssueReporter.contributorGuideURL)
+        #expect(presentation.copyButtonTitle == "Copy Contributor Guide URL")
+        #expect(presentation.cancelButtonTitle == "Close")
+
+        let manualURLField = AppDelegate.makeSupportIssueRecoveryURLField(
+            for: SupportIssueReporter.contributorGuideURL,
+            accessibilityLabel: "Contributor guide URL"
+        )
+        #expect(manualURLField.stringValue == manualRecoveryURL.absoluteString)
+        #expect(manualURLField.isSelectable)
+        #expect(!manualURLField.isEditable)
+        #expect(manualURLField.accessibilityLabel() == "Contributor guide URL")
+
+        let copyOutcome = SupportIssueReporter.copyContributorGuideURL(to: pasteboard)
+        #expect(copyOutcome == .copied)
+        #expect(pasteboard.string(forType: .string) == manualRecoveryURL.absoluteString)
     }
 
     @Test("non-empty redacted diagnostics replace the clipboard")

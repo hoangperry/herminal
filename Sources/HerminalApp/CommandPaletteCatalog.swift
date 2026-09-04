@@ -377,6 +377,14 @@ enum CommandPaletteCatalog {
             selector: #selector(AppDelegate.suggestFeature(_:))
         ),
         .init(
+            id: "contribute",
+            title: "Contribute to herminal",
+            subtitle: "Read the contributor guide (CONTRIBUTING.md): scope, setup, tests, and pull request requirements",
+            icon: "hammer",
+            shortcutDisplay: nil,
+            selector: #selector(AppDelegate.openContributorGuide(_:))
+        ),
+        .init(
             id: "import-ssh",
             title: "Import ~/.ssh/config",
             subtitle: "One-shot upsert into SSH host list",
